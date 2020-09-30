@@ -1,0 +1,3 @@
+package wakeupmac;
+
+@license(LGPL);
