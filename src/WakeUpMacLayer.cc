@@ -13,7 +13,10 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
+#include "inet/common/ModuleAccess.h"
 #include "WakeUpMacLayer.h"
+using namespace inet;
+using namespace physicallayer;
 
 Define_Module(WakeUpMacLayer);
 
@@ -25,7 +28,15 @@ void WakeUpMacLayer::initialize(int stage) {
         wakeUpRadioOutGateId = findGate("wakeUpRadioOut");
     }
     else if (stage == INITSTAGE_LINK_LAYER) {
+        cModule *radioModule = getModuleFromPar<cModule>(par("dataRadioModule"), this);
+        radioModule->subscribe(IRadio::radioModeChangedSignal, this);
+        radioModule->subscribe(IRadio::transmissionStateChangedSignal, this);
+        dataRadio = check_and_cast<IRadio *>(radioModule);
 
+        radioModule = getModuleFromPar<cModule>(par("wakeUpRadioModule"), this);
+        radioModule->subscribe(IRadio::radioModeChangedSignal, this);
+        radioModule->subscribe(IRadio::transmissionStateChangedSignal, this);
+        wakeUpRadio = check_and_cast<IRadio *>(radioModule);
     }
 }
 
@@ -34,11 +45,33 @@ void WakeUpMacLayer::handleLowerPacket(Packet *packet) {
 }
 
 void WakeUpMacLayer::handleLowerCommand(cMessage *msg) {
-    // Process command from the radio (or wake-up radio)
+    // Process command from the wake-up radio or delegate handler
+    if (msg->getArrivalGateId() == wakeUpRadioInGateId){
+        EV_DEBUG << "Received  wake-up command" << endl;
+    }
+    else{
+        MacProtocolBase::handleLowerCommand(msg);
+    }
 }
 
-void WakeUpMacLayer::isLowerMessage(cMessage *msg) {
+void WakeUpMacLayer::receiveSignal(cComponent *source, simsignal_t signalID,
+        intval_t value, cObject *details) {
+    Enter_Method_Silent();
+    if (signalID == IRadio::transmissionStateChangedSignal) {
+        // Handle both the data transmission ending and the wake-up transmission ending.
+        // They should never happen at the same time, so one variable is enough
+        // to manage both
+        IRadio::TransmissionState newRadioTransmissionState = static_cast<IRadio::TransmissionState>(value);
+        if (transmissionState == IRadio::TRANSMISSION_STATE_TRANSMITTING && newRadioTransmissionState == IRadio::TRANSMISSION_STATE_IDLE) {
+            // KLUDGE: we used to get a cMessage from the radio (the identity was not important)
+            stepMacSM(EV_TODO, new cMessage("Transmission over"));
+        }
+        transmissionState = newRadioTransmissionState;
+    }
+}
+
+bool WakeUpMacLayer::isLowerMessage(cMessage *msg) {
     // Check if message comes from lower gate or wake-up radio
-    return MacProtocolMessage::isLowerMessage(cMessage *msg)
-              || message->getArrivalGateId() == wakeUpRadioInGateId;
+    return MacProtocolBase::isLowerMessage(msg)
+              || msg->getArrivalGateId() == wakeUpRadioInGateId;
 }

@@ -21,6 +21,11 @@ import inet.linklayer.contract.IMacProtocol;
 
 module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
 {
+    parameters:
+        // Assumes MAC layer is within an interface
+        string dataRadioModule = default("^.dataRadio");   // The path to the Radio module
+        string wakeUpRadioModule = default("^.wakeUpRadio");   // The path to the Wake up radio
+        
     gates:
         input wakeUpRadioIn;
         output wakeUpRadioOut;

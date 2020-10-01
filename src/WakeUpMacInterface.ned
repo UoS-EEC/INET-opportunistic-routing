@@ -32,7 +32,6 @@ import inet.networklayer.common.InterfaceEntry;
 import inet.physicallayer.contract.packetlevel.IRadio;
 import inet.physicallayer.ieee802154.packetlevel.Ieee802154NarrowbandDimensionalRadio;
 import inet.physicallayer.ieee802154.packetlevel.Ieee802154NarrowbandRadio;
-import wakeupmac.WakeUpMacLayer;
 
 module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
 {
@@ -87,7 +86,7 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
             
         }
         mac: WakeUpMacLayer{
-        
+        	
         }
     connections:
         upperLayerIn --> mac.upperLayerIn;

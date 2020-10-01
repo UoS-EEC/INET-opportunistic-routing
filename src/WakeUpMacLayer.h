@@ -42,15 +42,33 @@ class INET_API WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
 
 
   protected:
+
+    /** @brief MAC state machine events.
+     * See state diagram.*/
+    enum t_mac_event {
+        EV_TODO
+    };
+
     int wakeUpRadioInGateId = -1;
     int wakeUpRadioOutGateId = -1;
 
     /** @brief The radio. */
-    physicallayer::IRadio *radio;
+    physicallayer::IRadio *dataRadio;
+    physicallayer::IRadio *wakeUpRadio;
     physicallayer::IRadio::TransmissionState transmissionState;
 
     virtual void initialize(int stage) override;
-    virtual void isLowerMessage(cMessage *message) override;
+    virtual bool isLowerMessage(cMessage *message) override;
+    virtual void configureInterfaceEntry() override;
+
+    /** @brief Execute a step in the MAC state machine */
+    void stepMacSM(t_mac_event event, cMessage *msg);
+
+    // OperationalBase:
+    virtual void handleStartOperation(LifecycleOperation *operation) override;
+    virtual void handleStopOperation(LifecycleOperation *operation) override;
+    virtual void handleCrashOperation(LifecycleOperation *operation) override;
+
 };
 
 #endif
