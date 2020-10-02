@@ -36,15 +36,16 @@ import inet.physicallayer.ieee802154.packetlevel.Ieee802154NarrowbandRadio;
 module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
 {
     parameters:
-        @class(InterfaceEntry);
+        @class(WakeUpMacInterface);
         string interfaceTableModule;
         string energySourceModule = default("");
         *.interfaceTableModule = default(absPath(interfaceTableModule));
         *.energySourceModule = default(absPath(energySourceModule));
+        **.antenna.mobility.typename = "";
         @display("i=block/ifcard");
         
         //Radio settings
-        *.centerFrequency = 868MHz;
+        *.centerFrequency = 868MHz; //Data and wake-up radio do not need to be same band
         *.energyConsumer.sleepPowerConsumption = 4.5mW;
         *.energyConsumer.transmitterIdlePowerConsumption = 1mW;
     
@@ -52,12 +53,13 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
         input upperLayerIn;
         output upperLayerOut;
         input radioIn @labels(ISignal);
+        input wakeUpRadioIn @labels(ISignal2);
         
     submodules:
         dataRadio: Ieee802154NarrowbandRadio {
             @display("p=122,179");
         	// From TI CC1120 868MHz Tranceiver
-            switchingTimes = "us 0 400 1000 1000 1000 100 0 166 166 166 100 0 0 50 50 100 0 50 0 50 100 0 50 50 0";
+            switchingTimes = "ms 0 0.400 1 1 1 0.100 0 0.166 0.166 0.166 0.100 0 0 0.050 0.050 0.100 0 0.050 0 0.050 0.100 0 0.050 0.050 0";
             receiver.energyDetection = -100dBm;
             receiver.sensitivity = -115dBm;
             transmitter.power = 0.001W; // 15dBm
@@ -73,7 +75,7 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
             @display("p=295,179");
         	// From TI CC1120 868MHz Tranceiver
             // Reduced X->Listening transition to 100us for WuRx abstraction
-        	switchingTimes = "us 0 400 100 1000 1000 100 0 100 166 166 100 0 0 50 50 100 0 50 0 50 100 0 50 50 0"; 
+        	switchingTimes = "ms 0 0.400 0.100 1 1 0.100 0 0.100 0.166 0.166 0.100 0 0 0.050 0.050 0.100 0 0.050 0 0.050 0.100 0 0.050 0.050 0"; 
             receiver.energyDetection = -65dBm;
             receiver.sensitivity = -50dBm;
             transmitter.power = 0.030W; // 15dBm
@@ -94,7 +96,7 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
         mac.wakeUpRadioOut --> wakeUpRadio.upperLayerIn;
         mac.upperLayerOut --> { @display("m=n"); } --> upperLayerOut;
         radioIn --> { @display("m=s"); } --> dataRadio.radioIn;
-        radioIn --> { @display("m=s"); } --> wakeUpRadio.radioIn;
+        wakeUpRadioIn --> { @display("m=s"); } --> wakeUpRadio.radioIn;
         dataRadio.upperLayerOut --> mac.lowerLayerIn;
         wakeUpRadio.upperLayerOut --> mac.wakeUpRadioIn;
         

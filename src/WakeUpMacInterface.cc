@@ -13,21 +13,16 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package wakeupmac;
-import inet.linklayer.base.MacProtocolBase;
-import inet.linklayer.contract.IMacProtocol;
+#include "WakeUpMacInterface.h"
 
+Define_Module(WakeUpMacInterface);
 
+//WakeUpMacInterface::WakeUpMacInterface() {
+//    // TODO Auto-generated constructor stub
+//
+//}
+//
+//WakeUpMacInterface::~WakeUpMacInterface() {
+//    // TODO Auto-generated destructor stub
+//}
 
-module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
-{
-    parameters:
-        @class(WakeUpMacLayer);
-        // Assumes MAC layer is within an interface
-        string dataRadioModule = default("^.dataRadio");   // The path to the Radio module
-        string wakeUpRadioModule = default("^.wakeUpRadio");   // The path to the Wake up radio
-        
-    gates:
-        input wakeUpRadioIn;
-        output wakeUpRadioOut;
-}

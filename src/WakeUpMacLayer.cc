@@ -70,8 +70,30 @@ void WakeUpMacLayer::receiveSignal(cComponent *source, simsignal_t signalID,
     }
 }
 
+void WakeUpMacLayer::handleUpperPacket(Packet *packet) {
+}
+
+void WakeUpMacLayer::handleSelfMessage(cMessage *msg) {
+}
+
 bool WakeUpMacLayer::isLowerMessage(cMessage *msg) {
     // Check if message comes from lower gate or wake-up radio
     return MacProtocolBase::isLowerMessage(msg)
               || msg->getArrivalGateId() == wakeUpRadioInGateId;
+}
+
+void WakeUpMacLayer::configureInterfaceEntry() {
+}
+
+void WakeUpMacLayer::stepMacSM(t_mac_event event, cMessage *msg) {
+    EV_DEBUG << "Wake-up MAC received unknown event";
+}
+
+void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
+}
+
+void WakeUpMacLayer::handleStopOperation(LifecycleOperation *operation) {
+}
+
+void WakeUpMacLayer::handleCrashOperation(LifecycleOperation *operation) {
 }

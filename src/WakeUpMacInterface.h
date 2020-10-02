@@ -13,21 +13,18 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package wakeupmac;
-import inet.linklayer.base.MacProtocolBase;
-import inet.linklayer.contract.IMacProtocol;
+#ifndef WAKEUPMACINTERFACE_H_
+#define WAKEUPMACINTERFACE_H_
+
+#include "inet/networklayer/common/InterfaceEntry.h"
+
+using namespace inet;
 
 
+class INET_API WakeUpMacInterface : public InterfaceEntry{
+public:
+//    WakeUpMacInterface();
+//    virtual ~WakeUpMacInterface();
+};
 
-module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
-{
-    parameters:
-        @class(WakeUpMacLayer);
-        // Assumes MAC layer is within an interface
-        string dataRadioModule = default("^.dataRadio");   // The path to the Radio module
-        string wakeUpRadioModule = default("^.wakeUpRadio");   // The path to the Wake up radio
-        
-    gates:
-        input wakeUpRadioIn;
-        output wakeUpRadioOut;
-}
+#endif /* WAKEUPMACINTERFACE_H_ */
