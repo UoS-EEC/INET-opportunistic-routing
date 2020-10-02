@@ -21,7 +21,7 @@
 using namespace inet;
 
 
-class INET_API WakeUpMacInterface : public InterfaceEntry{
+class WakeUpMacInterface : public InterfaceEntry{
 public:
 //    WakeUpMacInterface();
 //    virtual ~WakeUpMacInterface();

@@ -30,7 +30,7 @@ using namespace inet;
 /**
  * TODO - Generated class
  */
-class INET_API WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
+class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
 {
   public:
     virtual void handleUpperPacket(Packet *packet) override;
