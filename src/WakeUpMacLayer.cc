@@ -37,6 +37,7 @@ void WakeUpMacLayer::initialize(int stage) {
         radioModule->subscribe(IRadio::radioModeChangedSignal, this);
         radioModule->subscribe(IRadio::transmissionStateChangedSignal, this);
         wakeUpRadio = check_and_cast<IRadio *>(radioModule);
+        wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
     }
 }
 

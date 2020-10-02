@@ -62,7 +62,7 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
             switchingTimes = "ms 0 0.400 1 1 1 0.100 0 0.166 0.166 0.166 0.100 0 0 0.050 0.050 0.100 0 0.050 0 0.050 0.100 0 0.050 0.050 0";
             receiver.energyDetection = -100dBm;
             receiver.sensitivity = -115dBm;
-            transmitter.power = 0.001W; // 15dBm
+            transmitter.power = 0.001W; // 0dBm
             energyConsumer.typename = "SensorStateBasedEpEnergyConsumer";
             energyConsumer.switchingPowerConsumption = 10mW;
             energyConsumer.receiverIdlePowerConsumption = 6mW;
@@ -77,7 +77,7 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
             // Reduced X->Listening transition to 100us for WuRx abstraction
         	switchingTimes = "ms 0 0.400 0.100 1 1 0.100 0 0.100 0.166 0.166 0.100 0 0 0.050 0.050 0.100 0 0.050 0 0.050 0.100 0 0.050 0.050 0"; 
             receiver.energyDetection = -65dBm;
-            receiver.sensitivity = -50dBm;
+            receiver.sensitivity = -55dBm;
             transmitter.power = 0.030W; // 15dBm
             energyConsumer.typename = "SensorStateBasedEpEnergyConsumer";
             energyConsumer.switchingPowerConsumption = 20uW;
