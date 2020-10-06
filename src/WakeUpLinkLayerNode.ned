@@ -42,12 +42,12 @@ module WakeUpLinkLayerNode extends LinkLayerNodeBase
         packetGenerator: ActivePacketSource {
             @display("p=507.15,297.675");
             packetLength = 8b;
-            productionInterval = 100s;
+            productionInterval = default(1s);
             packetData = 0x0F0F0F0FF0F0F0F0;
         }
         packetNullSink: ActivePacketSink {
             @display("p=360.675,288.22498");
-            collectionInterval = 1s;
+            collectionInterval = 0.5s;
         }
     connections:
         packetGenerator.out --> wlan[0].upperLayerIn;

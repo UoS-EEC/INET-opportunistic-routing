@@ -27,6 +27,8 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         string dataRadioModule = default("^.dataRadio");   // The path to the Radio module
         string wakeUpRadioModule = default("^.wakeUpRadio");   // The path to the Wake up radio
         
+        double txWakeUpWaitDuration @unit(s) = default(0.0006 s); // Must be bigger than radio OFF -> idle
+        double ackWaitDuration @unit(s) = default(0.0005 s); // Must be bigger than radio OFF -> idle
     gates:
         input wakeUpRadioIn;
         output wakeUpRadioOut;
