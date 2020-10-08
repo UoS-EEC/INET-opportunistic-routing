@@ -44,7 +44,8 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         activeRadio(nullptr),
         ackWaitDuration(0),
         txWakeUpWaitDuration(0),
-        headerLength(16)
+        headerLength(16),
+        wuLength(4)
       {}
     virtual ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
@@ -60,6 +61,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     simtime_t txWakeUpWaitDuration;
     simtime_t ackWaitDuration;
     int headerLength;
+    int wuLength;
 
 
     /** @brief MAC high level states */
@@ -96,6 +98,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     /*@}*/
     int wakeUpRadioInGateId = -1;
     int wakeUpRadioOutGateId = -1;
+    cMessage *wuPacketPrototype;
 
     /** @brief The radio. */
     physicallayer::IRadio *dataRadio;

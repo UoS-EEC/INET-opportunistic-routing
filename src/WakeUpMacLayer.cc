@@ -21,6 +21,7 @@
 #include "inet/linklayer/common/MacAddressTag_m.h"
 #include "inet/linklayer/csmaca/CsmaCaMacHeader_m.h"
 #include "inet/common/packet/chunk/Chunk.h"
+#include "WakeUpGram_m.h"
 using namespace inet;
 using namespace physicallayer;
 
@@ -39,6 +40,7 @@ void WakeUpMacLayer::initialize(int stage) {
         //Create timer messages
         wakeUpBackoffTimer = new cMessage("wake-up backoff");
         ackBackoffTimer = new cMessage("ack backoff");
+        wuPacketPrototype = new cMessage("Wake-up");
         txWakeUpWaitDuration = par("txWakeUpWaitDuration");
         ackWaitDuration = par("ackWaitDuration");
     }
@@ -177,7 +179,17 @@ void WakeUpMacLayer::stepTxSM(t_mac_event event, cMessage *msg) {
         if(event == EV_TX_START){
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
             txPacketInProgress = msg;
-            wuPacketInProgress = msg->dup();
+            auto wuHeader = makeShared<WakeUpGram>();
+            wuHeader->setChunkLength(B(wuLength));
+            wuHeader->setHeaderLengthField(B(wuLength).get());
+            wuHeader->setType(WU_BEACON);
+//            wuHeader->setProgress(0xFF);
+            wuHeader->setTransmitterAddress(MacAddress("aaaaaaaaaaaa"));
+            wuHeader->setReceiverAddress(MacAddress("aaaaaaaaaaaa"));
+            auto frame = new Packet("wake-up");
+            frame->insertAtFront(wuHeader);
+            frame->addTag<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
+            wuPacketInProgress = check_and_cast<cMessage*>(frame);
             changeActiveRadio(wakeUpRadio);
             updateTxState(TX_WAKEUP_WAIT);
             EV_DEBUG << "TX SM: EV_TX_START --> TX_WAKEUP_WAIT";
