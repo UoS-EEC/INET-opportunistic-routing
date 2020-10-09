@@ -43,18 +43,18 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
         *.energySourceModule = default(absPath(energySourceModule));
         **.antenna.mobility.typename = "";
         @display("i=block/ifcard");
-        
+
         //Radio settings
         *.centerFrequency = 868MHz; //Data and wake-up radio do not need to be same band
         *.energyConsumer.sleepPowerConsumption = 4.5mW;
         *.energyConsumer.transmitterIdlePowerConsumption = 1mW;
-    
+
     gates:
         input upperLayerIn;
         output upperLayerOut;
         input radioIn @labels(ISignal);
         input wakeUpRadioIn @labels(ISignal2);
-        
+
     submodules:
         dataRadio: Ieee802154NarrowbandRadio {
             @display("p=122,179");
@@ -63,32 +63,46 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
             receiver.energyDetection = -100dBm;
             receiver.sensitivity = -115dBm;
             transmitter.power = 0.001W; // 0dBm
+            // @brief not useful at the moment {
+            transmitter.bitrate = 200kbps;
+            transmitter.modulation = "QPSK"; //Closest Inet match to 4-GFSK
+            receiver.modulation = "QPSK";
+            // }(see computeIsListeningPossible and computeBitErrorRate)
             energyConsumer.typename = "SensorStateBasedEpEnergyConsumer";
             energyConsumer.switchingPowerConsumption = 10mW;
             energyConsumer.receiverIdlePowerConsumption = 6mW;
-        	energyConsumer.receiverReceivingPowerConsumption = 45mW;
+            energyConsumer.receiverReceivingPowerConsumption = 45mW;
             energyConsumer.receiverBusyPowerConsumption = 45mW;
-            energyConsumer.transmitterTransmittingPowerConsumption = 60mW; 
-            
+            energyConsumer.transmitterTransmittingPowerConsumption = 60mW;
+
         }
         wakeUpRadio: Ieee802154NarrowbandRadio {
             @display("p=295,179");
-        	// From TI CC1120 868MHz Tranceiver
+            // From TI CC1120 868MHz Tranceiver
             // Reduced X->Listening transition to 100us for WuRx abstraction
-        	switchingTimes = "ms 0 0.400 0.100 1 1 0.100 0 0.100 0.166 0.166 0.100 0.4 0 0.5 0.5 0.100 0 0.050 0 0.050 0.100 0 0.050 0.050 0"; 
+            switchingTimes = "ms 0 0.400 0.100 1 1 0.100 0 0.100 0.166 0.166 0.100 0.4 0 0.5 0.5 0.100 0 0.050 0 0.050 0.100 0 0.050 0.050 0";
             receiver.energyDetection = -65dBm;
-            receiver.sensitivity = -55dBm;
+            receiver.sensitivity = -55dBm; // Magno et al.
+            // @brief not useful at the moment {
+            receiver.bitrate = 10kbps; // 10.1109/WiMOB.2014.6962155
+            // }(see computeIsListeningPossible and computeBitErrorRate)
             transmitter.power = 0.030W; // 15dBm
+            transmitter.bitrate = 10kbps;
+            // @brief not useful at the moment {
+            transmitter.modulation = "BPSK"; //Closest Inet match to 4-GFSK
+            receiver.modulation = "BPSK";
+            // }(see computeIsListeningPossible and computeBitErrorRate)
             energyConsumer.typename = "SensorStateBasedEpEnergyConsumer";
             energyConsumer.switchingPowerConsumption = 20uW;
             energyConsumer.receiverIdlePowerConsumption = 8uW;
-        	energyConsumer.receiverBusyPowerConsumption = 8uW;
-        	energyConsumer.receiverReceivingPowerConsumption = 8uW;
+            energyConsumer.receiverBusyPowerConsumption = 8uW;
+            energyConsumer.receiverReceivingPowerConsumption = 8uW;
             energyConsumer.transmitterTransmittingPowerConsumption = 150mW;
-            
+
         }
-        mac: WakeUpMacLayer{
-        	
+        mac: WakeUpMacLayer {
+
+            @display("p=208,120");
         }
     connections:
         upperLayerIn --> mac.upperLayerIn;
@@ -99,5 +113,5 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
         wakeUpRadioIn --> { @display("m=s"); } --> wakeUpRadio.radioIn;
         dataRadio.upperLayerOut --> mac.lowerLayerIn;
         wakeUpRadio.upperLayerOut --> mac.wakeUpRadioIn;
-        
+
 }

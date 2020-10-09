@@ -17,7 +17,7 @@ package wakeupmac;
 
 import inet.node.base.LinkLayerNodeBase;
 import inet.queueing.source.ActivePacketSource;
-import inet.queueing.sink.ActivePacketSink;
+import inet.queueing.sink.PassivePacketSink;
 
 
 module WakeUpLinkLayerNode extends LinkLayerNodeBase
@@ -45,9 +45,8 @@ module WakeUpLinkLayerNode extends LinkLayerNodeBase
             productionInterval = default(1s);
             packetData = 0x0F0F0F0FF0F0F0F0;
         }
-        packetNullSink: ActivePacketSink {
+        packetNullSink: PassivePacketSink {
             @display("p=360.675,288.22498");
-            collectionInterval = 0.5s;
         }
     connections:
         packetGenerator.out --> wlan[0].upperLayerIn;
