@@ -29,6 +29,7 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         
         double txWakeUpWaitDuration @unit(s) = default(0.0006 s); // Must be bigger than radio OFF -> idle
         double ackWaitDuration @unit(s) = default(0.0005 s); // Must be bigger than radio OFF -> idle
+        double dataListeningDuration @unit(s) = default(0.001 s); // How long to listen after a wake-up
     gates:
         input wakeUpRadioIn;
         output wakeUpRadioOut;
