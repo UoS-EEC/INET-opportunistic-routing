@@ -27,6 +27,7 @@ network WakeUpLinkTest
 {
     parameters:
         visualizer.mediumVisualizer.displayCommunicationRanges = true;
+        radioMedium.mediumLimitCache.maxTransmissionDuration = 20ms;
         @display("bgb=147.92384,61.53135;scale=4");
     submodules:
         radioMedium: Ieee802154NarrowbandScalarRadioMedium {

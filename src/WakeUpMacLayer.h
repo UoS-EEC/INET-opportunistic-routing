@@ -47,9 +47,8 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         ackWaitDuration(0),
         txWakeUpWaitDuration(0),
         headerLength(16),
-        wuLength(4),
         dataListeningDuration(0),
-        wuAcceptResponseLimit(0)
+        wuApproveResponseLimit(0)
       {}
     virtual ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
@@ -66,9 +65,8 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     simtime_t txWakeUpWaitDuration;
     simtime_t ackWaitDuration;
     simtime_t dataListeningDuration;
-    simtime_t wuAcceptResponseLimit;
+    simtime_t wuApproveResponseLimit;
     int headerLength;
-    int wuLength;
 
     // TODO: Replace by type to represent accept, reject messagess
     const int WAKEUP_APPROVE = 502;
@@ -77,27 +75,26 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
 
     /** @brief MAC high level states */
     enum t_mac_state {
-        S_IDLE,
-        S_WAKEUP_LSN,
-        S_RECEIVE,
-        S_TRANSMIT
+        S_IDLE, // WuRx listening
+        S_WAKEUP_LSN, // WuRx receiving or processing
+        S_RECEIVE, // Data radio listening
+        S_TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
     };
 
     enum t_tx_state {
-        TX_IDLE,
-        TX_WAKEUP_WAIT,
-        TX_DATA_WAIT,
-        TX_DATA,
-        TX_ACK_WAIT,
-        TX_END
+        TX_IDLE, // Transmitter off
+        TX_WAKEUP_WAIT, // Tx wake-up when radio ready till wake-up finish
+        TX_DATA_WAIT, // Wait for receivers to wake-up
+        TX_DATA, // Send data when radio ready
+        TX_ACK_WAIT, // TODO: Listen for node acknowledging
+        TX_END // Reset
     };
 
     enum t_wu_state{
-        WU_IDLE,
-        WU_APPROVE_WAIT,
-        WU_WAKEUP_WAIT,
-        WU_LISTEN,
-        WU_ABORT
+        WU_IDLE, // WuRx listening
+        WU_APPROVE_WAIT, // Wait for approval for wake-up (call to net layer)
+        WU_WAKEUP_WAIT, // Wait for the data radio to start
+        WU_ABORT // Shutdown data radio and restart wake-up radio
     };
 
     enum t_rx_state{
@@ -151,10 +148,13 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     void stepMacSM(t_mac_event event, cMessage *msg);
     void updateMacState(t_mac_state newMacState);
     /** @brief Transmitter State Machine **/
+    bool txStateChange = false;
     t_tx_state txState;
     void stepTxSM(t_mac_event event, cMessage *msg);
     void updateTxState(t_tx_state newTxState);
     /** @brief Wake-up listening State Machine **/
+
+    bool wuStateChange = false;
     t_wu_state wuState;
     void stepWuSM(t_mac_event event, cMessage *msg);
     void updateWuState(t_wu_state newWuState);
