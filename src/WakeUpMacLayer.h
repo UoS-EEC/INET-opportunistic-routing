@@ -40,15 +40,22 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         wakeUpBackoffTimer(nullptr),
         ackBackoffTimer(nullptr),
         wuTimeout(nullptr),
+        wuPacketInProgress(nullptr),
         txPacketInProgress(nullptr),
+        rxPacketInProgress(nullptr),
         wakeUpRadio(nullptr),
         dataRadio(nullptr),
         activeRadio(nullptr),
         ackWaitDuration(0),
         txWakeUpWaitDuration(0),
-        headerLength(16),
         dataListeningDuration(0),
-        wuApproveResponseLimit(0)
+        wuApproveResponseLimit(0),
+        candiateRelayContentionProbability(0.7),
+        cumulativeAckBackoff(0),
+        acknowledgedForwarders(0),
+        maxWakeUpRetries(4), // TODO: Parameterize
+        txInProgressForwarders(0),
+        txInProgressRetries(0)
       {}
     virtual ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
@@ -66,11 +73,11 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     simtime_t ackWaitDuration;
     simtime_t dataListeningDuration;
     simtime_t wuApproveResponseLimit;
-    int headerLength;
 
-    // TODO: Replace by type to represent accept, reject messagess
+    // TODO: Replace by type to represent accept, reject messages
     const int WAKEUP_APPROVE = 502;
     const int WAKEUP_REJECT = 503;
+    double candiateRelayContentionProbability;
 
 
     /** @brief MAC high level states */
@@ -78,7 +85,8 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         S_IDLE, // WuRx listening
         S_WAKEUP_LSN, // WuRx receiving or processing
         S_RECEIVE, // Data radio listening
-        S_TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
+        S_TRANSMIT, // Transmitting (Wake-up, pause, transmit and wait for ack)
+        S_ACK // Transmitting ACK after receiving
     };
 
     enum t_tx_state {
@@ -110,6 +118,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         EV_WAKEUP_BACKOFF,
         EV_TX_READY,
         EV_TX_END,
+        EV_ACK_TIMEOUT,
         EV_WU_START,
         EV_WU_APPROVE,
         EV_WU_REJECT,
@@ -146,11 +155,18 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     void stepMacSM(t_mac_event event, cMessage *msg);
+    simtime_t cumulativeAckBackoff;
+    virtual void stepRxAckProcess(t_mac_event event, cMessage *msg);
     void updateMacState(t_mac_state newMacState);
     /** @brief Transmitter State Machine **/
     bool txStateChange = false;
     t_tx_state txState;
     void stepTxSM(t_mac_event event, cMessage *msg);
+    int acknowledgedForwarders;
+    int maxWakeUpRetries;
+    int txInProgressForwarders;
+    int txInProgressRetries;
+    virtual void stepTxAckProcess(t_mac_event event, cMessage *msg);
     void updateTxState(t_tx_state newTxState);
     /** @brief Wake-up listening State Machine **/
 
@@ -163,6 +179,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
 
     cMessage *wuPacketInProgress;
     cMessage *txPacketInProgress;
+    cMessage *rxPacketInProgress;
     void encapsulate(Packet *msg);
     void decapsulate(Packet *msg);
     bool startImmediateTransmission(cMessage *msg); // Return false if immediate transmission is not possible
