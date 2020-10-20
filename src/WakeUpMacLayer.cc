@@ -260,9 +260,9 @@ void WakeUpMacLayer::stepMacSM(t_mac_event event, cMessage *msg) {
     }
 }
 
+// Receive process that can be overridden
 void WakeUpMacLayer::stepRxAckProcess(t_mac_event event, cMessage *msg) {
     if(event == EV_DATA_RECEIVED){
-        // Receive process that can be overridden
         Packet* incomingFrame = check_and_cast<Packet*>(msg);
         auto incomingMacData = incomingFrame->peekAtFront<WakeUpGram>();
         if(incomingMacData->getType()==WU_DATA){
@@ -273,11 +273,15 @@ void WakeUpMacLayer::stepRxAckProcess(t_mac_event event, cMessage *msg) {
                 auto storedMacData = storedFrame->peekAtFront<WakeUpGram>();
                 if(storedMacData->getTransmitterAddress() == incomingMacData->getTransmitterAddress()){
                     // Enough to say packet matches
+                    // Cancel delivery timer until next round
+                    cancelEvent(wuTimeout);
+                    // Cancel queued ack if existing
                     cancelEvent(ackBackoffTimer);
                     // Reset cumulative ack backoff
 
                     // Start CCA Timer to send Ack
-                    if(uniform(0,1)<candiateRelayContentionProbability){
+                    double relayDiceRoll = uniform(0,1);
+                    if(relayDiceRoll<candiateRelayContentionProbability){
                         scheduleAt(simTime() + uniform(0,ackWaitDuration), ackBackoffTimer);
                     }
                     else{
@@ -304,7 +308,7 @@ void WakeUpMacLayer::stepRxAckProcess(t_mac_event event, cMessage *msg) {
         else if(incomingMacData->getType()==WU_ACK){
             // Overheard Ack from neighbor
             EV_WARN << "Overheard Ack from neighbor is it worth sending own ACK?" << endl;
-            updateMacState(S_ACK);
+            // Leave in current mac state which could be S_RECEIVE or S_ACK
         }
         else{
             updateMacState(S_RECEIVE);
@@ -485,6 +489,7 @@ void WakeUpMacLayer::stepTxAckProcess(t_mac_event event, cMessage *msg) {
                 // Skip listening for any more and send data again to reduce forwarders
                 updateMacState(S_TRANSMIT);
                 updateTxState(TX_DATA);
+                scheduleAt(simTime(), wakeUpBackoffTimer);
             }
             else{
                 updateTxState(TX_ACK_WAIT);
@@ -494,21 +499,30 @@ void WakeUpMacLayer::stepTxAckProcess(t_mac_event event, cMessage *msg) {
         }
     }
     else if(event == EV_ACK_TIMEOUT){
-        txInProgressForwarders = txInProgressForwarders+acknowledgedForwarders; // TODO: Check forwarders uniqueness
         // TODO: Get required forwarders count from packetTag from n/w layer
-        int minimumRequiredForwarders = 2;
-        // TODO: Test this with more nodes
-        if(txInProgressForwarders<minimumRequiredForwarders && txInProgressRetries<maxWakeUpRetries){
+        int requiredForwarders = 1;
+        // TODO: Test this with more nodes should this include forwarders from prev timeslot?
+        if(acknowledgedForwarders>requiredForwarders){
+            // Go straight to immediate data retransmission to reduce forwarders
+            updateMacState(S_TRANSMIT);
+            updateTxState(TX_DATA);
+            scheduleAt(simTime(), wakeUpBackoffTimer);
+
+        }
+        else{
+            txInProgressForwarders = txInProgressForwarders+acknowledgedForwarders; // TODO: Check forwarders uniqueness
+            if(txInProgressForwarders<requiredForwarders && txInProgressRetries<maxWakeUpRetries){
             // Try transmitting wake-up again after standard ack backoff
             scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
             updateTxState(TX_IDLE);
-        }
-        else{
-            // Discard Link layer packet
-            txPacketInProgress = nullptr;
-            updateTxState(TX_END);
-            //The Radio Receive->Sleep triggers next SM transition
-            dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
+            }
+            else{
+                // Discard Link layer packet
+                txPacketInProgress = nullptr;
+                updateTxState(TX_END);
+                //The Radio Receive->Sleep triggers next SM transition
+                dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
+            }
         }
     }
 }
