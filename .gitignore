@@ -1,0 +1,52 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Auto generated data
+.tkenvrc
+simulations/Makefile
+simulations/out/
+*_m.h
+*_m.cc
+Makefile
+src/Makefile
+src/out/
+out/gcc-release/
+
+out
+simulations/results/
+
+# Misc
+*.swp
+.cmdenv-log
+
+# Ignore Python compiled module files
+*.pyc
+
+# qt GUI settings
+.qtenvrc
