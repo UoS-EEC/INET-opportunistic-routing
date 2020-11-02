@@ -6,10 +6,10 @@
 
 import inet.common.packet.chunk.Chunk;
 import inet.linklayer.common.MacAddress;
-
 enum WakeUpGramType {
     WU_DATA = 1;
     WU_ACK = 2;
+    WU_SQUASH = 3; // Squash the transmitted network packet, as reception confirmed elsewhere
     WU_BEACON = 0xF5;
 };
 
@@ -21,8 +21,8 @@ class WakeUpGram extends inet::FieldsChunk
 }
 class WakeUpBeacon extends WakeUpGram
 {
-    type = WU_BEACON;
-    uint16_t minProgress;    // header length in bytes, max value is 255 (1 byte) in a wake-up this forms the preamble
+    type = WU_BEACON; //Max value is 255 (1 byte) in a wake-up this forms the preamble
+    uint16_t minProgress;  // Actually represented by the OpportunisticRpl::Progress type
     chunkLength = inet::B(15);
 }
 
@@ -34,5 +34,6 @@ class WakeUpDatagram extends WakeUpBeacon
 class WakeUpAck extends WakeUpGram
 {
     type = WU_ACK;
+    uint8_t length;
     chunkLength = inet::B(13);
 }

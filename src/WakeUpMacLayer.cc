@@ -107,7 +107,10 @@ void WakeUpMacLayer::handleLowerCommand(cMessage *msg) {
 void WakeUpMacLayer::handleUpperPacket(Packet *packet) {
     // step Mac state machine
     // Make Mac owned copy of message
-    packet->addTagIfAbsent<MacAddressReq>()->setDestAddress(MacAddress("aaaaaaaaaaaa"));
+    auto addressRequest =packet->addTagIfAbsent<MacAddressReq>();
+    if(addressRequest->getDestAddress() == MacAddress::UNSPECIFIED_ADDRESS){
+        addressRequest->setDestAddress(MacAddress("aaaaaaaaaaaa"));
+    }
     auto macPkt = check_and_cast<Packet*>(packet);
     encapsulate(macPkt);
     stepMacSM(EV_QUEUE_SEND, macPkt);
@@ -200,6 +203,13 @@ bool WakeUpMacLayer::isLowerMessage(cMessage *msg) {
 }
 
 void WakeUpMacLayer::configureInterfaceEntry() {
+    //Part from Ieee802154Mac
+    MacAddress address = parseMacAddressParameter(par("address"));
+
+    // generate a link-layer address to be used as interface token for IPv6
+    interfaceEntry->setMacAddress(address);
+
+    interfaceEntry->setMtu(255-16);
     interfaceEntry->setMulticast(true);
     interfaceEntry->setBroadcast(true);
     interfaceEntry->setPointToPoint(false);
@@ -555,6 +565,7 @@ void WakeUpMacLayer::handleStopOperation(LifecycleOperation *operation) {
 }
 
 WakeUpMacLayer::~WakeUpMacLayer() {
+    // TODO: Move this to the finish function
     // TODO: Cleanup allocated shared packets
 //    delete wuPacketInProgress;
 //    delete txPacketInProgress;
