@@ -41,11 +41,11 @@ void OpportunisticRpl::initialize(int stage) {
         else
             throw cRuntimeError("No non-loopback interface found!");
 
-        // Initialize progress table
+        // Initialize expectedCost table
         L3Address hubAddress(par("hubAddress"));
-        Progress hubProgress(par("hubProgress"));
+        ExpectedCost hubExpectedCost(par("hubExpectedCost"));
         if(hubAddress.getType() == L3Address::AddressType::IPv4){
-            progressTable.insert(std::pair<L3Address, Progress>(hubAddress, hubProgress));
+            expectedCostTable.insert(std::pair<L3Address, ExpectedCost>(hubAddress, hubExpectedCost));
         }
     }
 }
@@ -60,18 +60,18 @@ void OpportunisticRpl::handleLowerPacket(Packet *packet) {
         decapsulate(packet);
         sendUp(packet);
     }
-    else if(progressTable.find(header->getDestAddr())!=progressTable.end()){
+    else if(expectedCostTable.find(header->getDestAddr())!=expectedCostTable.end()){
         // Route to a node in the routing table
         // Packet not destined for this node
-        // Decrease TTL, calculate progress and Forward.
+        // Decrease TTL, calculate expectedCost and Forward.
         // Possible "trim" required
         // packet->trim();
         auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
         auto newTtl = mutableHeader->getTtl()-1;
         mutableHeader->setTtl(newTtl);
         packet->insertAtFront(mutableHeader);
-        Progress currentProgress = progressTable.at(header->getDestAddr());
-        setDownControlInfo(packet, MacAddress::STP_MULTICAST_ADDRESS, currentProgress);
+        ExpectedCost currentExpectedCost = expectedCostTable.at(header->getDestAddr());
+        setDownControlInfo(packet, MacAddress::STP_MULTICAST_ADDRESS, currentExpectedCost);
     }
 }
 
@@ -86,7 +86,7 @@ void OpportunisticRpl::encapsulate(Packet *packet) {
     setDownControlInfo(packet, MacAddress::STP_MULTICAST_ADDRESS, 65535);
 }
 
-void OpportunisticRpl::setDownControlInfo(Packet* packet, MacAddress macMulticast, Progress progress) {
+void OpportunisticRpl::setDownControlInfo(Packet* packet, MacAddress macMulticast, ExpectedCost expectedCost) {
     packet->getTags().addTagIfAbsent<MacAddressReq>()->setDestAddress(macMulticast);
     packet->getTags().addTagIfAbsent<PacketProtocolTag>()->setProtocol(&OpportunisticRouting);
     packet->getTags().addTagIfAbsent<DispatchProtocolInd>()->setProtocol(&OpportunisticRouting);
@@ -153,4 +153,22 @@ void OpportunisticRpl::handleStopOperation(LifecycleOperation *op) {
 }
 
 void OpportunisticRpl::handleCrashOperation(LifecycleOperation *op) {
+}
+
+bool OpportunisticRpl::queryAcceptPacket(MacAddress destination,
+        ExpectedCost currentExpectedCost) {
+    L3Address l3dest = arp->getL3AddressFor(destination);
+    if(l3dest==nodeAddress){
+        // Mac layer should probably perform this check anyway
+        return true;
+    }
+    else if(expectedCostTable.find(l3dest)!=expectedCostTable.end()){
+        ExpectedCost newCost = expectedCostTable.at(l3dest);
+        if(newCost < currentExpectedCost){
+            return true;
+        }
+    }
+    // Insufficient progress or unknown destination so don't accept
+    return false;
+
 }

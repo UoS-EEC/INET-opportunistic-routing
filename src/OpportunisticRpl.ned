@@ -25,5 +25,5 @@ module OpportunisticRpl like INetworkProtocol
         arpModule = default("^.arp");
         interfaceTableModule = default("^.^.interfaceTable");
         hubAddress = default("");
-        hubProgress = default(65535);
+        hubExpectedCost = default(65535);
 }

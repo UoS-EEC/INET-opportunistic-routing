@@ -21,6 +21,7 @@
 #include "inet/linklayer/common/InterfaceTag_m.h"
 #include "inet/linklayer/common/MacAddressTag_m.h"
 #include "inet/common/packet/chunk/Chunk.h"
+#include "OpportunisticRpl.h"
 #include "WakeUpGram_m.h"
 using namespace inet;
 using namespace physicallayer;
@@ -67,6 +68,18 @@ void WakeUpMacLayer::initialize(int stage) {
         updateTxState(TX_IDLE);
         activeRadio = wakeUpRadio;
         transmissionState = activeRadio->getTransmissionState();
+    }
+    else if(stage == INITSTAGE_NETWORK_LAYER){
+        // Find network layer with query wake-up request
+        cModule *module = getModuleFromPar<cModule>(par("routingModule"), this);
+        OpportunisticRpl* routingModule = dynamic_cast<OpportunisticRpl*>(module);
+        if (routingModule != nullptr){
+            // Found routing module that implements OpportunisticRpl::queryAcceptPacket();
+
+        }
+        else{
+            EV_WARN << "WuMac initialize(): No routing module with wake-up discernment provided" << endl;
+        }
     }
 }
 void WakeUpMacLayer::changeActiveRadio(physicallayer::IRadio* newActiveRadio) {
@@ -395,7 +408,7 @@ void WakeUpMacLayer::stepTxSM(t_mac_event event, cMessage *msg) {
             txInProgressRetries++;
             auto wuHeader = makeShared<WakeUpBeacon>();
             wuHeader->setType(WU_BEACON);
-            wuHeader->setMinProgress(0xFFFF);
+            wuHeader->setMinExpectedCost(0xFFFF);
             wuHeader->setTransmitterAddress(MacAddress("aaaaaaaaaaaa"));
             wuHeader->setReceiverAddress(MacAddress("aaaaaaaaaaaa"));
             auto frame = new Packet("wake-up", wuHeader);

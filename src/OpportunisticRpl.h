@@ -40,8 +40,8 @@ public:
         arp(nullptr),
         waitingPacket(nullptr){}
     virtual void initialize(int stage) override;
-
-    typedef uint16_t Progress;
+    typedef uint16_t ExpectedCost;
+    bool queryAcceptPacket(MacAddress destination, ExpectedCost currentExpectedCost);
 protected:
     cMessage* nextForwardTimer;
     simtime_t forwardingSpacing;
@@ -61,12 +61,12 @@ protected:
     } packetRecord;
     typedef std::set<packetRecord> packetHistory;
 
-    typedef std::map<L3Address, Progress> recordTable;
-    recordTable progressTable;
+    typedef std::map<L3Address, ExpectedCost> recordTable;
+    recordTable expectedCostTable;
 
     virtual void encapsulate(Packet* packet);
     virtual void decapsulate(Packet* packet);
-    virtual void setDownControlInfo(Packet* packet, MacAddress macMulticast, Progress progress);
+    virtual void setDownControlInfo(Packet* packet, MacAddress macMulticast, ExpectedCost expectedCost);
 
     const Protocol& getProtocol() const override { return OpportunisticRouting; }
 
