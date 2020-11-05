@@ -26,4 +26,9 @@ module OpportunisticRpl like INetworkProtocol
         interfaceTableModule = default("^.^.interfaceTable");
         hubAddress = default("");
         hubExpectedCost = default(65535);
+    gates:
+        input transportIn @labels(INetworkProtocolControlInfo/down);
+        output transportOut @labels(INetworkProtocolControlInfo/up);
+        input queueIn @labels(INetworkHeader);
+        output queueOut @labels(INetworkHeader);
 }
