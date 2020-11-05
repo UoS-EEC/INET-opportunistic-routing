@@ -182,7 +182,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     // TODO: implement
 
     cMessage *wuPacketInProgress;
-    cMessage *txPacketInProgress;
+    Packet *txPacketInProgress;
     cMessage *rxPacketInProgress;
     void encapsulate(Packet *msg);
     void decapsulate(Packet *msg);

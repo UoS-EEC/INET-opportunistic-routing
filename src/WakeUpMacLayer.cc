@@ -124,7 +124,7 @@ void WakeUpMacLayer::handleUpperPacket(Packet *packet) {
     // Make Mac owned copy of message
     auto addressRequest =packet->addTagIfAbsent<MacAddressReq>();
     if(addressRequest->getDestAddress() == MacAddress::UNSPECIFIED_ADDRESS){
-        addressRequest->setDestAddress(MacAddress("aaaaaaaaaaaa"));
+        addressRequest->setDestAddress(MacAddress::BROADCAST_ADDRESS);
     }
     auto macPkt = check_and_cast<Packet*>(packet);
     encapsulate(macPkt);
@@ -231,7 +231,10 @@ void WakeUpMacLayer::queryWakeupRequest(Packet *wakeUp) {
     // TODO: Check if receiver mac address is this node
     auto header = wakeUp->peekAtFront<WakeUpBeacon>();
     bool approve = false;
-    if(header->getReceiverAddress() != interfaceAddress){
+    if(header->getReceiverAddress() == interfaceAddress){
+        approve = true;
+    }
+    else if(header->getReceiverAddress() == MacAddress::BROADCAST_ADDRESS){
         approve = true;
     }
     else if(routingModule != nullptr){
@@ -413,7 +416,7 @@ void WakeUpMacLayer::stepTxSM(t_mac_event event, cMessage *msg) {
     if(event == EV_TX_START){
         // Force state machine to start
         txState = TX_IDLE;
-        txPacketInProgress = msg;
+        txPacketInProgress = check_and_cast<Packet*>(msg);
     }
     switch (txState){
     case TX_IDLE:
@@ -423,8 +426,9 @@ void WakeUpMacLayer::stepTxSM(t_mac_event event, cMessage *msg) {
             auto wuHeader = makeShared<WakeUpBeacon>();
             wuHeader->setType(WU_BEACON);
             wuHeader->setMinExpectedCost(0xFFFF);
-            wuHeader->setTransmitterAddress(MacAddress("aaaaaaaaaaaa"));
-            wuHeader->setReceiverAddress(MacAddress("aaaaaaaaaaaa"));
+            wuHeader->setTransmitterAddress(interfaceAddress);
+            //TODO: Confirm this sets the right mac address
+            wuHeader->setReceiverAddress(txPacketInProgress->peekAtFront<WakeUpDatagram>()->getReceiverAddress());
             auto frame = new Packet("wake-up", wuHeader);
             frame->addTag<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
             wuPacketInProgress = check_and_cast<cMessage*>(frame);
