@@ -24,6 +24,7 @@
 #include "inet/linklayer/contract/IMacProtocol.h"
 #include "inet/physicallayer/contract/packetlevel/IRadio.h"
 #include "inet/common/Protocol.h"
+#include "OpportunisticRpl.h"
 
 using namespace omnetpp;
 using namespace inet;
@@ -46,6 +47,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         wakeUpRadio(nullptr),
         dataRadio(nullptr),
         activeRadio(nullptr),
+        routingModule(nullptr),
         ackWaitDuration(0),
         txWakeUpWaitDuration(0),
         dataListeningDuration(0),
@@ -145,12 +147,14 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     physicallayer::IRadio *activeRadio;
     physicallayer::IRadio::TransmissionState transmissionState;
     physicallayer::IRadio::ReceptionState receptionState;
+    MacAddress interfaceAddress;
 
     virtual void initialize(int stage) override;
     void changeActiveRadio(physicallayer::IRadio*);
     virtual bool isLowerMessage(cMessage *message) override;
     virtual void configureInterfaceEntry() override;
-    void queryWakeupRequest(cMessage *wakeUp);
+    OpportunisticRpl* routingModule;
+    void queryWakeupRequest(Packet *wakeUp);
 
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */

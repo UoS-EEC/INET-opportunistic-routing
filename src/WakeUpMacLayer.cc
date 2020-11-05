@@ -48,6 +48,8 @@ void WakeUpMacLayer::initialize(int stage) {
         ackWaitDuration = par("ackWaitDuration");
         wuApproveResponseLimit = par("wuApproveResponseLimit");
         candiateRelayContentionProbability = par("candiateRelayContentionProbability");
+        //Part from Ieee802154Mac
+        MacAddress interfaceAddress = parseMacAddressParameter(par("address"));
     }
     else if (stage == INITSTAGE_LINK_LAYER) {
         cModule *radioModule = getModuleFromPar<cModule>(par("dataRadioModule"), this);
@@ -71,8 +73,8 @@ void WakeUpMacLayer::initialize(int stage) {
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
         // Find network layer with query wake-up request
-        cModule *module = getModuleFromPar<cModule>(par("routingModule"), this);
-        OpportunisticRpl* routingModule = dynamic_cast<OpportunisticRpl*>(module);
+        cModule *module = getModuleFromPar<cModule>(par("routingModule"), this, false);
+        routingModule = dynamic_cast<OpportunisticRpl*>(module);
         if (routingModule != nullptr){
             // Found routing module that implements OpportunisticRpl::queryAcceptPacket();
 
@@ -216,23 +218,35 @@ bool WakeUpMacLayer::isLowerMessage(cMessage *msg) {
 }
 
 void WakeUpMacLayer::configureInterfaceEntry() {
-    //Part from Ieee802154Mac
-    MacAddress address = parseMacAddressParameter(par("address"));
-
     // generate a link-layer address to be used as interface token for IPv6
-    interfaceEntry->setMacAddress(address);
+    interfaceEntry->setMacAddress(interfaceAddress);
 
     interfaceEntry->setMtu(255-16);
     interfaceEntry->setMulticast(true);
     interfaceEntry->setBroadcast(true);
     interfaceEntry->setPointToPoint(false);
 }
-void WakeUpMacLayer::queryWakeupRequest(cMessage *wakeUp) {
-    // TODO: Query Opportunistic layer for permission to wake-up
+void WakeUpMacLayer::queryWakeupRequest(Packet *wakeUp) {
     // For now just send immediate acceptance
-    cMessage* msg = new cMessage("approve");
-    msg->setKind(WAKEUP_APPROVE);
-    scheduleAt(simTime(), msg);
+    // TODO: Check if receiver mac address is this node
+    auto header = wakeUp->peekAtFront<WakeUpBeacon>();
+    bool approve = false;
+    if(header->getReceiverAddress() != interfaceAddress){
+        approve = true;
+    }
+    else if(routingModule != nullptr){
+        // TODO: Query Opportunistic layer for permission to wake-up
+        if(! routingModule->queryAcceptPacket(header->getReceiverAddress(), header->getMinExpectedCost())){
+            approve = true;
+        }
+    }
+
+    if(approve == true){
+        // Approve wake-up request
+        cMessage* msg = new cMessage("approve");
+        msg->setKind(WAKEUP_APPROVE);
+        scheduleAt(simTime(), msg);
+    }
 }
 
 
@@ -613,7 +627,7 @@ void WakeUpMacLayer::stepWuSM(t_mac_event event, cMessage *msg) {
             dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
             updateWuState(WU_APPROVE_WAIT);
             scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
-            queryWakeupRequest(msg);
+            queryWakeupRequest(check_and_cast<Packet*>(msg));
         }
         break;
     case WU_APPROVE_WAIT:
