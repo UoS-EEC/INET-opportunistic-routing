@@ -18,6 +18,7 @@
 #include "OpportunisticRoutingHeader_m.h"
 #include "inet/linklayer/common/MacAddressTag_m.h"
 #include "inet/networklayer/common/L3AddressTag_m.h"
+#include "inet/common/ProtocolGroup.h"
 #include "OpportunisticRpl.h"
 
 Define_Module(OpportunisticRpl);
@@ -34,6 +35,8 @@ void OpportunisticRpl::initialize(int stage) {
         arp = getModuleFromPar<IArp>(par("arpModule"), this);
     }
     else if (stage == INITSTAGE_NETWORK_LAYER) {
+        ProtocolGroup::ipprotocol.addProtocol(245, &OpportunisticRouting);
+        registerService(Protocol::nextHopForwarding, gate("transportIn"), gate("queueIn"));
         auto ie = interfaceTable->findFirstNonLoopbackInterface();
         if (ie != nullptr)
             nodeAddress = ie->getNetworkAddress();
@@ -116,20 +119,22 @@ void OpportunisticRpl::queuePacket(Packet *packet) {
             // timer is scheduled so queue packet instead
             if(waitingPacket == nullptr){
                 waitingPacket = packet;
-                scheduleAt(simTime()+forwardingSpacing, nextForwardTimer);
             }
             else{
-                EV << "Dropping packet as queue of 1 is full" << endl;
+                EV_INFO << "Dropping packet as queue of 1 is full" << endl;
             }
         }
         else{
-            // send packet and schedule timer
-            sendDown(packet);
+            // TODO: Allow immediate send once WuMAC Layer problem
+            // of radio mode switching is solved
+            // send packet after scheduled timer
+            scheduleAt(simTime()+forwardingSpacing, nextForwardTimer);
+            waitingPacket = packet;
         }
     }
     else{
         //drop packet
-        EV << "ORPL at" << simTime() << ": dropping packet at " << nodeAddress << " to " << header->getDestAddr() << endl;
+        EV_INFO << "ORPL at" << simTime() << ": dropping packet at " << nodeAddress << " to " << header->getDestAddr() << endl;
         delete packet;
     }
 }
@@ -137,8 +142,11 @@ void OpportunisticRpl::queuePacket(Packet *packet) {
 void OpportunisticRpl::handleSelfMessage(cMessage *msg) {
     if(msg == nextForwardTimer){
         //Resend the message in the queue
-        queuePacket(waitingPacket);
-        waitingPacket = nullptr;
+        if(waitingPacket != nullptr){
+            sendDown(waitingPacket);
+            waitingPacket = nullptr;
+            scheduleAt(simTime()+forwardingSpacing, nextForwardTimer);
+        }
     }
 }
 

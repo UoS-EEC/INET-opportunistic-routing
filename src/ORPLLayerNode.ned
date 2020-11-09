@@ -14,9 +14,13 @@
 // 
 
 package wakeupmac;
+import inet.applications.generic.IIpvxTrafficGenerator;
+import inet.applications.generic.IpvxTrafGen;
+import inet.applications.generic.IpvxTrafSink;
 import inet.node.base.NetworkLayerNodeBase;
 import inet.queueing.source.ActivePacketSource;
 import inet.queueing.sink.PassivePacketSink;
+import inet.common.Protocol;
 
 //
 // TODO auto-generated type
@@ -39,20 +43,21 @@ module ORPLLayerNode extends NetworkLayerNodeBase
         energyGenerator.sleepInterval = 0s;
         wlan[*].dataRadio.antenna.mobilityModule = default("^.^.^.mobility");
         wlan[*].wakeUpRadio.antenna.mobilityModule = default("^.^.^.mobility");
-
+		// Disable default ipv4 enable generic
+        hasIpv4 = false;
+        hasGn = true;
         generic.typename = "OpportunisticRoutingLayer";
         generic.interfaceTableModule = default(".interfaceTable");
+        generic.hubAddress = "10.0.0.255";
     submodules:
-        packetGenerator: ActivePacketSource {
-            @display("p=700,240");
-            packetLength = 8b;
-            productionInterval = default(1s);
-            packetData = 0x0F0F0F0FF0F0F0F0;
-        }
-        packetNullSink: PassivePacketSink {
-            @display("p=580,240");
+        packetGenerator: IpvxTrafGen {
+            @display("p=437.84998,114.975");
+            packetLength = 8B;
+            sendInterval = default(1s);
+            //packetData = 0x0F0F0F0FF0F0F0F0;
+            protocol = 240;//Protocol::
         }
     connections:
-        packetGenerator.out --> generic.transportIn;
-        packetNullSink.in <-- generic.transportOut;
+        packetGenerator.ipOut --> generic.transportIn;
+        packetGenerator.ipIn <-- generic.transportOut;
 }

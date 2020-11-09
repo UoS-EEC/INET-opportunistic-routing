@@ -35,15 +35,23 @@ network ORPLTest
         }
         receivingWakeUpNode: ORPLLayerNode {
             @display("p=71.68298,45.578777");
-            packetGenerator.productionInterval = 1000s;
             wlan[0].mac.address = "0000DA7ABA5E";
+            generic.np.hubAddress = "receivingWakeUpNode";
+            generic.np.hubExpectedCost = 0;
         }
         transmittingWakeUpNode: ORPLLayerNode {
             @display("p=62.774406,37.4989");
+            generic.np.hubAddress = "receivingWakeUpNode";
+            generic.np.hubExpectedCost = 4;
+            packetGenerator.destAddresses = "receivingWakeUpNode";
+            packetGenerator.startTime = 0.5s;
         }
         overhearingWakeUpNode: ORPLLayerNode {
             @display("p=62.774406,50.758183");
-            packetGenerator.productionInterval = 900s;
+            generic.np.hubAddress = "receivingWakeUpNode";
+            generic.mac.hubExpectedCost = 2;
+            packetGenerator.destAddresses = "receivingWakeUpNode";
+            packetGenerator.sendInterval = 5s;
         }
 //        transmittingNode: AdhocHost {
 //            numApps = 1;
