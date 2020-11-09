@@ -14,21 +14,18 @@
 // 
 
 package wakeupmac;
+import inet.networklayer.base.NetworkProtocolBase;
+import inet.common.LayeredProtocolBase;
 import inet.networklayer.contract.INetworkProtocol;
 
 //
-// TODO auto-generated type
+// OpportunisticRpl as proposed by Duquennoy et al.
 //
-module OpportunisticRpl like INetworkProtocol
+simple OpportunisticRpl extends NetworkProtocolBase like INetworkProtocol
 {
     parameters:
-        arpModule = default("^.arp");
-        interfaceTableModule = default("^.^.interfaceTable");
-        hubAddress = default("");
-        hubExpectedCost = default(65535);
-    gates:
-        input transportIn @labels(INetworkProtocolControlInfo/down);
-        output transportOut @labels(INetworkProtocolControlInfo/up);
-        input queueIn @labels(INetworkHeader);
-        output queueOut @labels(INetworkHeader);
+        @class(OpportunisticRpl);
+        string arpModule = default("^.arp");
+        string hubAddress = default("");
+        int hubExpectedCost = default(65535);
 }
