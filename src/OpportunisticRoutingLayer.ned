@@ -27,5 +27,7 @@ module OpportunisticRoutingLayer extends SimpleNetworkLayer
 {
     parameters:
         arp.typename = "GlobalArp";
-        arp.addressType = "mac";
+        arp.addressType = "modulepath";
+        np.typename = "OpportunisticRpl";
+        interfaceTableModule = "^.interfaceTable";
 }

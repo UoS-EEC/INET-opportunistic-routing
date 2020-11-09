@@ -18,6 +18,7 @@
 
 #include "inet/common/ProtocolTag_m.h"
 #include "inet/networklayer/base/NetworkProtocolBase.h"
+#include "inet/common/LayeredProtocolBase.h"
 #include "inet/networklayer/common/L3Address.h"
 #include "inet/linklayer/common/MacAddress.h"
 #include "inet/networklayer/contract/INetworkProtocol.h"
@@ -28,14 +29,13 @@
 
 using namespace inet;
 
-const Protocol OpportunisticRouting("ORPL", "ORPL", Protocol::LinkLayer);
+const Protocol OpportunisticRouting("ORPL", "ORPL", Protocol::NetworkLayer);
 
 class OpportunisticRpl : public NetworkProtocolBase, public INetworkProtocol{
 public:
     OpportunisticRpl()
         : NetworkProtocolBase(),
         nextForwardTimer(nullptr),
-        interfaceTable(nullptr),
         routingTable(nullptr),
         arp(nullptr),
         waitingPacket(nullptr){}
@@ -46,7 +46,6 @@ protected:
     cMessage* nextForwardTimer;
     simtime_t forwardingSpacing;
 
-    IInterfaceTable *interfaceTable;
     IRoutingTable *routingTable;
     IArp *arp;
 

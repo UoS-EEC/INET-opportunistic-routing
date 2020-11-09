@@ -30,7 +30,6 @@ void OpportunisticRpl::initialize(int stage) {
         // This is a crude measure to stop the Mac buffer becoming overloaded
         forwardingSpacing = SimTime(30, SIMTIME_MS);
 
-        interfaceTable = getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
         // routingTable = getModuleFromPar<NextHopRoutingTable>(par("routingTableModule"), this);
         arp = getModuleFromPar<IArp>(par("arpModule"), this);
     }
@@ -95,18 +94,19 @@ void OpportunisticRpl::setDownControlInfo(Packet* packet, MacAddress macMulticas
 void OpportunisticRpl::decapsulate(Packet *packet)
 {
     auto networkHeader = packet->popAtFront<OpportunisticRoutingHeader>();
-    auto payloadLength = networkHeader->getLength()-16; // TODO: Remove header length magic number
+    auto payloadLength = networkHeader->getLength() - networkHeader->getChunkLength(); // TODO: Remove header length magic number
     if (packet->getDataLength() < B(payloadLength) ) {
         throw cRuntimeError("Data error: illegal payload length");     //FIXME packet drop
     }
     if (packet->getDataLength() > B(payloadLength) )
         packet->setBackOffset(packet->getFrontOffset() + B(payloadLength));
+    auto protocolInd = packet->addTagIfAbsent<NetworkProtocolInd>();
+    protocolInd->setProtocol(&getProtocol());
+    protocolInd->setNetworkProtocolHeader(networkHeader);
     auto payloadProtocol = networkHeader->getProtocol();
-    packet->getTags().addTagIfAbsent<NetworkProtocolInd>()->setProtocol(&getProtocol());
-    packet->getTags().addTagIfAbsent<NetworkProtocolInd>()->setNetworkProtocolHeader(networkHeader);
-    packet->getTags().addTagIfAbsent<DispatchProtocolReq>()->setProtocol(payloadProtocol);
-    packet->getTags().addTagIfAbsent<PacketProtocolTag>()->setProtocol(payloadProtocol);
-    packet->getTags().addTagIfAbsent<L3AddressInd>()->setSrcAddress(networkHeader->getSrcAddr());
+    packet->addTagIfAbsent<DispatchProtocolReq>()->setProtocol(payloadProtocol);
+    packet->addTagIfAbsent<PacketProtocolTag>()->setProtocol(payloadProtocol);
+    packet->addTagIfAbsent<L3AddressInd>()->setSrcAddress(networkHeader->getSrcAddr());
 }
 
 void OpportunisticRpl::queuePacket(Packet *packet) {

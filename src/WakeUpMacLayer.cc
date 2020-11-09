@@ -17,6 +17,7 @@
 #include <algorithm> // for min max
 #include "inet/common/ModuleAccess.h"
 #include "WakeUpMacLayer.h"
+#include "inet/common/ProtocolGroup.h"
 #include "inet/common/ProtocolTag_m.h"
 #include "inet/linklayer/common/InterfaceTag_m.h"
 #include "inet/linklayer/common/MacAddressTag_m.h"
@@ -74,7 +75,7 @@ void WakeUpMacLayer::initialize(int stage) {
     else if(stage == INITSTAGE_NETWORK_LAYER){
         // Find network layer with query wake-up request
         cModule *module = getModuleFromPar<cModule>(par("routingModule"), this, false);
-        routingModule = dynamic_cast<OpportunisticRpl*>(module);
+        routingModule = check_and_cast_nullable<OpportunisticRpl*>(module);
         if (routingModule != nullptr){
             // Found routing module that implements OpportunisticRpl::queryAcceptPacket();
 
@@ -619,7 +620,10 @@ void WakeUpMacLayer::decapsulate(Packet *pkt) { // From CsmaCaMac
     auto addressInd = pkt->addTagIfAbsent<MacAddressInd>();
     addressInd->setSrcAddress(macHeader->getTransmitterAddress());
     addressInd->setDestAddress(macHeader->getReceiverAddress());
+    auto payloadProtocol = ProtocolGroup::ipprotocol.getProtocol(245);
     pkt->addTagIfAbsent<InterfaceInd>()->setInterfaceId(interfaceEntry->getInterfaceId());
+    pkt->addTagIfAbsent<DispatchProtocolReq>()->setProtocol(payloadProtocol);
+    pkt->addTagIfAbsent<PacketProtocolTag>()->setProtocol(payloadProtocol);
 }
 
 void WakeUpMacLayer::stepWuSM(t_mac_event event, cMessage *msg) {
