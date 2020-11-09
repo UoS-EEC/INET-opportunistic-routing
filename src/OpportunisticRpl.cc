@@ -18,6 +18,7 @@
 #include "OpportunisticRoutingHeader_m.h"
 #include "inet/linklayer/common/MacAddressTag_m.h"
 #include "inet/networklayer/common/L3AddressTag_m.h"
+#include "inet/networklayer/common/L3AddressResolver.h"
 #include "inet/common/ProtocolGroup.h"
 #include "OpportunisticRpl.h"
 
@@ -44,16 +45,27 @@ void OpportunisticRpl::initialize(int stage) {
             throw cRuntimeError("No non-loopback interface found!");
 
         // Initialize expectedCost table
-        L3Address hubAddress(par("hubAddress"));
+        L3Address hubAddress;
+        L3AddressResolver().tryResolve(par("hubAddress"), hubAddress);
         ExpectedCost hubExpectedCost(par("hubExpectedCost"));
-        if(hubAddress.getType() == L3Address::AddressType::IPv4){
+        if(!hubAddress.isUnspecified()){
             expectedCostTable.insert(std::pair<L3Address, ExpectedCost>(hubAddress, hubExpectedCost));
+        }
+        else{
+            EV_WARN << "Unspecified hubAddress" << endl;
         }
     }
 }
 
 void OpportunisticRpl::handleUpperPacket(Packet *packet) {
-
+    auto addressReq = packet->addTagIfAbsent<L3AddressReq>();
+    //TODO: check tags assigned by higher layer
+    if(addressReq->getDestAddress().getType() == L3Address::NONE){
+        addressReq->setDestAddress(L3Address(par("hubAddress")));
+        EV_WARN << "ORPL, setting received packet address to default hub address" << endl;
+    }
+    encapsulate(packet);
+    queuePacket(packet);
 }
 
 void OpportunisticRpl::handleLowerPacket(Packet *packet) {
@@ -66,26 +78,47 @@ void OpportunisticRpl::handleLowerPacket(Packet *packet) {
         // Route to a node in the routing table
         // Packet not destined for this node
         // Decrease TTL, calculate expectedCost and Forward.
-        // Possible "trim" required
-        // packet->trim();
+        // "trim" required to remove the popped headers from lower layers
+        packet->trim();
         auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
         auto newTtl = mutableHeader->getTtl()-1;
         mutableHeader->setTtl(newTtl);
         packet->insertAtFront(mutableHeader);
         ExpectedCost currentExpectedCost = expectedCostTable.at(header->getDestAddr());
         setDownControlInfo(packet, MacAddress::STP_MULTICAST_ADDRESS, currentExpectedCost);
+        queuePacket(packet);
     }
 }
 
 void OpportunisticRpl::encapsulate(Packet *packet) {
     auto header = makeShared<OpportunisticRoutingHeader>();
 
-    // TODO: Populate Header fields
+    auto outboundMacAddress =  MacAddress::STP_MULTICAST_ADDRESS;
+    if(packet->getTag<L3AddressReq>()!=nullptr){
+        header->setDestAddr(packet->getTag<L3AddressReq>()->getDestAddress());
+        auto ie = interfaceTable->findFirstNonLoopbackInterface();
+        outboundMacAddress = arp->resolveL3Address(header->getDestAddr(), ie);
+    }
+    else{
+        header->setDestAddr( L3Address() );
+        EV_WARN << "Packet sent with no destination";
+    }
+    // TODO: auto increment ID;
+    header->setId(60000);
     // TODO: remove tiny ttl when routing implemented
+    header->setLength(packet->getDataLength() + header->getChunkLength());
+    auto protocolTag = packet->findTag<PacketProtocolTag>();
+    if(protocolTag != nullptr){
+        header->setProtocol(protocolTag->getProtocol());
+    }
+    else{
+        header->setProtocol(&Protocol::manet);
+    }
+    header->setSrcAddr(nodeAddress);
     header->setTtl(3);
+    header->setVersion(IpProtocolId::IP_PROT_MANET);
     packet->insertAtFront(header);
-
-    setDownControlInfo(packet, MacAddress::STP_MULTICAST_ADDRESS, 65535);
+    setDownControlInfo(packet, outboundMacAddress, 65535);
 }
 
 void OpportunisticRpl::setDownControlInfo(Packet* packet, MacAddress macMulticast, ExpectedCost expectedCost) {
@@ -166,12 +199,13 @@ void OpportunisticRpl::handleCrashOperation(LifecycleOperation *op) {
 bool OpportunisticRpl::queryAcceptPacket(MacAddress destination,
         ExpectedCost currentExpectedCost) {
     L3Address l3dest = arp->getL3AddressFor(destination);
+    L3Address modPathAddr = l3dest.toModulePath();
     if(l3dest==nodeAddress){
         // Mac layer should probably perform this check anyway
         return true;
     }
-    else if(expectedCostTable.find(l3dest)!=expectedCostTable.end()){
-        ExpectedCost newCost = expectedCostTable.at(l3dest);
+    else if(expectedCostTable.find(modPathAddr)!=expectedCostTable.end()){
+        ExpectedCost newCost = expectedCostTable.at(modPathAddr);
         if(newCost < currentExpectedCost){
             return true;
         }

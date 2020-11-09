@@ -27,7 +27,7 @@ namespace inet;
 
 class OpportunisticRoutingHeader extends NetworkHeaderBase{
     IpProtocolId version;
-    uint8_t length;
+    B length;
     uint16_t id;
     L3Address   srcAddr;
     L3Address   destAddr;
