@@ -15,12 +15,14 @@
 
 #include "inet/common/INETDefs.h"
 #include "inet/common/ProtocolTag_m.h"
+#include "inet/networklayer/nexthop/NextHopRoutingTable.h"
 #include "OpportunisticRoutingHeader_m.h"
 #include "inet/linklayer/common/MacAddressTag_m.h"
 #include "inet/networklayer/common/L3AddressTag_m.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
 #include "inet/common/ProtocolGroup.h"
 #include "OpportunisticRpl.h"
+#include "ExpectedCostTag_m.h"
 
 Define_Module(OpportunisticRpl);
 
@@ -31,8 +33,7 @@ void OpportunisticRpl::initialize(int stage) {
         nextForwardTimer = new cMessage("Forwarding Backoff Timer");
         // This is a crude measure to stop the Mac buffer becoming overloaded
         forwardingSpacing = SimTime(30, SIMTIME_MS);
-
-        // routingTable = getModuleFromPar<NextHopRoutingTable>(par("routingTableModule"), this);
+        routingTable = getModuleFromPar<NextHopRoutingTable>(par("routingTableModule"), this);
         arp = getModuleFromPar<IArp>(par("arpModule"), this);
     }
     else if (stage == INITSTAGE_NETWORK_LAYER) {
@@ -46,7 +47,7 @@ void OpportunisticRpl::initialize(int stage) {
 
         // Initialize expectedCost table
         L3Address hubAddress;
-        L3AddressResolver().tryResolve(par("hubAddress"), hubAddress);
+        L3AddressResolver().tryResolve(par("hubAddress"), hubAddress, L3AddressResolver::ADDR_MODULEPATH);
         ExpectedCost hubExpectedCost(par("hubExpectedCost"));
         if(!hubAddress.isUnspecified()){
             expectedCostTable.insert(std::pair<L3Address, ExpectedCost>(hubAddress, hubExpectedCost));
@@ -83,18 +84,23 @@ void OpportunisticRpl::handleLowerPacket(Packet *packet) {
         auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
         auto newTtl = mutableHeader->getTtl()-1;
         mutableHeader->setTtl(newTtl);
+        auto outboundMacAddress =  MacAddress::STP_MULTICAST_ADDRESS;
+        auto ie = interfaceTable->findFirstNonLoopbackInterface();
+        outboundMacAddress = arp->resolveL3Address(mutableHeader->getDestAddr(), ie);
+        if(outboundMacAddress == MacAddress::UNSPECIFIED_ADDRESS){
+            EV_WARN << "Forwarding message to unknown L3Address" << endl;
+        }
         packet->insertAtFront(mutableHeader);
         ExpectedCost currentExpectedCost = expectedCostTable.at(header->getDestAddr());
-        setDownControlInfo(packet, MacAddress::STP_MULTICAST_ADDRESS, currentExpectedCost);
+        setDownControlInfo(packet, outboundMacAddress, currentExpectedCost);
         queuePacket(packet);
     }
 }
 
 void OpportunisticRpl::encapsulate(Packet *packet) {
     auto header = makeShared<OpportunisticRoutingHeader>();
-
     auto outboundMacAddress =  MacAddress::STP_MULTICAST_ADDRESS;
-    if(packet->getTag<L3AddressReq>()!=nullptr){
+    if(packet->findTag<L3AddressReq>()!=nullptr){
         header->setDestAddr(packet->getTag<L3AddressReq>()->getDestAddress());
         auto ie = interfaceTable->findFirstNonLoopbackInterface();
         outboundMacAddress = arp->resolveL3Address(header->getDestAddr(), ie);
@@ -122,9 +128,10 @@ void OpportunisticRpl::encapsulate(Packet *packet) {
 }
 
 void OpportunisticRpl::setDownControlInfo(Packet* packet, MacAddress macMulticast, ExpectedCost expectedCost) {
-    packet->getTags().addTagIfAbsent<MacAddressReq>()->setDestAddress(macMulticast);
-    packet->getTags().addTagIfAbsent<PacketProtocolTag>()->setProtocol(&OpportunisticRouting);
-    packet->getTags().addTagIfAbsent<DispatchProtocolInd>()->setProtocol(&OpportunisticRouting);
+    packet->addTagIfAbsent<MacAddressReq>()->setDestAddress(macMulticast);
+    packet->addTagIfAbsent<ExpectedCostReq>()->setExpectedCost(expectedCost);
+    packet->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&OpportunisticRouting);
+    packet->addTagIfAbsent<DispatchProtocolInd>()->setProtocol(&OpportunisticRouting);
 }
 
 void OpportunisticRpl::decapsulate(Packet *packet)

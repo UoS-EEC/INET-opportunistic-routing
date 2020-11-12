@@ -20,7 +20,7 @@ import inet.node.inet.AdhocHost;
 import inet.physicallayer.ieee802154.packetlevel.Ieee802154NarrowbandScalarRadioMedium;
 import wakeupmac.ORPLLayerNode;
 import inet.visualizer.integrated.IntegratedCanvasVisualizer;
-import inet.networklayer.configurator.ipv4.Ipv4NetworkConfigurator;
+import inet.networklayer.configurator.nexthop.NextHopNetworkConfigurator;
 
 
 network ORPLTest
@@ -43,14 +43,14 @@ network ORPLTest
             @display("p=62.774406,37.4989");
             generic.np.hubAddress = "receivingWakeUpNode";
             generic.np.hubExpectedCost = 4;
-            packetGenerator.destAddresses = "receivingWakeUpNode";
+            packetGenerator.destAddresses = "receivingWakeUpNode(modulepath)";
             packetGenerator.startTime = 0.5s;
         }
         overhearingWakeUpNode: ORPLLayerNode {
             @display("p=62.774406,50.758183");
             generic.np.hubAddress = "receivingWakeUpNode";
-            generic.mac.hubExpectedCost = 2;
-            packetGenerator.destAddresses = "receivingWakeUpNode";
+            generic.np.hubExpectedCost = 2;
+            packetGenerator.destAddresses = "receivingWakeUpNode(modulepath)";
             packetGenerator.sendInterval = 5s;
         }
 //        transmittingNode: AdhocHost {
@@ -77,7 +77,7 @@ network ORPLTest
         visualizer: IntegratedCanvasVisualizer {
             @display("p=81.656815,18.343197");
         }
-        configurator: Ipv4NetworkConfigurator {
+        configurator: NextHopNetworkConfigurator {
             @display("p=141.42014,15.976333");
         }
 }

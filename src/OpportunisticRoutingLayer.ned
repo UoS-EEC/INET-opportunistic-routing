@@ -17,6 +17,7 @@ package wakeupmac;
 
 import inet.networklayer.contract.INetworkLayer;
 import inet.networklayer.common.SimpleNetworkLayer;
+import inet.networklayer.nexthop.NextHopRoutingTable;
 
 
 //
@@ -30,4 +31,11 @@ module OpportunisticRoutingLayer extends SimpleNetworkLayer
         arp.addressType = "modulepath";
         np.typename = "OpportunisticRpl";
         interfaceTableModule = "^.interfaceTable";
+        *.routingTableModule = default(absPath(".routingTable"));
+        *.arpModule = default(absPath(".arp"));
+    submodules:
+        routingTable: NextHopRoutingTable {
+            parameters:
+                @display("p=100,100;is=s");
+        }
 }

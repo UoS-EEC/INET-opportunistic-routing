@@ -147,7 +147,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     physicallayer::IRadio *activeRadio;
     physicallayer::IRadio::TransmissionState transmissionState;
     physicallayer::IRadio::ReceptionState receptionState;
-    MacAddress interfaceAddress;
 
     virtual void initialize(int stage) override;
     void changeActiveRadio(physicallayer::IRadio*);
