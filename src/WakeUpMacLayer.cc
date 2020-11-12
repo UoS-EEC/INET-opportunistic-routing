@@ -17,11 +17,14 @@
 #include <algorithm> // for min max
 #include "inet/common/ModuleAccess.h"
 #include "WakeUpMacLayer.h"
+#include "inet/common/ProtocolGroup.h"
 #include "inet/common/ProtocolTag_m.h"
 #include "inet/linklayer/common/InterfaceTag_m.h"
 #include "inet/linklayer/common/MacAddressTag_m.h"
 #include "inet/common/packet/chunk/Chunk.h"
+#include "OpportunisticRpl.h"
 #include "WakeUpGram_m.h"
+#include "ExpectedCostTag_m.h"
 using namespace inet;
 using namespace physicallayer;
 
@@ -68,6 +71,18 @@ void WakeUpMacLayer::initialize(int stage) {
         activeRadio = wakeUpRadio;
         transmissionState = activeRadio->getTransmissionState();
     }
+    else if(stage == INITSTAGE_NETWORK_LAYER){
+        // Find network layer with query wake-up request
+        cModule *module = getModuleFromPar<cModule>(par("routingModule"), this, false);
+        routingModule = check_and_cast_nullable<OpportunisticRpl*>(module);
+        if (routingModule != nullptr){
+            // Found routing module that implements OpportunisticRpl::queryAcceptPacket();
+
+        }
+        else{
+            EV_WARN << "WuMac initialize(): No routing module with wake-up discernment provided" << endl;
+        }
+    }
 }
 void WakeUpMacLayer::changeActiveRadio(physicallayer::IRadio* newActiveRadio) {
     if(activeRadio->getId() != newActiveRadio->getId()){ // TODO: Check ID?
@@ -109,7 +124,7 @@ void WakeUpMacLayer::handleUpperPacket(Packet *packet) {
     // Make Mac owned copy of message
     auto addressRequest =packet->addTagIfAbsent<MacAddressReq>();
     if(addressRequest->getDestAddress() == MacAddress::UNSPECIFIED_ADDRESS){
-        addressRequest->setDestAddress(MacAddress("aaaaaaaaaaaa"));
+        addressRequest->setDestAddress(MacAddress::BROADCAST_ADDRESS);
     }
     auto macPkt = check_and_cast<Packet*>(packet);
     encapsulate(macPkt);
@@ -203,23 +218,36 @@ bool WakeUpMacLayer::isLowerMessage(cMessage *msg) {
 }
 
 void WakeUpMacLayer::configureInterfaceEntry() {
-    //Part from Ieee802154Mac
-    MacAddress address = parseMacAddressParameter(par("address"));
-
     // generate a link-layer address to be used as interface token for IPv6
-    interfaceEntry->setMacAddress(address);
-
     interfaceEntry->setMtu(255-16);
     interfaceEntry->setMulticast(true);
     interfaceEntry->setBroadcast(true);
     interfaceEntry->setPointToPoint(false);
 }
-void WakeUpMacLayer::queryWakeupRequest(cMessage *wakeUp) {
-    // TODO: Query Opportunistic layer for permission to wake-up
+void WakeUpMacLayer::queryWakeupRequest(Packet *wakeUp) {
     // For now just send immediate acceptance
-    cMessage* msg = new cMessage("approve");
-    msg->setKind(WAKEUP_APPROVE);
-    scheduleAt(simTime(), msg);
+    // TODO: Check if receiver mac address is this node
+    auto header = wakeUp->peekAtFront<WakeUpBeacon>();
+    bool approve = false;
+    if(header->getReceiverAddress() == interfaceEntry->getMacAddress()){
+        approve = true;
+    }
+    else if(header->getReceiverAddress() == MacAddress::BROADCAST_ADDRESS){
+        approve = true;
+    }
+    else if(routingModule != nullptr){
+        // TODO: Query Opportunistic layer for permission to wake-up
+        if(routingModule->queryAcceptPacket(header->getReceiverAddress(), header->getMinExpectedCost())){
+            approve = true;
+        }
+    }
+
+    if(approve == true){
+        // Approve wake-up request
+        cMessage* msg = new cMessage("approve");
+        msg->setKind(WAKEUP_APPROVE);
+        scheduleAt(simTime(), msg);
+    }
 }
 
 
@@ -386,7 +414,7 @@ void WakeUpMacLayer::stepTxSM(t_mac_event event, cMessage *msg) {
     if(event == EV_TX_START){
         // Force state machine to start
         txState = TX_IDLE;
-        txPacketInProgress = msg;
+        txPacketInProgress = check_and_cast<Packet*>(msg);
     }
     switch (txState){
     case TX_IDLE:
@@ -395,9 +423,15 @@ void WakeUpMacLayer::stepTxSM(t_mac_event event, cMessage *msg) {
             txInProgressRetries++;
             auto wuHeader = makeShared<WakeUpBeacon>();
             wuHeader->setType(WU_BEACON);
-            wuHeader->setMinProgress(0xFFFF);
-            wuHeader->setTransmitterAddress(MacAddress("aaaaaaaaaaaa"));
-            wuHeader->setReceiverAddress(MacAddress("aaaaaaaaaaaa"));
+            auto expectedCostTag = txPacketInProgress->findTag<ExpectedCostReq>();
+            int minExpectedCost = 0xFFFF;
+            if(expectedCostTag != nullptr){
+                minExpectedCost = expectedCostTag->getExpectedCost();
+            }
+            wuHeader->setMinExpectedCost(minExpectedCost); // TODO: Get from Tag
+            wuHeader->setTransmitterAddress(interfaceEntry->getMacAddress());
+            //TODO: Confirm this sets the right mac address
+            wuHeader->setReceiverAddress(txPacketInProgress->peekAtFront<WakeUpDatagram>()->getReceiverAddress());
             auto frame = new Packet("wake-up", wuHeader);
             frame->addTag<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
             wuPacketInProgress = check_and_cast<cMessage*>(frame);
@@ -522,9 +556,9 @@ void WakeUpMacLayer::stepTxAckProcess(t_mac_event event, cMessage *msg) {
         else{
             txInProgressForwarders = txInProgressForwarders+acknowledgedForwarders; // TODO: Check forwarders uniqueness
             if(txInProgressForwarders<requiredForwarders && txInProgressRetries<maxWakeUpRetries){
-            // Try transmitting wake-up again after standard ack backoff
-            scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
-            updateTxState(TX_IDLE);
+                // Try transmitting wake-up again after standard ack backoff
+                scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
+                updateTxState(TX_IDLE);
             }
             else{
                 // Discard Link layer packet
@@ -588,7 +622,10 @@ void WakeUpMacLayer::decapsulate(Packet *pkt) { // From CsmaCaMac
     auto addressInd = pkt->addTagIfAbsent<MacAddressInd>();
     addressInd->setSrcAddress(macHeader->getTransmitterAddress());
     addressInd->setDestAddress(macHeader->getReceiverAddress());
+    auto payloadProtocol = ProtocolGroup::ipprotocol.getProtocol(245);
     pkt->addTagIfAbsent<InterfaceInd>()->setInterfaceId(interfaceEntry->getInterfaceId());
+    pkt->addTagIfAbsent<DispatchProtocolReq>()->setProtocol(payloadProtocol);
+    pkt->addTagIfAbsent<PacketProtocolTag>()->setProtocol(payloadProtocol);
 }
 
 void WakeUpMacLayer::stepWuSM(t_mac_event event, cMessage *msg) {
@@ -600,7 +637,7 @@ void WakeUpMacLayer::stepWuSM(t_mac_event event, cMessage *msg) {
             dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
             updateWuState(WU_APPROVE_WAIT);
             scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
-            queryWakeupRequest(msg);
+            queryWakeupRequest(check_and_cast<Packet*>(msg));
         }
         break;
     case WU_APPROVE_WAIT:

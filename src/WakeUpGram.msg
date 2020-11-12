@@ -22,7 +22,7 @@ class WakeUpGram extends inet::FieldsChunk
 class WakeUpBeacon extends WakeUpGram
 {
     type = WU_BEACON; //Max value is 255 (1 byte) in a wake-up this forms the preamble
-    uint16_t minProgress;  // Actually represented by the OpportunisticRpl::Progress type
+    uint16_t minExpectedCost;  // Actually represented by the OpportunisticRpl::ExpectedCost type
     chunkLength = inet::B(15);
 }
 
