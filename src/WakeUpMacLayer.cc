@@ -139,8 +139,8 @@ void WakeUpMacLayer::receiveSignal(cComponent *source, simsignal_t signalID,
     Enter_Method_Silent();
     // Check it is for the active radio
     cComponent* activeRadioComponent = check_and_cast_nullable<cComponent*>(activeRadio);
-    if (signalID == IRadio::transmissionStateChangedSignal) {
-        if(activeRadioComponent && activeRadioComponent == source){
+    if(activeRadioComponent && activeRadioComponent == source){
+        if (signalID == IRadio::transmissionStateChangedSignal) {
             // Handle both the data transmission ending and the wake-up transmission ending.
             // They should never happen at the same time, so one variable is enough
             // to manage both
@@ -158,9 +158,7 @@ void WakeUpMacLayer::receiveSignal(cComponent *source, simsignal_t signalID,
             }
             transmissionState = newRadioTransmissionState;
         }
-    }
-    else if (signalID == IRadio::receptionStateChangedSignal) {
-        if(activeRadioComponent && activeRadioComponent == source){
+        else if (signalID == IRadio::receptionStateChangedSignal) {
             // Handle radio moving to receive mode
             IRadio::ReceptionState newRadioReceptionState = static_cast<IRadio::ReceptionState>(value);
             if (receptionState == IRadio::RECEPTION_STATE_UNDEFINED &&
@@ -174,9 +172,7 @@ void WakeUpMacLayer::receiveSignal(cComponent *source, simsignal_t signalID,
             }
             receptionState = newRadioReceptionState;
         }
-    }
-    else if(signalID == IRadio::radioModeChangedSignal){
-        if(activeRadioComponent && activeRadioComponent == source){
+        else if(signalID == IRadio::radioModeChangedSignal){
             // Handle radio switching into sleep mode and into transmitter mode, since radio mode fired last for transmitter mode
             IRadio::RadioMode newRadioMode = static_cast<IRadio::RadioMode>(value);
             if (newRadioMode == IRadio::RADIO_MODE_SLEEP){
@@ -185,6 +181,8 @@ void WakeUpMacLayer::receiveSignal(cComponent *source, simsignal_t signalID,
             else if(newRadioMode == IRadio::RADIO_MODE_TRANSMITTER){
                 stepMacSM(EV_TX_READY, new cMessage("Transmitter Started"));
             }
+            receptionState = IRadio::RECEPTION_STATE_UNDEFINED;
+            transmissionState = IRadio::TRANSMISSION_STATE_UNDEFINED;
         }
     }
 }
