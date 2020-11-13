@@ -147,7 +147,9 @@ void WakeUpMacLayer::receiveSignal(cComponent *source, simsignal_t signalID,
             IRadio::TransmissionState newRadioTransmissionState = static_cast<IRadio::TransmissionState>(value);
             if (transmissionState == IRadio::TRANSMISSION_STATE_TRANSMITTING && newRadioTransmissionState == IRadio::TRANSMISSION_STATE_IDLE) {
                 // KLUDGE: we used to get a cMessage from the radio (the identity was not important)
-                stepMacSM(EV_TX_END, new cMessage("Transmission over"));
+                auto msg = new cMessage("Transmission over");
+                stepMacSM(EV_TX_END, msg);
+                delete msg;
             }
             else if (transmissionState == IRadio::TRANSMISSION_STATE_UNDEFINED && newRadioTransmissionState == IRadio::TRANSMISSION_STATE_IDLE) {
                 // radio has finished switching to startup
@@ -165,7 +167,9 @@ void WakeUpMacLayer::receiveSignal(cComponent *source, simsignal_t signalID,
                     (newRadioReceptionState == IRadio::RECEPTION_STATE_IDLE
                       || newRadioReceptionState == IRadio::RECEPTION_STATE_BUSY) ) {
                 // radio has finished switching to listening
-                stepMacSM(EV_DATA_RX_READY, new cMessage("Reception ready"));
+                auto msg = new cMessage("Reception ready");
+                stepMacSM(EV_DATA_RX_READY, msg);
+                delete msg;
             }
             else {
                 EV_DEBUG << "Unhandled reception state transition" << endl;
@@ -176,10 +180,14 @@ void WakeUpMacLayer::receiveSignal(cComponent *source, simsignal_t signalID,
             // Handle radio switching into sleep mode and into transmitter mode, since radio mode fired last for transmitter mode
             IRadio::RadioMode newRadioMode = static_cast<IRadio::RadioMode>(value);
             if (newRadioMode == IRadio::RADIO_MODE_SLEEP){
-                stepMacSM(EV_DATA_RX_IDLE, new cMessage("Radio switched to sleep"));
+                auto msg = new cMessage("Radio switched to sleep");
+                stepMacSM(EV_DATA_RX_IDLE, msg);
+                delete msg;
             }
             else if(newRadioMode == IRadio::RADIO_MODE_TRANSMITTER){
-                stepMacSM(EV_TX_READY, new cMessage("Transmitter Started"));
+                auto msg = new cMessage("Transmitter Started");
+                stepMacSM(EV_TX_READY, msg);
+                delete msg;
             }
             receptionState = IRadio::RECEPTION_STATE_UNDEFINED;
             transmissionState = IRadio::TRANSMISSION_STATE_UNDEFINED;
@@ -199,10 +207,11 @@ void WakeUpMacLayer::handleSelfMessage(cMessage *msg) {
     }
     else if(msg->getKind() == WAKEUP_APPROVE){
         stepMacSM(EV_WU_APPROVE, msg);
+        delete msg;
     }
     else if(msg->getKind() == WAKEUP_REJECT){
-
         stepMacSM(EV_WU_REJECT, msg);
+        delete msg;
     }
     else{
         EV_DEBUG << "Unhandled self message" << endl;
@@ -253,6 +262,7 @@ void WakeUpMacLayer::stepMacSM(t_mac_event event, cMessage *msg) {
     if(event == EV_DATA_RECEIVED){
         // TODO: Update neighbor tables
     }
+    // Operate State machine based on current state and event
     switch (macState){
     case S_IDLE:
         if(event == EV_QUEUE_SEND){
@@ -296,7 +306,7 @@ void WakeUpMacLayer::stepMacSM(t_mac_event event, cMessage *msg) {
     }
 }
 
-// Receive process that can be overridden
+// Receive acknowledgement process that can be overridden
 void WakeUpMacLayer::stepRxAckProcess(t_mac_event event, cMessage *msg) {
     if(event == EV_DATA_RECEIVED){
         Packet* incomingFrame = check_and_cast<Packet*>(msg);
