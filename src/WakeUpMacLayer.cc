@@ -362,15 +362,7 @@ void WakeUpMacLayer::stepRxAckProcess(t_mac_event event, cMessage *msg) {
     }
     else if(event == EV_TX_READY){
         // send acknowledgement packet when radio is ready
-        auto ackPacket = makeShared<WakeUpAck>();
-        ackPacket->setTransmitterAddress(MacAddress("bbbbbbbbbbbb"));
-        Packet* receivedFrame = check_and_cast<Packet*>(rxPacketInProgress);
-        auto receivedMacData = receivedFrame->peekAtFront<WakeUpGram>();
-        ackPacket->setReceiverAddress(receivedMacData->getTransmitterAddress());
-        auto frame = new Packet("CsmaAck");
-        frame->insertAtFront(ackPacket);
-        frame->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
-        sendDown(frame);
+        sendDown(buildAck(check_and_cast<Packet*>(rxPacketInProgress)));
         updateMacState(S_ACK);
     }
     else if(event == EV_TX_END){
@@ -412,6 +404,16 @@ void WakeUpMacLayer::stepRxAckProcess(t_mac_event event, cMessage *msg) {
         updateMacState(S_IDLE);
     }
 }
+Packet* WakeUpMacLayer::buildAck(const Packet* receivedFrame) const{
+    auto receivedMacData = receivedFrame->peekAtFront<WakeUpGram>();
+    auto ackPacket = makeShared<WakeUpAck>();
+    ackPacket->setTransmitterAddress(interfaceEntry->getMacAddress());
+    ackPacket->setReceiverAddress(receivedMacData->getTransmitterAddress());
+    auto frame = new Packet("CsmaAck");
+    frame->insertAtFront(ackPacket);
+    frame->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
+    return frame;
+}
 void WakeUpMacLayer::updateMacState(t_mac_state newMacState)
 {
     macState = newMacState;
@@ -429,20 +431,7 @@ void WakeUpMacLayer::stepTxSM(t_mac_event event, cMessage *msg) {
         if(event == EV_TX_START || event == EV_ACK_TIMEOUT){
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
             txInProgressRetries++;
-            auto wuHeader = makeShared<WakeUpBeacon>();
-            wuHeader->setType(WU_BEACON);
-            auto expectedCostTag = txPacketInProgress->findTag<ExpectedCostReq>();
-            int minExpectedCost = 0xFFFF;
-            if(expectedCostTag != nullptr){
-                minExpectedCost = expectedCostTag->getExpectedCost();
-            }
-            wuHeader->setMinExpectedCost(minExpectedCost); // TODO: Get from Tag
-            wuHeader->setTransmitterAddress(interfaceEntry->getMacAddress());
-            //TODO: Confirm this sets the right mac address
-            wuHeader->setReceiverAddress(txPacketInProgress->peekAtFront<WakeUpDatagram>()->getReceiverAddress());
-            auto frame = new Packet("wake-up", wuHeader);
-            frame->addTag<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
-            wuPacketInProgress = check_and_cast<cMessage*>(frame);
+            wuPacketInProgress = check_and_cast<cMessage*>(buildWakeUp(txPacketInProgress));
             changeActiveRadio(wakeUpRadio);
             updateTxState(TX_WAKEUP_WAIT);
             EV_DEBUG << "TX SM: EV_TX_START --> TX_WAKEUP_WAIT";
@@ -517,6 +506,21 @@ void WakeUpMacLayer::stepTxSM(t_mac_event event, cMessage *msg) {
     if(txStateChange == false){
         EV_WARN << "Unhandled event in tx state machine: " << msg << endl;
     }
+}
+Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject) const{
+    auto expectedCostTag = subject->findTag<ExpectedCostReq>();
+    int minExpectedCost = 0xFFFF;
+    if(expectedCostTag != nullptr){
+        minExpectedCost = expectedCostTag->getExpectedCost();
+    }
+    auto wuHeader = makeShared<WakeUpBeacon>();
+    wuHeader->setType(WU_BEACON);
+    wuHeader->setMinExpectedCost(minExpectedCost);
+    wuHeader->setTransmitterAddress(interfaceEntry->getMacAddress());
+    wuHeader->setReceiverAddress(subject->peekAtFront<WakeUpDatagram>()->getReceiverAddress());
+    auto frame = new Packet("wake-up", wuHeader);
+    frame->addTag<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
+    return frame;
 }
 void WakeUpMacLayer::stepTxAckProcess(t_mac_event event, cMessage *msg) {
     if(event == EV_TX_END){
@@ -699,6 +703,7 @@ void WakeUpMacLayer::updateWuState(t_wu_state newWuState) {
     wuStateChange = true;
     wuState = newWuState;
 }
+
 
 void WakeUpMacLayer::handleCrashOperation(LifecycleOperation *operation) {
     EV_DEBUG << "Unimplemented crash" << endl;
