@@ -76,6 +76,8 @@ network ORPLTest
 //        }
         visualizer: IntegratedCanvasVisualizer {
             @display("p=81.656815,18.343197");
+            networkRouteVisualizer.typename = "ORPLRouteCanvasVisualizer";
+            networkRouteVisualizer.displayRoutes = true;
         }
         configurator: NextHopNetworkConfigurator {
             @display("p=141.42014,15.976333");
