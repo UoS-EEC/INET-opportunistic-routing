@@ -374,20 +374,8 @@ void WakeUpMacLayer::stepRxAckProcess(t_mac_event event, cMessage *msg) {
         dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
     }
     else if(event == EV_ACK_TIMEOUT){
-        IRadio::ReceptionState receptionState = dataRadio->getReceptionState();
-        bool isIdle = receptionState == IRadio::RECEPTION_STATE_IDLE
-                || receptionState == IRadio::RECEPTION_STATE_BUSY;
-        if (isIdle) {
-            // Switch to transmit, send ack then
-            dataRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
-            updateMacState(S_ACK);
-        }
-        else{
-            // Reschedule backoff timer with shorter backoff
-            cancelEvent(ackBackoffTimer);
-            scheduleAt(simTime() + uniform(0,ackWaitDuration/3), ackBackoffTimer);
-            updateMacState(S_ACK);
-        }
+        setRadioToTransmitIfFreeOrDelay(ackBackoffTimer, ackWaitDuration/3)
+        updateMacState(S_ACK);
     }
     else if(event == EV_WU_TIMEOUT){
         // The receiving has timed out, if packet is received process
@@ -402,6 +390,22 @@ void WakeUpMacLayer::stepRxAckProcess(t_mac_event event, cMessage *msg) {
         cancelEvent(wuTimeout);
         wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
         updateMacState(S_IDLE);
+    }
+}
+void WakeUpMacLayer::setRadioToTransmitIfFreeOrDelay(cMessage *timer,
+        simtime_t delay) {
+    // Check medium is free, or schedule tiny timer
+    IRadio::ReceptionState receptionState = dataRadio->getReceptionState();
+    bool isIdle = receptionState == IRadio::RECEPTION_STATE_IDLE
+            || receptionState == IRadio::RECEPTION_STATE_BUSY;
+    if (isIdle) {
+        // Switch to transmit, send ack then
+        dataRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
+    }
+    else{
+        // Reschedule backoff timer with shorter backoff
+        cancelEvent(delayBy);
+        scheduleAt(simTime() + uniform(0,delayBy), timer);
     }
 }
 Packet* WakeUpMacLayer::buildAck(const Packet* receivedFrame) const{
@@ -462,26 +466,10 @@ void WakeUpMacLayer::stepTxSM(t_mac_event event, cMessage *msg) {
         break;
     case TX_DATA:
         if(event == EV_DATA_RX_READY || event == EV_WAKEUP_BACKOFF){
-            // Check medium is free, or schedule tiny timer
-            IRadio::ReceptionState receptionState = dataRadio->getReceptionState();
-            bool isIdle = receptionState == IRadio::RECEPTION_STATE_IDLE
-                    || receptionState == IRadio::RECEPTION_STATE_BUSY;
-            if (isIdle) {
-                // Switch to transmit, send ack then
-                dataRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
-                updateTxState(TX_DATA);
-            }
-            else{
-                // Reschedule backoff timer with very short timer
-                cancelEvent(wakeUpBackoffTimer);
-                scheduleAt(simTime() + uniform(0,ackWaitDuration/5), wakeUpBackoffTimer);
-                updateTxState(TX_DATA);
-            }
+            setRadioToTransmitIfFreeOrDelay(wakeUpBackoffTimer, ackWaitDuration/5);
+            updateTxState(TX_DATA);
         }
         else if(event == EV_TX_READY){
-            // TODO: Remove radio mode debug statements
-            IRadio::RadioMode tempMode = dataRadio->getRadioMode();
-            IRadio::TransmissionState tempTxMode = dataRadio->getTransmissionState();
             sendDown(txPacketInProgress->dup());
             updateTxState(TX_DATA);
         }
@@ -703,7 +691,6 @@ void WakeUpMacLayer::updateWuState(t_wu_state newWuState) {
     wuStateChange = true;
     wuState = newWuState;
 }
-
 
 void WakeUpMacLayer::handleCrashOperation(LifecycleOperation *operation) {
     EV_DEBUG << "Unimplemented crash" << endl;

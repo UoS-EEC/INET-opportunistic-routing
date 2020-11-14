@@ -154,6 +154,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     virtual void configureInterfaceEntry() override;
     OpportunisticRpl* routingModule;
     void queryWakeupRequest(Packet *wakeUp);
+    void setRadioToTransmitIfFreeOrDelay(cMessage* timer, simtime_t delay);
 
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
