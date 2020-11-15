@@ -309,56 +309,7 @@ void WakeUpMacLayer::stepMacSM(t_mac_event event, cMessage *msg) {
 // Receive acknowledgement process that can be overridden
 void WakeUpMacLayer::stepRxAckProcess(t_mac_event event, cMessage *msg) {
     if(event == EV_DATA_RECEIVED){
-        Packet* incomingFrame = check_and_cast<Packet*>(msg);
-        auto incomingMacData = incomingFrame->peekAtFront<WakeUpGram>();
-        if(incomingMacData->getType()==WU_DATA){
-            updateMacState(S_ACK);
-            if(rxPacketInProgress != nullptr){
-                // Compare the received data to stored data
-                Packet* storedFrame = check_and_cast<Packet*>(rxPacketInProgress);
-                auto storedMacData = storedFrame->peekAtFront<WakeUpGram>();
-                if(storedMacData->getTransmitterAddress() == incomingMacData->getTransmitterAddress()){
-                    // Enough to say packet matches
-                    // Cancel delivery timer until next round
-                    cancelEvent(wuTimeout);
-                    // Cancel queued ack if existing
-                    cancelEvent(ackBackoffTimer);
-                    // Reset cumulative ack backoff
-
-                    // Start CCA Timer to send Ack
-                    double relayDiceRoll = uniform(0,1);
-                    if(relayDiceRoll<candiateRelayContentionProbability){
-                        scheduleAt(simTime() + uniform(0,ackWaitDuration), ackBackoffTimer);
-                    }
-                    else{
-                        rxPacketInProgress = nullptr;
-                        // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
-                        scheduleAt(simTime(), wuTimeout);
-                        EV_DEBUG  << "Detected other relay so discarding packet" << endl;
-                    }
-
-                }
-                else{
-                    EV_DEBUG << "Discard interfering data transmission" << endl;
-                }
-            }
-            else{
-                // Store the received packet
-                rxPacketInProgress = incomingFrame;
-                // Start ack backoff
-                cumulativeAckBackoff = 0;
-                cancelEvent(ackBackoffTimer);
-                scheduleAt(simTime() + uniform(0,ackWaitDuration/3), ackBackoffTimer);
-            }
-        }
-        else if(incomingMacData->getType()==WU_ACK){
-            // Overheard Ack from neighbor
-            EV_WARN << "Overheard Ack from neighbor is it worth sending own ACK?" << endl;
-            // Leave in current mac state which could be S_RECEIVE or S_ACK
-        }
-        else{
-            updateMacState(S_RECEIVE);
-        }
+        handleDataReceivedInAckState(msg);
     }
     else if(event == EV_TX_READY){
         // send acknowledgement packet when radio is ready
@@ -374,7 +325,12 @@ void WakeUpMacLayer::stepRxAckProcess(t_mac_event event, cMessage *msg) {
         dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
     }
     else if(event == EV_ACK_TIMEOUT){
-        setRadioToTransmitIfFreeOrDelay(ackBackoffTimer, ackWaitDuration/3)
+        // Calculate backoff from remaining time
+        simtime_t maxDelay = (ackWaitDuration - cumulativeAckBackoff)/2;
+        ASSERT(maxDelay > 0);
+        // Add expected random backoff to cumulative total
+        cumulativeAckBackoff += maxDelay;
+        setRadioToTransmitIfFreeOrDelay(ackBackoffTimer, maxDelay);
         updateMacState(S_ACK);
     }
     else if(event == EV_WU_TIMEOUT){
@@ -392,8 +348,67 @@ void WakeUpMacLayer::stepRxAckProcess(t_mac_event event, cMessage *msg) {
         updateMacState(S_IDLE);
     }
 }
+
+void WakeUpMacLayer::handleDataReceivedInAckState(cMessage *msg) {
+    Packet* incomingFrame = check_and_cast<Packet*>(msg);
+    auto incomingMacData = incomingFrame->peekAtFront<WakeUpGram>();
+    // TODO: Update neighbor table
+    if(incomingMacData->getType()==WU_DATA && rxPacketInProgress == nullptr){
+        updateMacState(S_ACK);
+        // Store the new received packet
+        rxPacketInProgress = incomingFrame;
+        // Start ack backoff
+        cancelEvent(ackBackoffTimer);
+        // Reset cumulative ack backoff
+        cumulativeAckBackoff = uniform(0,ackWaitDuration/3);
+        scheduleAt(simTime() + cumulativeAckBackoff, ackBackoffTimer);
+    }
+    else if(incomingMacData->getType()==WU_DATA/* && rxPacketInProgress != nullptr*/){
+        updateMacState(S_ACK);
+        // Compare the received data to stored data
+        Packet* storedFrame = check_and_cast<Packet*>(rxPacketInProgress);
+        auto storedMacData = storedFrame->peekAtFront<WakeUpGram>();
+        if(storedMacData->getTransmitterAddress() == incomingMacData->getTransmitterAddress()){
+            // Enough to say packet matches, meaning retransmission due to forwarder contention
+            // TODO: Cancel own ack if new data has expected cost of zero
+            // Begin random relay contention
+
+            // Cancel delivery timer until next round
+            cancelEvent(wuTimeout);
+            // Cancel queued ack if existing
+            cancelEvent(ackBackoffTimer);
+            // Reset cumulative ack backoff
+            cumulativeAckBackoff = uniform(0,ackWaitDuration);
+
+            // Start CCA Timer to send Ack
+            double relayDiceRoll = uniform(0,1);
+            if(relayDiceRoll<candiateRelayContentionProbability){
+                scheduleAt(simTime() + cumulativeAckBackoff, ackBackoffTimer);
+            }
+            else{
+                rxPacketInProgress = nullptr;
+                // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
+                scheduleAt(simTime(), wuTimeout);
+                EV_DEBUG  << "Detected other relay so discarding packet" << endl;
+            }
+
+        }
+        else{
+            EV_DEBUG << "Discard interfering data transmission" << endl;
+        }
+    }
+    else if(incomingMacData->getType()==WU_ACK){
+        // Overheard Ack from neighbor
+        EV_WARN << "Overheard Ack from neighbor is it worth sending own ACK?" << endl;
+        // Leave in current mac state which could be S_RECEIVE or S_ACK
+    }
+    else{
+        updateMacState(S_RECEIVE);
+    }
+}
+
 void WakeUpMacLayer::setRadioToTransmitIfFreeOrDelay(cMessage *timer,
-        simtime_t delay) {
+        simtime_t maxDelay) {
     // Check medium is free, or schedule tiny timer
     IRadio::ReceptionState receptionState = dataRadio->getReceptionState();
     bool isIdle = receptionState == IRadio::RECEPTION_STATE_IDLE
@@ -404,8 +419,8 @@ void WakeUpMacLayer::setRadioToTransmitIfFreeOrDelay(cMessage *timer,
     }
     else{
         // Reschedule backoff timer with shorter backoff
-        cancelEvent(delayBy);
-        scheduleAt(simTime() + uniform(0,delayBy), timer);
+        cancelEvent(timer);
+        scheduleAt(simTime() + uniform(0,maxDelay), timer);
     }
 }
 Packet* WakeUpMacLayer::buildAck(const Packet* receivedFrame) const{

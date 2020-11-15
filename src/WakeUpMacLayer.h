@@ -161,6 +161,9 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     void stepMacSM(t_mac_event event, cMessage *msg);
     simtime_t cumulativeAckBackoff;
     virtual void stepRxAckProcess(t_mac_event event, cMessage *msg);
+  private:
+    void handleDataReceivedInAckState(cMessage *msg);
+  protected:
     Packet* buildAck(const Packet* subject) const;
     void updateMacState(t_mac_state newMacState);
     /** @brief Transmitter State Machine **/
