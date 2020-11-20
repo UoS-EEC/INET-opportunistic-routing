@@ -327,11 +327,21 @@ void WakeUpMacLayer::stepRxAckProcess(t_mac_event event, cMessage *msg) {
     else if(event == EV_ACK_TIMEOUT){
         // Calculate backoff from remaining time
         simtime_t maxDelay = (ackWaitDuration - cumulativeAckBackoff)/2;
-        ASSERT(maxDelay > 0);
-        // Add expected random backoff to cumulative total
-        cumulativeAckBackoff += maxDelay;
-        setRadioToTransmitIfFreeOrDelay(ackBackoffTimer, maxDelay);
-        updateMacState(S_ACK);
+        if(maxDelay > simtime_t::ZERO){
+            // Add expected random backoff to cumulative total
+            cumulativeAckBackoff += maxDelay;
+            setRadioToTransmitIfFreeOrDelay(ackBackoffTimer, maxDelay);
+            updateMacState(S_ACK);
+        }
+        else{
+            // Give up because ack period too long
+            // Drop packet
+            // Return to idle listening
+            changeActiveRadio(wakeUpRadio);
+            cancelEvent(wuTimeout);
+            wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+            updateMacState(S_IDLE);
+        }
     }
     else if(event == EV_WU_TIMEOUT){
         // The receiving has timed out, if packet is received process
