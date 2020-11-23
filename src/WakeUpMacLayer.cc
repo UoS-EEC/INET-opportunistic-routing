@@ -132,6 +132,7 @@ void WakeUpMacLayer::handleUpperPacket(Packet *packet) {
 }
 void WakeUpMacLayer::handleUpperCommand(cMessage *msg) {
     // TODO: Check for approval messages
+    EV_WARN << "Unhandled Upper Command" << endl;
 }
 
 void WakeUpMacLayer::receiveSignal(cComponent *source, simsignal_t signalID,
@@ -341,6 +342,9 @@ void WakeUpMacLayer::stepRxAckProcess(t_mac_event event, cMessage *msg) {
             cancelEvent(wuTimeout);
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
             updateMacState(S_IDLE);
+            EV_WARN << "Dropping packet because of channel congestion";
+            delete rxPacketInProgress;
+            rxPacketInProgress = nullptr;
         }
     }
     else if(event == EV_WU_TIMEOUT){
@@ -401,16 +405,20 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage *msg) {
                 scheduleAt(simTime(), wuTimeout);
                 EV_DEBUG  << "Detected other relay so discarding packet" << endl;
             }
-
+            // Delete retransmitted message
+            delete incomingFrame;
         }
         else{
             EV_DEBUG << "Discard interfering data transmission" << endl;
+            // Delete unknown message
+            delete incomingFrame;
         }
     }
     else if(incomingMacData->getType()==WU_ACK){
         // Overheard Ack from neighbor
         EV_WARN << "Overheard Ack from neighbor is it worth sending own ACK?" << endl;
         // Leave in current mac state which could be S_RECEIVE or S_ACK
+        delete incomingFrame;
     }
     else{
         updateMacState(S_RECEIVE);
@@ -511,6 +519,9 @@ void WakeUpMacLayer::stepTxSM(t_mac_event event, cMessage *msg) {
         wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
         updateMacState(S_IDLE);
         updateTxState(TX_IDLE);
+        delete txPacketInProgress;
+        txPacketInProgress = nullptr;
+        wuPacketInProgress = nullptr;
         break;
     default:
         EV_DEBUG << "Unhandled TX State. Return to idle" << endl;
@@ -565,6 +576,10 @@ void WakeUpMacLayer::stepTxAckProcess(t_mac_event event, cMessage *msg) {
                 //TODO: Better calculation of wait time including ack length
                 scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
             }
+            delete receivedData;
+        }
+        else{
+            EV_DEBUG <<  "Discarding overheard data as busy transmitting" << endl;
         }
     }
     else if(event == EV_ACK_TIMEOUT){
@@ -626,8 +641,10 @@ void WakeUpMacLayer::handleStopOperation(LifecycleOperation *operation) {
 WakeUpMacLayer::~WakeUpMacLayer() {
     // TODO: Move this to the finish function
     // TODO: Cleanup allocated shared packets
-//    delete wuPacketInProgress;
-//    delete txPacketInProgress;
+    if(wuPacketInProgress != nullptr)
+        delete wuPacketInProgress;
+    if(txPacketInProgress != nullptr)
+        delete txPacketInProgress;
     cancelAndDelete(wakeUpBackoffTimer);
     cancelAndDelete(ackBackoffTimer);
     cancelAndDelete(wuTimeout);
@@ -658,11 +675,13 @@ void WakeUpMacLayer::stepWuSM(t_mac_event event, cMessage *msg) {
     switch(wuState){
     case WU_IDLE:
         if(event==EV_WU_START){
+            rxPacketInProgress;
             changeActiveRadio(dataRadio);
             dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
             updateWuState(WU_APPROVE_WAIT);
             scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
             queryWakeupRequest(check_and_cast<Packet*>(msg));
+            delete msg;
         }
         break;
     case WU_APPROVE_WAIT:
