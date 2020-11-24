@@ -29,4 +29,5 @@ simple OpportunisticRpl extends NetworkProtocolBase like INetworkProtocol
         string hubAddress = default("");
         int hubExpectedCost = default(65535);
         string routingTableModule;
+        int initialTTL = default(30);
 }

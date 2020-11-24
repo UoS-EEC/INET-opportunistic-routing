@@ -38,13 +38,16 @@ public:
         nextForwardTimer(nullptr),
         routingTable(nullptr),
         arp(nullptr),
-        waitingPacket(nullptr){}
+        waitingPacket(nullptr),
+        initialTTL(3),
+        sequenceNumber(0){}
     virtual void initialize(int stage) override;
     typedef uint16_t ExpectedCost;
     bool queryAcceptPacket(const MacAddress& destination, const ExpectedCost& currentExpectedCost);
 protected:
     cMessage* nextForwardTimer;
     simtime_t forwardingSpacing;
+    uint8_t initialTTL;
 
     IRoutingTable *routingTable;
     IArp *arp;
@@ -52,7 +55,7 @@ protected:
     L3Address nodeAddress;
 
     Packet* waitingPacket;
-
+    uint16_t sequenceNumber;
     // Address and Sequence number record of packet received or sent
     typedef struct packetRecord{
          MacAddress source;

@@ -35,6 +35,7 @@ void OpportunisticRpl::initialize(int const stage) {
         forwardingSpacing = SimTime(30, SIMTIME_MS);
         routingTable = getModuleFromPar<NextHopRoutingTable>(par("routingTableModule"), this);
         arp = getModuleFromPar<IArp>(par("arpModule"), this);
+        initialTTL = par("initialTTL");
     }
     else if (stage == INITSTAGE_NETWORK_LAYER) {
         ProtocolGroup::ipprotocol.addProtocol(245, &OpportunisticRouting);
@@ -112,9 +113,7 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
         header->setDestAddr( L3Address() );
         EV_WARN << "Packet sent with no destination";
     }
-    // TODO: auto increment ID;
-    header->setId(60000);
-    // TODO: remove tiny ttl when routing implemented
+    header->setId(sequenceNumber++);
     header->setLength(packet->getDataLength() + header->getChunkLength());
     auto protocolTag = packet->findTag<PacketProtocolTag>();
     if(protocolTag != nullptr){
@@ -124,9 +123,13 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
         header->setProtocol(&Protocol::manet);
     }
     header->setSrcAddr(nodeAddress);
-    header->setTtl(3);
+    header->setTtl(initialTTL);
     header->setVersion(IpProtocolId::IP_PROT_MANET);
     packet->insertAtFront(header);
+    ExpectedCost initialCost = 65535;
+    if(expectedCostTable.find(header->getDestAddr())!=expectedCostTable.end()){
+        initialCost = expectedCostTable.at(header->getDestAddr());
+    }
     setDownControlInfo(packet, outboundMacAddress, 65535);
 }
 
