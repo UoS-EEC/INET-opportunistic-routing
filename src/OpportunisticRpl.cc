@@ -95,6 +95,9 @@ void OpportunisticRpl::handleLowerPacket(Packet *packet) {
         setDownControlInfo(packet, outboundMacAddress, currentExpectedCost);
         queuePacket(packet);
     }
+    else{
+        delete packet;
+    }
 }
 
 void OpportunisticRpl::encapsulate(Packet *packet) {
@@ -154,19 +157,14 @@ void OpportunisticRpl::decapsulate(Packet *packet)
 
 void OpportunisticRpl::queuePacket(Packet *packet) {
     auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
-    if(header->getTtl()>0){
-        if(nextForwardTimer->getArrivalTime()>simTime()){
-            // timer is scheduled so queue packet instead
-            if(waitingPacket == nullptr){
-                waitingPacket = packet;
-            }
-            else{
-                EV_INFO << "Dropping packet as queue of 1 is full" << endl;
-            }
-        }
-        else{
-            // TODO: Allow immediate send once WuMAC Layer problem
-            // of radio mode switching is solved
+    // If packet lifetime not expired and there is space in queue
+    if(waitingPacket == nullptr && header->getTtl()>0){
+        // queue packet
+        waitingPacket = packet;
+        // TODO: Allow immediate send once WuMAC Layer problem
+        // of radio mode switching is solved
+        // If forwarding delay timer expired, reset
+        if(!nextForwardTimer->isScheduled()){
             // send packet after scheduled timer
             scheduleAt(simTime()+forwardingSpacing, nextForwardTimer);
             waitingPacket = packet;

@@ -400,6 +400,7 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage *msg) {
                 scheduleAt(simTime() + cumulativeAckBackoff, ackBackoffTimer);
             }
             else{
+                delete rxPacketInProgress;
                 rxPacketInProgress = nullptr;
                 // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
                 scheduleAt(simTime(), wuTimeout);
@@ -519,8 +520,10 @@ void WakeUpMacLayer::stepTxSM(t_mac_event event, cMessage *msg) {
         wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
         updateMacState(S_IDLE);
         updateTxState(TX_IDLE);
+        // Discard Link layer packet
         delete txPacketInProgress;
         txPacketInProgress = nullptr;
+        // Reset wuPacketInProgress, can't delete as it has been sent
         wuPacketInProgress = nullptr;
         break;
     default:
@@ -561,6 +564,7 @@ void WakeUpMacLayer::stepTxAckProcess(t_mac_event event, cMessage *msg) {
         auto receivedData = check_and_cast<Packet* >(msg);
         auto receivedAck = receivedData->popAtFront<WakeUpGram>();
         if(receivedAck->getType() == WU_ACK){
+            // TODO: Update neighbors and check source and dest address match
             // Reset ackBackoffTimer
             cancelEvent(ackBackoffTimer);
             // count first few ack
@@ -580,15 +584,16 @@ void WakeUpMacLayer::stepTxAckProcess(t_mac_event event, cMessage *msg) {
         }
         else{
             EV_DEBUG <<  "Discarding overheard data as busy transmitting" << endl;
+            delete receivedData;
         }
     }
     else if(event == EV_ACK_TIMEOUT){
         // TODO: Get required forwarders count from packetTag from n/w layer
         int requiredForwarders = 1;
         // TODO: Test this with more nodes should this include forwarders from prev timeslot?
+        updateMacState(S_TRANSMIT);
         if(acknowledgedForwarders>requiredForwarders){
             // Go straight to immediate data retransmission to reduce forwarders
-            updateMacState(S_TRANSMIT);
             updateTxState(TX_DATA);
             scheduleAt(simTime(), wakeUpBackoffTimer);
 
@@ -601,8 +606,6 @@ void WakeUpMacLayer::stepTxAckProcess(t_mac_event event, cMessage *msg) {
                 updateTxState(TX_IDLE);
             }
             else{
-                // Discard Link layer packet
-                txPacketInProgress = nullptr;
                 updateTxState(TX_END);
                 //The Radio Receive->Sleep triggers next SM transition
                 dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
