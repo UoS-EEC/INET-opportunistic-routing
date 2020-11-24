@@ -139,7 +139,6 @@ void WakeUpMacLayer::handleUpperCommand(cMessage* const msg) {
 void WakeUpMacLayer::receiveSignal(cComponent* const source, simsignal_t const signalID,
         intval_t const value, cObject* const details) {
     Enter_Method_Silent();
-    MacProtocolBase::receiveSignal(source, signalID, value, details);
     // Check it is for the active radio
     cComponent* activeRadioComponent = check_and_cast_nullable<cComponent*>(activeRadio);
     if(activeRadioComponent && activeRadioComponent == source){
