@@ -23,12 +23,12 @@ import inet.visualizer.integrated.IntegratedCanvasVisualizer;
 import inet.networklayer.configurator.nexthop.NextHopNetworkConfigurator;
 
 
-network ORPLTest
+network ORPLTestMulti
 {
     parameters:
         visualizer.mediumVisualizer.displayCommunicationRanges = true;
         radioMedium.mediumLimitCache.maxTransmissionDuration = 20ms;
-        @display("bgb=147.92384,61.53135;scale=4");
+        @display("bgb=153.5,117.75;scale=4");
     submodules:
         radioMedium: Ieee802154NarrowbandScalarRadioMedium {
             @display("p=18.343197,17.751482");
@@ -40,11 +40,18 @@ network ORPLTest
             generic.np.hubExpectedCost = 0;
         }
         transmittingWakeUpNode: ORPLLayerNode {
-            @display("p=62.774406,37.4989");
+            @display("p=57.884617,61.92308");
             generic.np.hubAddress = "receivingWakeUpNode";
-            generic.np.hubExpectedCost = 4;
+            generic.np.hubExpectedCost = 6;
             packetGenerator.destAddresses = "receivingWakeUpNode(modulepath)";
             packetGenerator.startTime = 0.5s;
+        }
+        node1: ORPLLayerNode {
+            @display("p=70.19231,59.42308");
+            generic.np.hubAddress = "receivingWakeUpNode";
+            generic.np.hubExpectedCost = 4;
+            packetGenerator.destAddresses = "";
+            packetGenerator.sendInterval = 5s;
         }
         overhearingWakeUpNode: ORPLLayerNode {
             @display("p=62.774406,50.758183");
@@ -53,27 +60,27 @@ network ORPLTest
             packetGenerator.destAddresses = "receivingWakeUpNode(modulepath)";
             packetGenerator.sendInterval = 5s;
         }
-//        transmittingNode: AdhocHost {
-//            numApps = 1;
-//            app[0].typename = "UdpBasicApp";
-//            app[0].destAddresses = "receivingNode";
-//            app[0].destPort = 80;
-//            app[0].messageLength = 10B;
-//            app[0].sendInterval = 1s;
-//            @display("p=62.774406,37.4989");
-//            wlan[0].typename = "Ieee802154NarrowbandInterface";
-//            wlan[0].radio.centerFrequency = 868MHz;
-//            wlan[0].radio.transmitter.power = 0.01W; // 15dBm
-//        }
-//        receivingNode: AdhocHost {
-//            numApps = 1;
-//            app[0].typename = "UdpSink";
-//            app[0].localPort = 80;
-//            @display("p=62.774406,50.758183");
-//            wlan[0].typename = "Ieee802154NarrowbandInterface";
-//            wlan[0].radio.centerFrequency = 868MHz;
-//            wlan[0].radio.transmitter.power = 0.01W; // 15dBm
-//        }
+        //        transmittingNode: AdhocHost {
+        //            numApps = 1;
+        //            app[0].typename = "UdpBasicApp";
+        //            app[0].destAddresses = "receivingNode";
+        //            app[0].destPort = 80;
+        //            app[0].messageLength = 10B;
+        //            app[0].sendInterval = 1s;
+        //            @display("p=62.774406,37.4989");
+        //            wlan[0].typename = "Ieee802154NarrowbandInterface";
+        //            wlan[0].radio.centerFrequency = 868MHz;
+        //            wlan[0].radio.transmitter.power = 0.01W; // 15dBm
+        //        }
+        //        receivingNode: AdhocHost {
+        //            numApps = 1;
+        //            app[0].typename = "UdpSink";
+        //            app[0].localPort = 80;
+        //            @display("p=62.774406,50.758183");
+        //            wlan[0].typename = "Ieee802154NarrowbandInterface";
+        //            wlan[0].radio.centerFrequency = 868MHz;
+        //            wlan[0].radio.transmitter.power = 0.01W; // 15dBm
+        //        }
         visualizer: IntegratedCanvasVisualizer {
             @display("p=81.656815,18.343197");
             networkRouteVisualizer.typename = "ORPLRouteCanvasVisualizer";
