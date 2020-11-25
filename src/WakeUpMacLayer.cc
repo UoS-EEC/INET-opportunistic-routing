@@ -540,6 +540,7 @@ void WakeUpMacLayer::stepTxAckProcess(t_mac_event event, cMessage *msg) {
         //reset confirmed forwarders count
         acknowledgedForwarders = 0;
         // Schedule acknowledgement timeout
+        updateMacState(S_TRANSMIT);
         updateTxState(TX_ACK_WAIT);
         dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
         //TODO: Better calculation of wait time including ack length
@@ -549,6 +550,7 @@ void WakeUpMacLayer::stepTxAckProcess(t_mac_event event, cMessage *msg) {
         EV_DEBUG << "Data Ack Received";
         auto receivedData = check_and_cast<Packet* >(msg);
         auto receivedAck = receivedData->popAtFront<WakeUpGram>();
+        updateMacState(S_TRANSMIT);
         if(receivedAck->getType() == WU_ACK){
             // Reset ackBackoffTimer
             cancelEvent(ackBackoffTimer);
@@ -556,7 +558,6 @@ void WakeUpMacLayer::stepTxAckProcess(t_mac_event event, cMessage *msg) {
             acknowledgedForwarders++;
             if(acknowledgedForwarders>4){
                 // Skip listening for any more and send data again to reduce forwarders
-                updateMacState(S_TRANSMIT);
                 updateTxState(TX_DATA);
                 scheduleAt(simTime(), wakeUpBackoffTimer);
             }
@@ -565,15 +566,21 @@ void WakeUpMacLayer::stepTxAckProcess(t_mac_event event, cMessage *msg) {
                 //TODO: Better calculation of wait time including ack length
                 scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
             }
+            delete receivedData;
+        }
+        else{
+            updateTxState(TX_ACK_WAIT);
+            EV_DEBUG <<  "Discarding overheard data as busy transmitting" << endl;
+            delete receivedData;
         }
     }
     else if(event == EV_ACK_TIMEOUT){
         // TODO: Get required forwarders count from packetTag from n/w layer
         int requiredForwarders = 1;
+        updateMacState(S_TRANSMIT);
         // TODO: Test this with more nodes should this include forwarders from prev timeslot?
         if(acknowledgedForwarders>requiredForwarders){
             // Go straight to immediate data retransmission to reduce forwarders
-            updateMacState(S_TRANSMIT);
             updateTxState(TX_DATA);
             scheduleAt(simTime(), wakeUpBackoffTimer);
 
