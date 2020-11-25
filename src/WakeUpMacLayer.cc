@@ -585,10 +585,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             delete receivedData;
         }
         else{
-<<<<<<< HEAD
-=======
             updateTxState(TX_ACK_WAIT);
->>>>>>> dev-WuMAC
             EV_DEBUG <<  "Discarding overheard data as busy transmitting" << endl;
             delete receivedData;
         }
