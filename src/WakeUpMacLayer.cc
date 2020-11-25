@@ -555,6 +555,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         //reset confirmed forwarders count
         acknowledgedForwarders = 0;
         // Schedule acknowledgement timeout
+        updateMacState(S_TRANSMIT);
         updateTxState(TX_ACK_WAIT);
         dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
         //TODO: Better calculation of wait time including ack length
@@ -564,6 +565,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         EV_DEBUG << "Data Ack Received";
         auto receivedData = check_and_cast<Packet* >(msg);
         auto receivedAck = receivedData->popAtFront<WakeUpGram>();
+        updateMacState(S_TRANSMIT);
         if(receivedAck->getType() == WU_ACK){
             // TODO: Update neighbors and check source and dest address match
             // Reset ackBackoffTimer
@@ -572,7 +574,6 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             acknowledgedForwarders++;
             if(acknowledgedForwarders>4){
                 // Skip listening for any more and send data again to reduce forwarders
-                updateMacState(S_TRANSMIT);
                 updateTxState(TX_DATA);
                 scheduleAt(simTime(), wakeUpBackoffTimer);
             }
@@ -584,6 +585,10 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             delete receivedData;
         }
         else{
+<<<<<<< HEAD
+=======
+            updateTxState(TX_ACK_WAIT);
+>>>>>>> dev-WuMAC
             EV_DEBUG <<  "Discarding overheard data as busy transmitting" << endl;
             delete receivedData;
         }
@@ -591,6 +596,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
     else if(event == EV_ACK_TIMEOUT){
         // TODO: Get required forwarders count from packetTag from n/w layer
         int requiredForwarders = 1;
+        updateMacState(S_TRANSMIT);
         // TODO: Test this with more nodes should this include forwarders from prev timeslot?
         updateMacState(S_TRANSMIT);
         if(acknowledgedForwarders>requiredForwarders){
