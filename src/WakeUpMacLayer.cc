@@ -236,17 +236,21 @@ void WakeUpMacLayer::configureInterfaceEntry() {
 const void WakeUpMacLayer::queryWakeupRequest(const Packet* wakeUp) {
     // For now just send immediate acceptance
     // TODO: Check if receiver mac address is this node
-    auto header = wakeUp->peekAtFront<WakeUpBeacon>();
+    auto header = wakeUp->peekAtFront<WakeUpGram>();
     bool approve = false;
-    if(header->getReceiverAddress() == interfaceEntry->getMacAddress()){
+    if(header->getType()!=WakeUpGramType::WU_BEACON){
+        approve = false;
+    }
+    else if(header->getReceiverAddress() == interfaceEntry->getMacAddress()){
         approve = true;
     }
     else if(header->getReceiverAddress() == MacAddress::BROADCAST_ADDRESS){
         approve = true;
     }
-    else if(routingModule != nullptr){
+    else if(routingModule != nullptr && header->getType()==WakeUpGramType::WU_BEACON){
+        auto costHeader = wakeUp->peekAtFront<WakeUpBeacon>();
         // TODO: Query Opportunistic layer for permission to wake-up
-        if(routingModule->queryAcceptPacket(header->getReceiverAddress(), header->getMinExpectedCost())){
+        if(routingModule->queryAcceptPacket(header->getReceiverAddress(), costHeader->getMinExpectedCost())){
             approve = true;
         }
     }
@@ -480,6 +484,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         if(event == EV_TX_READY){
             // TODO: Change this to a short WU packet
             send(wuPacketInProgress, wakeUpRadioOutGateId);
+            wuPacketInProgress = nullptr;
             updateTxState(TX_WAKEUP_WAIT);
             EV_DEBUG << "TX SM in TX_WAKEUP_WAIT";
         }

@@ -130,7 +130,7 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
     if(expectedCostTable.find(header->getDestAddr())!=expectedCostTable.end()){
         initialCost = expectedCostTable.at(header->getDestAddr());
     }
-    setDownControlInfo(packet, outboundMacAddress, 65535);
+    setDownControlInfo(packet, outboundMacAddress, initialCost);
 }
 
 void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const ExpectedCost& expectedCost) {
