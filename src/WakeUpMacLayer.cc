@@ -50,6 +50,7 @@ void WakeUpMacLayer::initialize(int const stage) {
         ackWaitDuration = par("ackWaitDuration");
         wuApproveResponseLimit = par("wuApproveResponseLimit");
         candiateRelayContentionProbability = par("candiateRelayContentionProbability");
+        expectedCostJump = 2;
     }
     else if (stage == INITSTAGE_LINK_LAYER) {
         cModule *radioModule = getModuleFromPar<cModule>(par("dataRadioModule"), this);
@@ -70,6 +71,7 @@ void WakeUpMacLayer::initialize(int const stage) {
         updateTxState(TX_IDLE);
         activeRadio = wakeUpRadio;
         transmissionState = activeRadio->getTransmissionState();
+
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
         // Find network layer with query wake-up request
@@ -474,7 +476,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         if(event == EV_TX_START || event == EV_ACK_TIMEOUT){
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
             txInProgressRetries++;
-            wuPacketInProgress = check_and_cast<cMessage*>(buildWakeUp(txPacketInProgress));
+            wuPacketInProgress = check_and_cast<cMessage*>(buildWakeUp(txPacketInProgress, txInProgressRetries));
             changeActiveRadio(wakeUpRadio);
             updateTxState(TX_WAKEUP_WAIT);
             EV_DEBUG << "TX SM: EV_TX_START --> TX_WAKEUP_WAIT";
@@ -540,11 +542,15 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         EV_WARN << "Unhandled event in tx state machine: " << msg << endl;
     }
 }
-Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject) const{
+Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount) const{
     auto expectedCostTag = subject->findTag<ExpectedCostReq>();
     int minExpectedCost = 0xFFFF;
+    const int expJumpFloor = std::floor(expectedCostJump);
+    const int expJumpBern = expJumpFloor + bernoulli(expectedCostJump - expJumpFloor);
     if(expectedCostTag != nullptr){
         minExpectedCost = expectedCostTag->getExpectedCost();
+        minExpectedCost = minExpectedCost - std::max(0, expJumpBern - retryCount);
+        minExpectedCost = std::max(0, minExpectedCost);
     }
     auto wuHeader = makeShared<WakeUpBeacon>();
     wuHeader->setType(WU_BEACON);
@@ -601,15 +607,22 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         updateMacState(S_TRANSMIT);
         // TODO: Test this with more nodes should this include forwarders from prev timeslot?
         updateMacState(S_TRANSMIT);
-        if(acknowledgedForwarders>requiredForwarders){
+        const int supplementaryForwarders = acknowledgedForwarders - requiredForwarders;
+        if(supplementaryForwarders>0){
             // Go straight to immediate data retransmission to reduce forwarders
             updateTxState(TX_DATA);
             scheduleAt(simTime(), wakeUpBackoffTimer);
-
+            //TODO: stabilize and parameterize this control of expected cost jump
+            expectedCostJump += supplementaryForwarders*0.1;
+            expectedCostJump = std::max(0.0, expectedCostJump);
         }
         else{
             txInProgressForwarders = txInProgressForwarders+acknowledgedForwarders; // TODO: Check forwarders uniqueness
             if(txInProgressForwarders<requiredForwarders && txInProgressRetries<maxWakeUpRetries){
+                // Reduce expected cost jump to find more forwarders
+                const int retriesOver1 = std::max(1, txInProgressRetries) - 1;
+                expectedCostJump -= retriesOver1 * 0.1;
+                expectedCostJump = std::max(0.0, expectedCostJump);
                 // Try transmitting wake-up again after standard ack backoff
                 scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
                 updateTxState(TX_IDLE);
