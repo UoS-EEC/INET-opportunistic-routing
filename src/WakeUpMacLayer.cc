@@ -315,6 +315,17 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
     }
 }
 
+void WakeUpMacLayer::completePacketReception()
+{
+    // The receiving has timed out, if packet is received process
+    if (rxPacketInProgress != nullptr) {
+        Packet* pkt = dynamic_cast<Packet*>(rxPacketInProgress);
+        decapsulate(pkt);
+        sendUp(pkt);
+        rxPacketInProgress = nullptr;
+    }
+}
+
 // Receive acknowledgement process that can be overridden
 void WakeUpMacLayer::stepRxAckProcess(const t_mac_event& event, cMessage * const msg) {
     if(event == EV_DATA_RECEIVED){
@@ -357,12 +368,7 @@ void WakeUpMacLayer::stepRxAckProcess(const t_mac_event& event, cMessage * const
     }
     else if(event == EV_WU_TIMEOUT){
         // The receiving has timed out, if packet is received process
-        if(rxPacketInProgress != nullptr){
-            Packet *pkt = dynamic_cast<Packet *>(rxPacketInProgress);
-            decapsulate(pkt);
-            sendUp(pkt);
-            rxPacketInProgress = nullptr;
-        }
+        completePacketReception();
         // Return to idle listening
         changeActiveRadio(wakeUpRadio);
         cancelEvent(wuTimeout);
@@ -658,11 +664,15 @@ bool WakeUpMacLayer::startImmediateTransmission(cMessage* const msg) {
 }
 
 void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
+    // complete unfinished reception
+    completePacketReception();
     // Unfinished transmission so restart that transmission
     if(txPacketInProgress){
         updateMacState(S_TRANSMIT);
         updateTxState(TX_IDLE);
-        stepTxSM(EV_ACK_TIMEOUT, msg);
+        auto msg = new cMessage("Ack timeout from restart");
+        stepMacSM(EV_ACK_TIMEOUT, msg);
+        delete msg;
     }
     else{
         // TODO: Move to function shared with initialize
@@ -786,12 +796,19 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
         if(txInProgressForwarders>0){
             // Discard the in progress packet as it's been received by a forwarder
             delete txPacketInProgress;
-            txPacketInProgress == nullptr;
+            txPacketInProgress = nullptr;
         }
     }
     else if(rxPacketInProgress != nullptr){
-        // Check if Ack Sent already
+        // Check if in ack backoff period and if waiting to send ack
+        if(wuTimeout->isScheduled() && ackBackoffTimer->isScheduled()){
+            // Ack not sent yet so just bow out
+            delete rxPacketInProgress;
+            rxPacketInProgress = nullptr;
+        }// TODO: check how many contending acks there were
+        else{
+            // Send packet up upon restart by leaving in memory
+        }
     }
     cancelAllTimers();
-    EV_DEBUG << "Unimplemented crash" << endl;
 }
