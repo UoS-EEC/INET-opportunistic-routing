@@ -150,12 +150,12 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     physicallayer::IRadio::ReceptionState receptionState;
 
     virtual void initialize(int stage) override;
-    virtual void cancelAllTimers() override;
+    virtual void cancelAllTimers();
     void changeActiveRadio(physicallayer::IRadio*);
     virtual bool isLowerMessage(cMessage* message) override;
     virtual void configureInterfaceEntry() override;
     OpportunisticRpl* routingModule;
-    void queryWakeupRequest(const Packet* wakeUp) const;
+    void queryWakeupRequest(const Packet* wakeUp);
     void setRadioToTransmitIfFreeOrDelay(cMessage* timer, const simtime_t& maxDelay);
 
     t_mac_state macState; //Record the current state of the MAC State machine

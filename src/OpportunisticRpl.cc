@@ -205,7 +205,7 @@ void OpportunisticRpl::handleCrashOperation(LifecycleOperation *op) {
 }
 
 bool OpportunisticRpl::queryAcceptPacket(const MacAddress& destination,
-        const ExpectedCost& currentExpectedCost) {
+        const ExpectedCost& currentExpectedCost) const{
     L3Address l3dest = arp->getL3AddressFor(destination);
     L3Address modPathAddr = l3dest.toModulePath();
     if(l3dest==nodeAddress){

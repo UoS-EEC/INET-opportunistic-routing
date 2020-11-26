@@ -236,7 +236,7 @@ void WakeUpMacLayer::configureInterfaceEntry() {
     interfaceEntry->setBroadcast(true);
     interfaceEntry->setPointToPoint(false);
 }
-const void WakeUpMacLayer::queryWakeupRequest(const Packet* wakeUp) {
+void WakeUpMacLayer::queryWakeupRequest(const Packet* wakeUp) {
     // For now just send immediate acceptance
     // TODO: Check if receiver mac address is this node
     auto header = wakeUp->peekAtFront<WakeUpGram>();
