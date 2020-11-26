@@ -71,6 +71,7 @@ void WakeUpMacLayer::initialize(int const stage) {
         updateTxState(TX_IDLE);
         activeRadio = wakeUpRadio;
         transmissionState = activeRadio->getTransmissionState();
+        receptionState = activeRadio->getReceptionState();
 
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
@@ -657,6 +658,22 @@ bool WakeUpMacLayer::startImmediateTransmission(cMessage* const msg) {
 }
 
 void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
+    // Unfinished transmission so restart that transmission
+    if(txPacketInProgress){
+        updateMacState(S_TRANSMIT);
+        updateTxState(TX_IDLE);
+        stepTxSM(EV_ACK_TIMEOUT, msg);
+    }
+    else{
+        // TODO: Move to function shared with initialize
+        updateMacState(S_IDLE);
+        updateWuState(WU_IDLE);
+        updateTxState(TX_IDLE);
+        activeRadio = wakeUpRadio;
+        wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+        transmissionState = activeRadio->getTransmissionState();
+        receptionState = activeRadio->getReceptionState();
+    }
 }
 
 void WakeUpMacLayer::handleStopOperation(LifecycleOperation *operation) {
@@ -670,9 +687,7 @@ WakeUpMacLayer::~WakeUpMacLayer() {
         delete wuPacketInProgress;
     if(txPacketInProgress != nullptr)
         delete txPacketInProgress;
-    cancelAndDelete(wakeUpBackoffTimer);
-    cancelAndDelete(ackBackoffTimer);
-    cancelAndDelete(wuTimeout);
+    cancelAllTimers();
 }
 
 void WakeUpMacLayer::encapsulate(Packet* const pkt) { // From CsmaCaMac
@@ -759,6 +774,24 @@ void WakeUpMacLayer::updateWuState(const t_wu_state& newWuState) {
     wuState = newWuState;
 }
 
-void WakeUpMacLayer::handleCrashOperation(LifecycleOperation *operation) {
+void WakeUpMacLayer::cancelAllTimers()
+{
+    cancelAndDelete(wakeUpBackoffTimer);
+    cancelAndDelete(ackBackoffTimer);
+    cancelAndDelete(wuTimeout);
+}
+
+void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
+    if(txPacketInProgress != nullptr){
+        if(txInProgressForwarders>0){
+            // Discard the in progress packet as it's been received by a forwarder
+            delete txPacketInProgress;
+            txPacketInProgress == nullptr;
+        }
+    }
+    else if(rxPacketInProgress != nullptr){
+        // Check if Ack Sent already
+    }
+    cancelAllTimers();
     EV_DEBUG << "Unimplemented crash" << endl;
 }
