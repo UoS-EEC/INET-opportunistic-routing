@@ -57,7 +57,8 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         acknowledgedForwarders(0),
         maxWakeUpRetries(4), // TODO: Parameterize
         txInProgressForwarders(0),
-        txInProgressRetries(0)
+        txInProgressRetries(0),
+        expectedCostJump(0)
       {}
     virtual ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
@@ -149,11 +150,13 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     physicallayer::IRadio::ReceptionState receptionState;
 
     virtual void initialize(int stage) override;
+    virtual void cancelAllTimers();
+    virtual void deleteAllTimers();
     void changeActiveRadio(physicallayer::IRadio*);
     virtual bool isLowerMessage(cMessage* message) override;
     virtual void configureInterfaceEntry() override;
     OpportunisticRpl* routingModule;
-    const void queryWakeupRequest(const Packet* wakeUp);
+    void queryWakeupRequest(const Packet* wakeUp);
     void setRadioToTransmitIfFreeOrDelay(cMessage* timer, const simtime_t& maxDelay);
 
     t_mac_state macState; //Record the current state of the MAC State machine
@@ -163,6 +166,8 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     virtual void stepRxAckProcess(const t_mac_event& event, cMessage *msg);
   private:
     void handleDataReceivedInAckState(cMessage *msg);
+    void completePacketReception();
+
   protected:
     Packet* buildAck(const Packet* subject) const;
     void updateMacState(const t_mac_state& newMacState);
@@ -170,11 +175,12 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     bool txStateChange = false;
     t_tx_state txState;
     void stepTxSM(const t_mac_event& event, cMessage* msg);
-    Packet* buildWakeUp(const Packet* subject) const;
+    Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
     int acknowledgedForwarders;
     int maxWakeUpRetries;
     int txInProgressForwarders;
-    int txInProgressRetries;
+    int txInProgressRetries;; //TODO: rename to tries
+    double expectedCostJump;
     virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);
     void updateTxState(const t_tx_state& newTxState);
     /** @brief Wake-up listening State Machine **/

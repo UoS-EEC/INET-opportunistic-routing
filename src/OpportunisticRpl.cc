@@ -130,7 +130,7 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
     if(expectedCostTable.find(header->getDestAddr())!=expectedCostTable.end()){
         initialCost = expectedCostTable.at(header->getDestAddr());
     }
-    setDownControlInfo(packet, outboundMacAddress, 65535);
+    setDownControlInfo(packet, outboundMacAddress, initialCost);
 }
 
 void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const ExpectedCost& expectedCost) {
@@ -196,16 +196,22 @@ void OpportunisticRpl::finish() {
 }
 
 void OpportunisticRpl::handleStartOperation(LifecycleOperation *op) {
+    if(waitingPacket!=nullptr){
+        // send packet after scheduled timer
+        scheduleAt(simTime()+forwardingSpacing, nextForwardTimer);
+    }
 }
 
 void OpportunisticRpl::handleStopOperation(LifecycleOperation *op) {
+    cancelEvent(nextForwardTimer);
 }
 
 void OpportunisticRpl::handleCrashOperation(LifecycleOperation *op) {
+    handleStopOperation(op);
 }
 
 bool OpportunisticRpl::queryAcceptPacket(const MacAddress& destination,
-        const ExpectedCost& currentExpectedCost) {
+        const ExpectedCost& currentExpectedCost) const{
     L3Address l3dest = arp->getL3AddressFor(destination);
     L3Address modPathAddr = l3dest.toModulePath();
     if(l3dest==nodeAddress){

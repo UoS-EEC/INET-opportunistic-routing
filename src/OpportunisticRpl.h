@@ -43,7 +43,7 @@ public:
         sequenceNumber(0){}
     virtual void initialize(int stage) override;
     typedef uint16_t ExpectedCost;
-    bool queryAcceptPacket(const MacAddress& destination, const ExpectedCost& currentExpectedCost);
+    bool queryAcceptPacket(const MacAddress& destination, const ExpectedCost& currentExpectedCost) const;
 protected:
     cMessage* nextForwardTimer;
     simtime_t forwardingSpacing;
