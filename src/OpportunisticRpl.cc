@@ -196,12 +196,18 @@ void OpportunisticRpl::finish() {
 }
 
 void OpportunisticRpl::handleStartOperation(LifecycleOperation *op) {
+    if(waitingPacket!=nullptr){
+        // send packet after scheduled timer
+        scheduleAt(simTime()+forwardingSpacing, nextForwardTimer);
+    }
 }
 
 void OpportunisticRpl::handleStopOperation(LifecycleOperation *op) {
+    cancelEvent(nextForwardTimer);
 }
 
 void OpportunisticRpl::handleCrashOperation(LifecycleOperation *op) {
+    handleStopOperation(op);
 }
 
 bool OpportunisticRpl::queryAcceptPacket(const MacAddress& destination,
