@@ -51,33 +51,30 @@ void WakeUpMacLayer::initialize(int const stage) {
         wuApproveResponseLimit = par("wuApproveResponseLimit");
         candiateRelayContentionProbability = par("candiateRelayContentionProbability");
         expectedCostJump = 2;
+
+        cModule *radioModule = getModuleFromPar<cModule>(par("dataRadioModule"), this);
+        dataRadio = check_and_cast<IRadio *>(radioModule);
+        radioModule = getModuleFromPar<cModule>(par("wakeUpRadioModule"), this);
+        wakeUpRadio = check_and_cast<IRadio *>(radioModule);
+        cModule *module = getModuleFromPar<cModule>(par("routingModule"), this, false);
+        routingModule = check_and_cast_nullable<OpportunisticRpl*>(module);
     }
     else if (stage == INITSTAGE_LINK_LAYER) {
-        cModule *radioModule = getModuleFromPar<cModule>(par("dataRadioModule"), this);
-        radioModule->subscribe(IRadio::radioModeChangedSignal, this);
-        radioModule->subscribe(IRadio::transmissionStateChangedSignal, this);
-        radioModule->subscribe(IRadio::receptionStateChangedSignal, this);
-        dataRadio = check_and_cast<IRadio *>(radioModule);
+        cModule* const dataCMod = check_and_cast<cModule*>(dataRadio);
+        dataCMod->subscribe(IRadio::radioModeChangedSignal, this);
+        dataCMod->subscribe(IRadio::transmissionStateChangedSignal, this);
+        dataCMod->subscribe(IRadio::receptionStateChangedSignal, this);
 
-        radioModule = getModuleFromPar<cModule>(par("wakeUpRadioModule"), this);
-        radioModule->subscribe(IRadio::radioModeChangedSignal, this);
-        radioModule->subscribe(IRadio::transmissionStateChangedSignal, this);
-        radioModule->subscribe(IRadio::receptionStateChangedSignal, this);
-        wakeUpRadio = check_and_cast<IRadio *>(radioModule);
-        wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+        cModule* const wakeUpCMod = check_and_cast<cModule*>(wakeUpRadio);
+        wakeUpCMod->subscribe(IRadio::radioModeChangedSignal, this);
+        wakeUpCMod->subscribe(IRadio::transmissionStateChangedSignal, this);
+        wakeUpCMod->subscribe(IRadio::receptionStateChangedSignal, this);
 
-        updateMacState(S_IDLE);
-        updateWuState(WU_IDLE);
-        updateTxState(TX_IDLE);
-        activeRadio = wakeUpRadio;
-        transmissionState = activeRadio->getTransmissionState();
-        receptionState = activeRadio->getReceptionState();
+        // Initial state handled by handleStartOperation()
 
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
         // Find network layer with query wake-up request
-        cModule *module = getModuleFromPar<cModule>(par("routingModule"), this, false);
-        routingModule = check_and_cast_nullable<OpportunisticRpl*>(module);
         if (routingModule != nullptr){
             // Found routing module that implements OpportunisticRpl::queryAcceptPacket();
 
@@ -818,4 +815,6 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
         }
     }
     cancelAllTimers();
+    // Stop all signals from being interpreted
+    updateMacState(S_IDLE);
 }
