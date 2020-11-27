@@ -617,7 +617,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             updateTxState(TX_DATA);
             scheduleAt(simTime(), wakeUpBackoffTimer);
             //TODO: stabilize and parameterize this control of expected cost jump
-            expectedCostJump += supplementaryForwarders*0.1;
+            expectedCostJump += supplementaryForwarders*0.2; // Grow slower
             expectedCostJump = std::max(0.0, expectedCostJump);
         }
         else{
@@ -625,7 +625,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             if(txInProgressForwarders<requiredForwarders && txInProgressRetries<maxWakeUpRetries){
                 // Reduce expected cost jump to find more forwarders
                 const int retriesOver1 = std::max(1, txInProgressRetries) - 1;
-                expectedCostJump -= retriesOver1 * 0.1;
+                expectedCostJump -= retriesOver1 * 0.3; // Shrink faster
                 expectedCostJump = std::max(0.0, expectedCostJump);
                 // Try transmitting wake-up again after standard ack backoff
                 scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);

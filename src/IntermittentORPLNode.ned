@@ -22,5 +22,5 @@ module IntermittentORPLNode extends ORPLLayerNode
 {
     parameters:
         // Drastically reduced energy, tx rate over 0.01Hz will cause intermittency
-        energyGenerator.powerGeneration = default(18uW); 
+        energyGenerator.powerGeneration = default(14uW); 
 }
