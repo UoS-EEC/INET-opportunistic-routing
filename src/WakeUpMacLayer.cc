@@ -698,6 +698,7 @@ WakeUpMacLayer::~WakeUpMacLayer() {
     if(txPacketInProgress != nullptr)
         delete txPacketInProgress;
     cancelAllTimers();
+    deleteAllTimers();
 }
 
 void WakeUpMacLayer::encapsulate(Packet* const pkt) { // From CsmaCaMac
@@ -786,9 +787,15 @@ void WakeUpMacLayer::updateWuState(const t_wu_state& newWuState) {
 
 void WakeUpMacLayer::cancelAllTimers()
 {
-    cancelAndDelete(wakeUpBackoffTimer);
-    cancelAndDelete(ackBackoffTimer);
-    cancelAndDelete(wuTimeout);
+    cancelEvent(wakeUpBackoffTimer);
+    cancelEvent(ackBackoffTimer);
+    cancelEvent(wuTimeout);
+}
+
+void WakeUpMacLayer::deleteAllTimers(){
+    delete wakeUpBackoffTimer;
+    delete ackBackoffTimer;
+    delete wuTimeout;
 }
 
 void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {

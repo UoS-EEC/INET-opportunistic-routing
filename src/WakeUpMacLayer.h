@@ -151,6 +151,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
 
     virtual void initialize(int stage) override;
     virtual void cancelAllTimers();
+    virtual void deleteAllTimers();
     void changeActiveRadio(physicallayer::IRadio*);
     virtual bool isLowerMessage(cMessage* message) override;
     virtual void configureInterfaceEntry() override;
