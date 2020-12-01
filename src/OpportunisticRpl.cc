@@ -97,7 +97,9 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
         queuePacket(packet);
     }
     else{
-        delete packet;
+        PacketDropDetails details;
+        details.setReason(PacketDropReason::NO_ROUTE_FOUND);
+        dropPacket(packet, details)
     }
 }
 
@@ -176,9 +178,21 @@ void OpportunisticRpl::queuePacket(Packet* const packet) {
     else{
         //drop packet
         EV_INFO << "ORPL at" << simTime() << ": dropping packet at " << nodeAddress << " to " << header->getDestAddr() << endl;
-        delete packet;
+        PacketDropDetails details;
+        if (waitingPacket == nullptr){
+            details.setReason(PacketDropReason::QUEUE_OVERFLOW);
+        }
+        else details.setReason(PacketDropReason::HOP_LIMIT_REACHED);
+        dropPacket(packet, reason);
     }
 }
+
+void OpportunisticRpl::dropPacket(Packet* const packet, PacketDropDetails& details)
+{
+    emit(packetDroppedSignal, packet, details);
+    delete packet;
+}
+
 
 void OpportunisticRpl::handleSelfMessage(cMessage* const msg) {
     if(msg == nextForwardTimer){
