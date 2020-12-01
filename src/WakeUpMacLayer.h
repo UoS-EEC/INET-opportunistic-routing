@@ -41,9 +41,8 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         wakeUpBackoffTimer(nullptr),
         ackBackoffTimer(nullptr),
         wuTimeout(nullptr),
-        wuPacketInProgress(nullptr),
-        txPacketInProgress(nullptr),
-        rxPacketInProgress(nullptr),
+        currentTxWakeUp(nullptr),
+        currentRxFrame(nullptr),
         wakeUpRadio(nullptr),
         dataRadio(nullptr),
         activeRadio(nullptr),
@@ -192,9 +191,9 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     /** @brief Receiving and acknowledgement **/
     // TODO: implement
 
-    cMessage *wuPacketInProgress;
-    Packet *txPacketInProgress;
-    cMessage *rxPacketInProgress;
+    cMessage *currentTxWakeUp;
+    cMessage *currentRxFrame;
+    void dropCurrentRxFrame(PacketDropDetails& details);
     void encapsulate(Packet* msg);
     void decapsulate(Packet* msg);
     bool startImmediateTransmission(cMessage* msg); // Return false if immediate transmission is not possible
