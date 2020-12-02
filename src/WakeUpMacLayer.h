@@ -41,23 +41,11 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         wakeUpBackoffTimer(nullptr),
         ackBackoffTimer(nullptr),
         wuTimeout(nullptr),
-        wuPacketInProgress(nullptr),
-        txPacketInProgress(nullptr),
-        rxPacketInProgress(nullptr),
-        wakeUpRadio(nullptr),
         dataRadio(nullptr),
+        wakeUpRadio(nullptr),
         activeRadio(nullptr),
         routingModule(nullptr),
-        ackWaitDuration(0),
-        txWakeUpWaitDuration(0),
-        dataListeningDuration(0),
-        wuApproveResponseLimit(0),
-        candiateRelayContentionProbability(0.7),
-        cumulativeAckBackoff(0),
-        acknowledgedForwarders(0),
-        maxWakeUpRetries(4), // TODO: Parameterize
-        txInProgressForwarders(0),
-        txInProgressRetries(0)
+        currentRxFrame(nullptr)
       {}
     virtual ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
@@ -65,21 +53,21 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     virtual void handleLowerPacket(Packet *packet) override;
     virtual void handleLowerCommand(cMessage *msg) override;
     virtual void handleSelfMessage(cMessage *msg) override;
-    virtual void receiveSignal(cComponent *source, simsignal_t signalID, intval_t value, cObject *details) override;
+    virtual void receiveSignal(cComponent* source, simsignal_t signalID, intval_t value, cObject* details) override;
 
 
 
   protected:
     /** @brief User Configured parameters */
-    simtime_t txWakeUpWaitDuration;
-    simtime_t ackWaitDuration;
-    simtime_t dataListeningDuration;
-    simtime_t wuApproveResponseLimit;
+    simtime_t txWakeUpWaitDuration = 0;
+    simtime_t ackWaitDuration = 0;
+    simtime_t dataListeningDuration = 0;
+    simtime_t wuApproveResponseLimit = 0;
 
     // TODO: Replace by type to represent accept, reject messages
     const int WAKEUP_APPROVE = 502;
     const int WAKEUP_REJECT = 503;
-    double candiateRelayContentionProbability;
+    double candiateRelayContentionProbability = 0.7;
 
 
     /** @brief MAC high level states */
@@ -139,7 +127,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     /*@}*/
     int wakeUpRadioInGateId = -1;
     int wakeUpRadioOutGateId = -1;
-    cMessage *wuPacketPrototype;
 
     /** @brief The radio. */
     physicallayer::IRadio *dataRadio;
@@ -149,49 +136,53 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     physicallayer::IRadio::ReceptionState receptionState;
 
     virtual void initialize(int stage) override;
+    virtual void cancelAllTimers();
+    virtual void deleteAllTimers();
     void changeActiveRadio(physicallayer::IRadio*);
-    virtual bool isLowerMessage(cMessage *message) override;
+    virtual bool isLowerMessage(cMessage* message) override;
     virtual void configureInterfaceEntry() override;
     OpportunisticRpl* routingModule;
-    void queryWakeupRequest(Packet *wakeUp);
-    void setRadioToTransmitIfFreeOrDelay(cMessage* timer, simtime_t delay);
+    void queryWakeupRequest(const Packet* wakeUp);
+    void setRadioToTransmitIfFreeOrDelay(cMessage* timer, const simtime_t& maxDelay);
 
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
-    void stepMacSM(t_mac_event event, cMessage *msg);
-    simtime_t cumulativeAckBackoff;
-    virtual void stepRxAckProcess(t_mac_event event, cMessage *msg);
+    void stepMacSM(const t_mac_event& event, cMessage *msg);
+    simtime_t cumulativeAckBackoff = 0;
+    virtual void stepRxAckProcess(const t_mac_event& event, cMessage *msg);
   private:
     void handleDataReceivedInAckState(cMessage *msg);
+    void completePacketReception();
+
   protected:
     Packet* buildAck(const Packet* subject) const;
-    void updateMacState(t_mac_state newMacState);
+    void updateMacState(const t_mac_state& newMacState);
     /** @brief Transmitter State Machine **/
     bool txStateChange = false;
     t_tx_state txState;
-    void stepTxSM(t_mac_event event, cMessage *msg);
-    Packet* buildWakeUp(const Packet* subject) const;
-    int acknowledgedForwarders;
-    int maxWakeUpRetries;
-    int txInProgressForwarders;
-    int txInProgressRetries;
-    virtual void stepTxAckProcess(t_mac_event event, cMessage *msg);
-    void updateTxState(t_tx_state newTxState);
+    void stepTxSM(const t_mac_event& event, cMessage* msg);
+    Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
+    int acknowledgedForwarders = 0;
+    int maxWakeUpRetries = 4;
+    int txInProgressForwarders = 0;
+    int txInProgressRetries = 0; //TODO: rename to tries
+    double expectedCostJump = 0;
+    virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);
+    void updateTxState(const t_tx_state& newTxState);
     /** @brief Wake-up listening State Machine **/
 
     bool wuStateChange = false;
     t_wu_state wuState;
-    void stepWuSM(t_mac_event event, cMessage *msg);
-    void updateWuState(t_wu_state newWuState);
+    void stepWuSM(const t_mac_event& event, cMessage *msg);
+    void updateWuState(const t_wu_state& newWuState);
     /** @brief Receiving and acknowledgement **/
     // TODO: implement
 
-    cMessage *wuPacketInProgress;
-    Packet *txPacketInProgress;
-    cMessage *rxPacketInProgress;
-    void encapsulate(Packet *msg);
-    void decapsulate(Packet *msg);
-    bool startImmediateTransmission(cMessage *msg); // Return false if immediate transmission is not possible
+    cMessage *currentRxFrame;
+    void dropCurrentRxFrame(PacketDropDetails& details);
+    void encapsulate(Packet* msg);
+    void decapsulate(Packet* msg);
+    bool startImmediateTransmission(cMessage* msg); // Return false if immediate transmission is not possible
 
     // OperationalBase:
     virtual void handleStartOperation(LifecycleOperation *operation) override;

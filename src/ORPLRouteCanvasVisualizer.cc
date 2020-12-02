@@ -18,7 +18,7 @@
 
 Define_Module(ORPLRouteCanvasVisualizer);
 
-bool ORPLRouteCanvasVisualizer::isPathStart(cModule *module) const {
+bool ORPLRouteCanvasVisualizer::isPathStart(cModule* const module) const {
     if (visualizer::NetworkRouteCanvasVisualizer::isPathStart(module) )
         return true;
     if (dynamic_cast<OpportunisticRpl* >(module) != nullptr)
@@ -26,7 +26,7 @@ bool ORPLRouteCanvasVisualizer::isPathStart(cModule *module) const {
     return false;
 }
 
-bool ORPLRouteCanvasVisualizer::isPathEnd(cModule *module) const {
+bool ORPLRouteCanvasVisualizer::isPathEnd(cModule* const module) const {
     if (visualizer::NetworkRouteCanvasVisualizer::isPathEnd(module) )
         return true;
     if (dynamic_cast<OpportunisticRpl* >(module) != nullptr)
@@ -34,7 +34,7 @@ bool ORPLRouteCanvasVisualizer::isPathEnd(cModule *module) const {
     return false;
 }
 
-bool ORPLRouteCanvasVisualizer::isPathElement(cModule *module) const {
+bool ORPLRouteCanvasVisualizer::isPathElement(cModule* const module) const {
     if (visualizer::NetworkRouteCanvasVisualizer::isPathElement(module) )
         return true;
     if (dynamic_cast<OpportunisticRpl* >(module) != nullptr)

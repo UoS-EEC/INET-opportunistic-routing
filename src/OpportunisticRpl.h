@@ -38,13 +38,16 @@ public:
         nextForwardTimer(nullptr),
         routingTable(nullptr),
         arp(nullptr),
-        waitingPacket(nullptr){}
+        waitingPacket(nullptr),
+        initialTTL(3),
+        sequenceNumber(0){}
     virtual void initialize(int stage) override;
     typedef uint16_t ExpectedCost;
-    bool queryAcceptPacket(MacAddress destination, ExpectedCost currentExpectedCost);
+    bool queryAcceptPacket(const MacAddress& destination, const ExpectedCost& currentExpectedCost) const;
 protected:
     cMessage* nextForwardTimer;
     simtime_t forwardingSpacing;
+    uint8_t initialTTL;
 
     IRoutingTable *routingTable;
     IArp *arp;
@@ -52,7 +55,7 @@ protected:
     L3Address nodeAddress;
 
     Packet* waitingPacket;
-
+    uint16_t sequenceNumber;
     // Address and Sequence number record of packet received or sent
     typedef struct packetRecord{
          MacAddress source;
@@ -65,14 +68,15 @@ protected:
 
     virtual void encapsulate(Packet* packet);
     virtual void decapsulate(Packet* packet);
-    virtual void setDownControlInfo(Packet* packet, MacAddress macMulticast, ExpectedCost expectedCost);
+    virtual void setDownControlInfo(Packet* packet, const MacAddress& macMulticast, const ExpectedCost& expectedCost);
 
     const Protocol& getProtocol() const override { return OpportunisticRouting; }
 
     virtual void handleSelfMessage(cMessage* msg) override;
-    virtual void handleUpperPacket(Packet *packet) override;
+    virtual void handleUpperPacket(Packet* packet) override;
     virtual void queuePacket(Packet* packet);
-    virtual void handleLowerPacket(Packet *packet) override;
+    virtual void dropPacket(Packet* packet, PacketDropDetails& details);
+    virtual void handleLowerPacket(Packet* packet) override;
 
     virtual void finish() override;
     virtual void handleStartOperation(LifecycleOperation* op) override;
