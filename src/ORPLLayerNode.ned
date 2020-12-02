@@ -38,7 +38,7 @@ module ORPLLayerNode extends NetworkLayerNodeBase
         energyManagement.nodeShutdownCapacity = 0.002J;
         energyManagement.nodeStartCapacity = 0.006J;
         energyGenerator.typename = "AlternatingEpEnergyGenerator";
-        energyGenerator.powerGeneration = 20mW; // Abundant energy for now
+        energyGenerator.powerGeneration = default(20mW); // Abundant energy for now
         energyGenerator.generationInterval = 0.5s;
         energyGenerator.sleepInterval = 0s;
         wlan[*].dataRadio.antenna.mobilityModule = default("^.^.^.mobility");

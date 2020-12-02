@@ -43,7 +43,7 @@ public:
         sequenceNumber(0){}
     virtual void initialize(int stage) override;
     typedef uint16_t ExpectedCost;
-    bool queryAcceptPacket(const MacAddress& destination, const ExpectedCost& currentExpectedCost);
+    bool queryAcceptPacket(const MacAddress& destination, const ExpectedCost& currentExpectedCost) const;
 protected:
     cMessage* nextForwardTimer;
     simtime_t forwardingSpacing;
@@ -75,6 +75,7 @@ protected:
     virtual void handleSelfMessage(cMessage* msg) override;
     virtual void handleUpperPacket(Packet* packet) override;
     virtual void queuePacket(Packet* packet);
+    virtual void dropPacket(Packet* packet, PacketDropDetails& details);
     virtual void handleLowerPacket(Packet* packet) override;
 
     virtual void finish() override;
