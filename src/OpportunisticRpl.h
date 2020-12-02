@@ -75,6 +75,7 @@ protected:
     virtual void handleSelfMessage(cMessage* msg) override;
     virtual void handleUpperPacket(Packet* packet) override;
     virtual void queuePacket(Packet* packet);
+    virtual void dropPacket(Packet* packet, PacketDropDetails& details);
     virtual void handleLowerPacket(Packet* packet) override;
 
     virtual void finish() override;
