@@ -99,7 +99,7 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
     else{
         PacketDropDetails details;
         details.setReason(PacketDropReason::NO_ROUTE_FOUND);
-        dropPacket(packet, details)
+        dropPacket(packet, details);
     }
 }
 
@@ -183,13 +183,13 @@ void OpportunisticRpl::queuePacket(Packet* const packet) {
             details.setReason(PacketDropReason::QUEUE_OVERFLOW);
         }
         else details.setReason(PacketDropReason::HOP_LIMIT_REACHED);
-        dropPacket(packet, reason);
+        dropPacket(packet, details);
     }
 }
 
 void OpportunisticRpl::dropPacket(Packet* const packet, PacketDropDetails& details)
 {
-    emit(packetDroppedSignal, packet, details);
+    emit(packetDroppedSignal, packet, &details);
     delete packet;
 }
 
