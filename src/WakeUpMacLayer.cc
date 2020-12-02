@@ -57,6 +57,7 @@ void WakeUpMacLayer::initialize(int const stage) {
         wakeUpRadio = check_and_cast<IRadio *>(radioModule);
         cModule *module = getModuleFromPar<cModule>(par("routingModule"), this, false);
         routingModule = check_and_cast_nullable<OpportunisticRpl*>(module);
+        txQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("queue"));
     }
     else if (stage == INITSTAGE_LINK_LAYER) {
         cModule* const dataCMod = check_and_cast<cModule*>(dataRadio);
@@ -128,7 +129,20 @@ void WakeUpMacLayer::handleUpperPacket(Packet* const packet) {
     }
     auto macPkt = check_and_cast<Packet*>(packet);
     encapsulate(macPkt);
-    stepMacSM(EV_QUEUE_SEND, macPkt);
+    txQueue->pushPacket(macPkt);
+    if(macState == S_IDLE){
+        if(wakeUpRadio->getRadioMode() != IRadio::RADIO_MODE_SWITCHING){
+            stepMacSM(EV_QUEUE_SEND, macPkt);
+        }
+        else if(!wakeUpBackoffTimer->isScheduled()){
+            // Schedule timer to start backoff after longest switching time
+            scheduleAt(SimTime() + wuApproveResponseLimit, wakeUpBackoffTimer);
+        }
+        else{
+            // Timer scheduled, so packet will be transmitted soon anyway
+        }
+    }
+    // Else, packet will be sent when it returns to S_IDLE
 }
 void WakeUpMacLayer::handleUpperCommand(cMessage* const msg) {
     // TODO: Check for approval messages
@@ -270,16 +284,26 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
     // Operate State machine based on current state and event
     switch (macState){
     case S_IDLE:
-        if(event == EV_QUEUE_SEND){
-            // Push into Queue
-            // Check power level
-            // Turn on wake up transmitter
-            startImmediateTransmission(msg);
-        }
-        else if(event == EV_WU_START){
+        if(event == EV_WU_START){
             // Start the wake-up state machine
             stepWuSM(event, msg);
             updateMacState(S_WAKEUP_LSN);
+        }
+        else if(event == EV_QUEUE_SEND || event == EV_DATA_RX_READY || event == EV_WAKEUP_BACKOFF){
+            // Check if there are packets to send and if so, send them
+            if(txQueue->isEmpty()){
+                // Do nothing
+                updateMacState(S_IDLE);
+            }
+            else if(setupTransmission()){
+                //Start the transmission state machine
+                updateMacState(S_TRANSMIT);
+                stepTxSM(EV_TX_START, nullptr);
+            }
+            else{
+                // TODO: Not enough energy
+                updateMacState(S_IDLE);
+            }
         }
         else{
             EV_WARN << "Wake-up MAC received unhandled event" << msg << endl;
@@ -479,8 +503,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             details.setReason(PacketDropReason::QUEUE_OVERFLOW);
             dropCurrentTxFrame(details);
         }
-        // TODO: Replace with popTxQueue()
-        currentTxFrame = check_and_cast<Packet*>(msg);
+        popTxQueue();
     }
     switch (txState){
     case TX_IDLE:
@@ -653,7 +676,7 @@ void WakeUpMacLayer::updateTxState(const t_tx_state& newTxState)
     txStateChange = true;
     txState = newTxState;
 }
-bool WakeUpMacLayer::startImmediateTransmission(cMessage* const msg) {
+bool WakeUpMacLayer::setupTransmission() {
     // TODO: Check stored energy level, return false if too little energy
     //Cancel transmission timers
     cancelEvent(wakeUpBackoffTimer);
@@ -662,9 +685,6 @@ bool WakeUpMacLayer::startImmediateTransmission(cMessage* const msg) {
     //Reset progress counters
     txInProgressForwarders = 0;
     txInProgressRetries = 0;
-    //Start the transmission state machine
-    updateMacState(S_TRANSMIT);
-    stepTxSM(EV_TX_START, msg);
     return true;
 }
 
@@ -685,6 +705,7 @@ void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
         updateWuState(WU_IDLE);
         updateTxState(TX_IDLE);
         activeRadio = wakeUpRadio;
+        // Will trigger sending of any messages in txQueue
         wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
         transmissionState = activeRadio->getTransmissionState();
         receptionState = activeRadio->getReceptionState();

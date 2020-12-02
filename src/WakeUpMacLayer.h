@@ -182,7 +182,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     void dropCurrentRxFrame(PacketDropDetails& details);
     void encapsulate(Packet* msg);
     void decapsulate(Packet* msg);
-    bool startImmediateTransmission(cMessage* msg); // Return false if immediate transmission is not possible
+    bool setupTransmission(); // Return false if immediate transmission is not possible
 
     // OperationalBase:
     virtual void handleStartOperation(LifecycleOperation *operation) override;

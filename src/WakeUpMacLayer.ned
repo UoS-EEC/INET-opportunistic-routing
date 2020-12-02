@@ -16,6 +16,7 @@
 package wakeupmac;
 import inet.linklayer.base.MacProtocolBase;
 import inet.linklayer.contract.IMacProtocol;
+import inet.queueing.contract.IPacketQueue;
 
 
 
@@ -42,4 +43,10 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
     gates:
         input wakeUpRadioIn;
         output wakeUpRadioOut;
+    submodules:
+        queue: <default("DropHeadQueue")> like IPacketQueue {
+            parameters:
+                packetCapacity = default(2);
+                @display("p=100,100;q=l2queue");
+        }
 }
