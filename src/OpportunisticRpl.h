@@ -36,18 +36,18 @@ public:
     OpportunisticRpl()
         : NetworkProtocolBase(),
         nextForwardTimer(nullptr),
+        forwardingBackoff(2, SIMTIME_MS),
         routingTable(nullptr),
         arp(nullptr),
-        waitingPacket(nullptr),
-        initialTTL(3),
-        sequenceNumber(0){}
+        waitingPacket(nullptr){}
     virtual void initialize(int stage) override;
     typedef uint16_t ExpectedCost;
     bool queryAcceptPacket(const MacAddress& destination, const ExpectedCost& currentExpectedCost) const;
 protected:
     cMessage* nextForwardTimer;
-    simtime_t forwardingSpacing;
-    uint8_t initialTTL;
+    // Crude net layer backoff to reduce contention of forwarded packets with multiple forwarders
+    simtime_t forwardingBackoff;
+    uint8_t initialTTL = 3; // Overwritten by NED
 
     IRoutingTable *routingTable;
     IArp *arp;
@@ -55,7 +55,7 @@ protected:
     L3Address nodeAddress;
 
     Packet* waitingPacket;
-    uint16_t sequenceNumber;
+    uint16_t sequenceNumber = 0;
     // Address and Sequence number record of packet received or sent
     typedef struct packetRecord{
          MacAddress source;
@@ -74,7 +74,7 @@ protected:
 
     virtual void handleSelfMessage(cMessage* msg) override;
     virtual void handleUpperPacket(Packet* packet) override;
-    virtual void queuePacket(Packet* packet);
+    virtual void queueDelayed(Packet* const packet, const simtime_t delay);
     virtual void dropPacket(Packet* packet, PacketDropDetails& details);
     virtual void handleLowerPacket(Packet* packet) override;
 
