@@ -136,7 +136,7 @@ void WakeUpMacLayer::handleUpperPacket(Packet* const packet) {
         }
         else if(!wakeUpBackoffTimer->isScheduled()){
             // Schedule timer to start backoff after longest switching time
-            scheduleAt(SimTime() + wuApproveResponseLimit, wakeUpBackoffTimer);
+            scheduleAt(simTime() + wuApproveResponseLimit, wakeUpBackoffTimer);
         }
         else{
             // Timer scheduled, so packet will be transmitted soon anyway
@@ -333,6 +333,18 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
         EV_WARN << "Wake-up MAC in unhandled state. Return to idle" << endl;
         updateMacState(S_IDLE);
     }
+}
+
+bool WakeUpMacLayer::setupTransmission() {
+    // TODO: Check stored energy level, return false if too little energy
+    //Cancel transmission timers
+    cancelEvent(wakeUpBackoffTimer);
+    cancelEvent(ackBackoffTimer);
+    cancelEvent(wuTimeout);
+    //Reset progress counters
+    txInProgressForwarders = 0;
+    txInProgressRetries = 0;
+    return true;
 }
 
 void WakeUpMacLayer::completePacketReception()
@@ -675,17 +687,6 @@ void WakeUpMacLayer::updateTxState(const t_tx_state& newTxState)
 {
     txStateChange = true;
     txState = newTxState;
-}
-bool WakeUpMacLayer::setupTransmission() {
-    // TODO: Check stored energy level, return false if too little energy
-    //Cancel transmission timers
-    cancelEvent(wakeUpBackoffTimer);
-    cancelEvent(ackBackoffTimer);
-    cancelEvent(wuTimeout);
-    //Reset progress counters
-    txInProgressForwarders = 0;
-    txInProgressRetries = 0;
-    return true;
 }
 
 void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
