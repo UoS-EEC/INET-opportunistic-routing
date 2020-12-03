@@ -154,7 +154,7 @@ void WakeUpMacLayer::receiveSignal(cComponent* const source, simsignal_t const s
     Enter_Method_Silent();
     // Check it is for the active radio
     cComponent* activeRadioComponent = check_and_cast_nullable<cComponent*>(activeRadio);
-    if(activeRadioComponent && activeRadioComponent == source){
+    if(operationalState == OPERATING && activeRadioComponent && activeRadioComponent == source){
         if (signalID == IRadio::transmissionStateChangedSignal) {
             // Handle both the data transmission ending and the wake-up transmission ending.
             // They should never happen at the same time, so one variable is enough
@@ -282,23 +282,35 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
         // TODO: Update neighbor tables
     }
     // Operate State machine based on current state and event
+    const IRadio::RadioMode radioModeTemp = wakeUpRadio->getRadioMode();
     switch (macState){
     case S_IDLE:
+        ASSERT(radioModeTemp == IRadio::RADIO_MODE_RECEIVER
+                || radioModeTemp == IRadio::RADIO_MODE_SWITCHING);
         if(event == EV_WU_START){
             // Start the wake-up state machine
             stepWuSM(event, msg);
             updateMacState(S_WAKEUP_LSN);
         }
-        else if(event == EV_QUEUE_SEND || event == EV_DATA_RX_READY || event == EV_WAKEUP_BACKOFF){
+        else if((event == EV_ACK_TIMEOUT || event == EV_DATA_RX_READY) && !ackBackoffTimer->isScheduled()){
+            // EV_ACK_TIMEOUT triggered by need for retry of packet
+            // EV_DATA_RX_READY triggered at the end of a receive period,
+            // but check ackBackoffTimer in case of longer backoff before transmission
+            // Perform carrier sense if there is a currentTxFrame
+            if(currentTxFrame != nullptr){
+                setWuRadioToTransmitIfFreeOrDelay(EV_ACK_TIMEOUT, ackBackoffTimer, txWakeUpWaitDuration/2);
+            }
+            // Else do nothing, wait for packet from upper or wake-up
+        }
+        else if(event == EV_QUEUE_SEND || event == EV_WAKEUP_BACKOFF){
+            // EV_WAKEUP_BACKOFF triggered by wait before transmit when busy rxing or txing
             // Check if there are packets to send and if so, send them
             if(txQueue->isEmpty()){
                 // Do nothing
                 updateMacState(S_IDLE);
             }
             else if(setupTransmission()){
-                //Start the transmission state machine
-                updateMacState(S_TRANSMIT);
-                stepTxSM(EV_TX_START, nullptr);
+                setWuRadioToTransmitIfFreeOrDelay(EV_TX_START, wakeUpBackoffTimer, txWakeUpWaitDuration/2);
             }
             else{
                 // TODO: Not enough energy
@@ -343,7 +355,6 @@ bool WakeUpMacLayer::setupTransmission() {
     cancelEvent(wuTimeout);
     //Reset progress counters
     txInProgressForwarders = 0;
-    txInProgressRetries = 0;
     return true;
 }
 
@@ -379,10 +390,13 @@ void WakeUpMacLayer::stepRxAckProcess(const t_mac_event& event, cMessage * const
     else if(event == EV_ACK_TIMEOUT){
         // Calculate backoff from remaining time
         simtime_t maxDelay = (ackWaitDuration - cumulativeAckBackoff)/2;
-        if(maxDelay > simtime_t::ZERO){
+        // Limit exponentially decreasing backoff, ack takes about 1ms anyway
+        if(maxDelay > SimTime(1,SIMTIME_US)){
             // Add expected random backoff to cumulative total
             cumulativeAckBackoff += maxDelay;
             setRadioToTransmitIfFreeOrDelay(ackBackoffTimer, maxDelay);
+            cancelEvent(wuTimeout);
+            scheduleAt(simTime() + dataListeningDuration, wuTimeout);
             updateMacState(S_ACK);
         }
         else{
@@ -418,13 +432,15 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         updateMacState(S_ACK);
         // Store the new received packet
         currentRxFrame = incomingFrame;
+        // Cancel delivery timer until next round
+        cancelEvent(wuTimeout);
         // Start ack backoff
         cancelEvent(ackBackoffTimer);
         // Reset cumulative ack backoff
         cumulativeAckBackoff = uniform(0,ackWaitDuration/3);
         scheduleAt(simTime() + cumulativeAckBackoff, ackBackoffTimer);
     }
-    else if(incomingMacData->getType()==WU_DATA/* && rxPacketInProgress != nullptr*/){
+    else if(incomingMacData->getType()==WU_DATA/* && currentRxFrame != nullptr*/){
         updateMacState(S_ACK);
         // Compare the received data to stored data
         Packet* storedFrame = check_and_cast<Packet*>(currentRxFrame);
@@ -490,6 +506,27 @@ void WakeUpMacLayer::setRadioToTransmitIfFreeOrDelay(cMessage* const timer,
         scheduleAt(simTime() + uniform(0,maxDelay), timer);
     }
 }
+
+void WakeUpMacLayer::setWuRadioToTransmitIfFreeOrDelay(const t_mac_event& event, cMessage* const timer, const simtime_t& maxDelay)
+{
+    IRadio::ReceptionState receptionState = wakeUpRadio->getReceptionState();
+    bool isIdle = (receptionState == IRadio::RECEPTION_STATE_IDLE
+            || receptionState == IRadio::RECEPTION_STATE_BUSY)
+                    && wakeUpRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER;
+    if(isIdle){
+        // TODO: Not enough energy check
+        //Start the transmission state machine
+        updateMacState(S_TRANSMIT);
+        stepTxSM(event, nullptr);
+    }
+    else{
+        // TODO: Add consistent Non-persistent backoff time calculation
+        scheduleAt(simTime()+uniform(0,maxDelay),timer);
+        // If receive period starts then this timer will be ignored and
+        // transmission will restart when receive period ends
+    }
+}
+
 Packet* WakeUpMacLayer::buildAck(const Packet* receivedFrame) const{
     auto receivedMacData = receivedFrame->peekAtFront<WakeUpGram>();
     auto ackPacket = makeShared<WakeUpAck>();
@@ -516,6 +553,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             dropCurrentTxFrame(details);
         }
         popTxQueue();
+        txInProgressRetries = 0;
     }
     switch (txState){
     case TX_IDLE:
@@ -612,12 +650,11 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
     if(event == EV_TX_END){
         //reset confirmed forwarders count
         acknowledgedForwarders = 0;
-        // Schedule acknowledgement timeout
+        // Schedule acknowledgement wait timeout
+        scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
         updateMacState(S_TRANSMIT);
         updateTxState(TX_ACK_WAIT);
         dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-        //TODO: Better calculation of wait time including ack length
-        scheduleAt(simTime() + ackWaitDuration*2, ackBackoffTimer);
     }
     else if(event == EV_DATA_RECEIVED){
         EV_DEBUG << "Data Ack Received";
@@ -626,19 +663,16 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         updateMacState(S_TRANSMIT);
         if(receivedAck->getType() == WU_ACK){
             // TODO: Update neighbors and check source and dest address match
-            // Reset ackBackoffTimer
-            cancelEvent(ackBackoffTimer);
             // count first few ack
             acknowledgedForwarders++;
             if(acknowledgedForwarders>4){
                 // Skip listening for any more and send data again to reduce forwarders
                 updateTxState(TX_DATA);
                 scheduleAt(simTime(), wakeUpBackoffTimer);
+                cancelEvent(ackBackoffTimer);
             }
             else{
                 updateTxState(TX_ACK_WAIT);
-                //TODO: Better calculation of wait time including ack length
-                scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
             }
             delete receivedData;
         }
@@ -651,9 +685,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
     else if(event == EV_ACK_TIMEOUT){
         // TODO: Get required forwarders count from packetTag from n/w layer
         int requiredForwarders = 1;
-        updateMacState(S_TRANSMIT);
         // TODO: Test this with more nodes should this include forwarders from prev timeslot?
-        updateMacState(S_TRANSMIT);
         const int supplementaryForwarders = acknowledgedForwarders - requiredForwarders;
         if(supplementaryForwarders>0){
             // Go straight to immediate data retransmission to reduce forwarders
@@ -662,20 +694,26 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             //TODO: stabilize and parameterize this control of expected cost jump
             expectedCostJump += supplementaryForwarders*0.2; // Grow slower
             expectedCostJump = std::max(0.0, expectedCostJump);
+            updateMacState(S_TRANSMIT);
         }
         else{
             txInProgressForwarders = txInProgressForwarders+acknowledgedForwarders; // TODO: Check forwarders uniqueness
             if(txInProgressForwarders<requiredForwarders && txInProgressRetries<maxWakeUpRetries){
                 // Reduce expected cost jump to find more forwarders
                 const int retriesOver1 = std::max(1, txInProgressRetries) - 1;
-                expectedCostJump -= retriesOver1 * 0.3; // Shrink faster
+                expectedCostJump -= retriesOver1 * 0.5; // Shrink faster
                 expectedCostJump = std::max(0.0, expectedCostJump);
                 // Try transmitting wake-up again after standard ack backoff
                 scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
+                // Break into "transitionToIdle()" (see TX_END)
+                changeActiveRadio(wakeUpRadio);
+                wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+                updateMacState(S_IDLE);
                 updateTxState(TX_IDLE);
             }
             else{
                 updateTxState(TX_END);
+                updateMacState(S_TRANSMIT);
                 //The Radio Receive->Sleep triggers next SM transition
                 dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
             }
@@ -693,24 +731,14 @@ void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
     // complete unfinished reception
     completePacketReception();
     // Unfinished transmission so restart that transmission
-    if(currentTxFrame){
-        updateMacState(S_TRANSMIT);
-        updateTxState(TX_IDLE);
-        auto msg = new cMessage("Ack timeout from restart");
-        stepMacSM(EV_ACK_TIMEOUT, msg);
-        delete msg;
-    }
-    else{
-        // TODO: Move to function shared with initialize
-        updateMacState(S_IDLE);
-        updateWuState(WU_IDLE);
-        updateTxState(TX_IDLE);
-        activeRadio = wakeUpRadio;
-        // Will trigger sending of any messages in txQueue
-        wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-        transmissionState = activeRadio->getTransmissionState();
-        receptionState = activeRadio->getReceptionState();
-    }
+    updateMacState(S_IDLE);
+    updateWuState(WU_IDLE);
+    updateTxState(TX_IDLE);
+    activeRadio = wakeUpRadio;
+    // Will trigger sending of any messages in txQueue
+    wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+    transmissionState = activeRadio->getTransmissionState();
+    receptionState = activeRadio->getReceptionState();
     interfaceEntry->setState(InterfaceEntry::State::UP);
     interfaceEntry->setCarrier(true);
 }
@@ -763,6 +791,8 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
             updateMacState(S_WAKEUP_LSN);
             updateWuState(WU_WAKEUP_WAIT);
             cancelEvent(wuTimeout);
+            // Cancel transmit packet backoff till receive is done
+            cancelEvent(ackBackoffTimer);
         }
         else if(event==EV_WU_TIMEOUT||event==EV_WU_REJECT){
             // Upper layer did not approve wake-up in time.
@@ -836,6 +866,7 @@ void WakeUpMacLayer::dropCurrentRxFrame(PacketDropDetails& details)
     delete currentRxFrame;
     currentRxFrame = nullptr;
 }
+
 
 void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
     if(currentTxFrame != nullptr){

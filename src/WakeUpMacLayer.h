@@ -144,6 +144,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     OpportunisticRpl* routingModule;
     void queryWakeupRequest(const Packet* wakeUp);
     void setRadioToTransmitIfFreeOrDelay(cMessage* timer, const simtime_t& maxDelay);
+    void setWuRadioToTransmitIfFreeOrDelay(const t_mac_event& event, cMessage* timer, const simtime_t& maxDelay);
 
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
@@ -167,6 +168,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     int txInProgressForwarders = 0;
     int txInProgressRetries = 0; //TODO: rename to tries
     double expectedCostJump = 0;
+    simtime_t dataTransmissionDelay = 0;
     virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);
     void updateTxState(const t_tx_state& newTxState);
     /** @brief Wake-up listening State Machine **/
