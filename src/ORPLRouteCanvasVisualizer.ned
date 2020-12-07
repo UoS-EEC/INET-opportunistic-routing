@@ -24,4 +24,6 @@ module ORPLRouteCanvasVisualizer extends NetworkRouteCanvasVisualizer
 {
     parameters:
         @class(ORPLRouteCanvasVisualizer);
+        fadeOutMode = "simulationTime";
+        fadeOutTime = 100s;
 }
