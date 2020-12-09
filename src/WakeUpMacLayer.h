@@ -68,6 +68,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     const int WAKEUP_APPROVE = 502;
     const int WAKEUP_REJECT = 503;
     double candiateRelayContentionProbability = 0.7;
+    inet::B phyMtu = B(255);
 
 
     /** @brief MAC high level states */
@@ -163,8 +164,10 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     t_tx_state txState;
     void stepTxSM(const t_mac_event& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
+    const int requiredForwarders = 1;
+    const int maxForwarders = 4;
     int acknowledgedForwarders = 0;
-    int maxWakeUpRetries = 4;
+    const int maxWakeUpRetries = 4;
     int txInProgressForwarders = 0;
     int txInProgressRetries = 0; //TODO: rename to tries
     double expectedCostJump = 0;

@@ -19,6 +19,7 @@
 #include "WakeUpMacLayer.h"
 #include "inet/common/ProtocolGroup.h"
 #include "inet/common/ProtocolTag_m.h"
+#include "inet/physicallayer/base/packetlevel/FlatTransmitterBase.h"
 #include "inet/linklayer/common/InterfaceTag_m.h"
 #include "inet/linklayer/common/MacAddressTag_m.h"
 #include "inet/common/packet/chunk/Chunk.h"
@@ -33,7 +34,7 @@ Define_Module(WakeUpMacLayer);
 
 void WakeUpMacLayer::initialize(int const stage) {
     MacProtocolBase::initialize(stage);
-//    // Allow serialization to better respresent conflicting radio protocols
+//    // Allow serialization to better represent conflicting radio protocols
 //    Chunk::enableImplicitChunkSerialization = true;
     if (stage == INITSTAGE_LOCAL) {
         //Register the Wake-up radio gates
@@ -58,8 +59,32 @@ void WakeUpMacLayer::initialize(int const stage) {
         cModule *module = getModuleFromPar<cModule>(par("routingModule"), this, false);
         routingModule = check_and_cast_nullable<OpportunisticRpl*>(module);
         txQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("queue"));
+
+        /*
+         * Calculation of invalid parameter combinations
+         * - MAC Layer requires tight timing during a communication negotiation
+         * - Incorrect timing increases the collision and duplication probability
+         * After the wake-up contention to receive and forward occurs
+         * The physical MTU is limited by the time spent dataListening after sending an ACK
+         * If an ACK is sent at the start of the ACK period, the data may not be fully
+         * received until remainder of ack period + 1/5(ack period)
+         */
+        auto lengthPrototype = makeShared<WakeUpDatagram>();
+        const b ackBits = b(lengthPrototype->getChunkLength());
+        auto dataTransmitter = check_and_cast<const FlatTransmitterBase *>(dataRadio->getTransmitter());
+        const bps bitrate = dataTransmitter->getBitrate();
+        const int maxAckCount = std::floor(ackWaitDuration.dbl()*bitrate.get()/ackBits.get());
+        ASSERT2(maxAckCount > requiredForwarders + 2, "Ack wait duration is too small for multiple forwarders.");
+        ASSERT(maxAckCount < 10);
+        const double remainingAckProportion = (double)(maxAckCount-1)/(double)(maxAckCount);
+        ASSERT(remainingAckProportion < 1 && remainingAckProportion > 0);
+        // 0.2*ackWaitDuration currently Hardcoded into TX_DATA state
+        const b phyMaxBits = b( std::floor( (dataListeningDuration.dbl() - (remainingAckProportion+0.2)*ackWaitDuration.dbl())*bitrate.get() ) );
+        phyMtu = B(phyMaxBits.get()/8); // Integer division implicitly (and correctly) rounds down
+
     }
     else if (stage == INITSTAGE_LINK_LAYER) {
+        // Register signals for handling radio mode changes
         cModule* const dataCMod = check_and_cast<cModule*>(dataRadio);
         dataCMod->subscribe(IRadio::radioModeChangedSignal, this);
         dataCMod->subscribe(IRadio::transmissionStateChangedSignal, this);
@@ -241,7 +266,10 @@ bool WakeUpMacLayer::isLowerMessage(cMessage* const msg) {
 
 void WakeUpMacLayer::configureInterfaceEntry() {
     // generate a link-layer address to be used as interface token for IPv6
-    interfaceEntry->setMtu(255-16);
+    auto lengthPrototype = makeShared<WakeUpDatagram>();
+    const B interfaceMtu = phyMtu-B(lengthPrototype->getChunkLength());
+    ASSERT2(interfaceMtu >= B(80), "The interface MTU available to the net layer is too small (under 80 bytes)");
+    interfaceEntry->setMtu(interfaceMtu.get());
     interfaceEntry->setMulticast(true);
     interfaceEntry->setBroadcast(true);
     interfaceEntry->setPointToPoint(false);
@@ -591,7 +619,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         break;
     case TX_DATA:
         if(event == EV_DATA_RX_READY || event == EV_WAKEUP_BACKOFF){
-            setRadioToTransmitIfFreeOrDelay(wakeUpBackoffTimer, ackWaitDuration/5);
+            setRadioToTransmitIfFreeOrDelay(wakeUpBackoffTimer, ackWaitDuration/5); // Hardcoded into phyMTU
             updateTxState(TX_DATA);
         }
         else if(event == EV_TX_READY){
@@ -665,7 +693,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             // TODO: Update neighbors and check source and dest address match
             // count first few ack
             acknowledgedForwarders++;
-            if(acknowledgedForwarders>4){
+            if(acknowledgedForwarders>=maxForwarders){
                 // Skip listening for any more and send data again to reduce forwarders
                 updateTxState(TX_DATA);
                 scheduleAt(simTime(), wakeUpBackoffTimer);
@@ -684,7 +712,6 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
     }
     else if(event == EV_ACK_TIMEOUT){
         // TODO: Get required forwarders count from packetTag from n/w layer
-        int requiredForwarders = 1;
         // TODO: Test this with more nodes should this include forwarders from prev timeslot?
         const int supplementaryForwarders = acknowledgedForwarders - requiredForwarders;
         if(supplementaryForwarders>0){
