@@ -31,8 +31,6 @@ void OpportunisticRpl::initialize(int const stage) {
 
     if(stage == INITSTAGE_LOCAL){
         nextForwardTimer = new cMessage("Forwarding Backoff Timer");
-        // This is a crude measure to stop the Mac buffer becoming overloaded
-        forwardingSpacing = SimTime(30, SIMTIME_MS);
         routingTable = getModuleFromPar<NextHopRoutingTable>(par("routingTableModule"), this);
         arp = getModuleFromPar<IArp>(par("arpModule"), this);
         initialTTL = par("initialTTL");
@@ -67,7 +65,7 @@ void OpportunisticRpl::handleUpperPacket(Packet* const packet) {
         EV_WARN << "ORPL, setting received packet address to default hub address" << endl;
     }
     encapsulate(packet);
-    queuePacket(packet);
+    sendDown(packet);
 }
 
 void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
@@ -94,7 +92,9 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
         packet->insertAtFront(mutableHeader);
         ExpectedCost currentExpectedCost = expectedCostTable.at(header->getDestAddr());
         setDownControlInfo(packet, outboundMacAddress, currentExpectedCost);
-        queuePacket(packet);
+
+        // Delay forwarded packets to reduce physical layer contention
+        queueDelayed(packet, uniform(0, forwardingBackoff));
     }
     else{
         PacketDropDetails details;
@@ -160,18 +160,16 @@ void OpportunisticRpl::decapsulate(Packet* const packet)
     packet->addTagIfAbsent<L3AddressInd>()->setSrcAddress(networkHeader->getSrcAddr());
 }
 
-void OpportunisticRpl::queuePacket(Packet* const packet) {
+void OpportunisticRpl::queueDelayed(Packet* const packet, const simtime_t delay) {
     auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
     // If packet lifetime not expired and there is space in queue
     if(waitingPacket == nullptr && header->getTtl()>0){
         // queue packet
         waitingPacket = packet;
-        // TODO: Allow immediate send once WuMAC Layer problem
-        // of radio mode switching is solved
         // If forwarding delay timer expired, reset
         if(!nextForwardTimer->isScheduled()){
             // send packet after scheduled timer
-            scheduleAt(simTime()+forwardingSpacing, nextForwardTimer);
+            scheduleAt(simTime()+delay, nextForwardTimer);
             waitingPacket = packet;
         }
     }
@@ -200,7 +198,7 @@ void OpportunisticRpl::handleSelfMessage(cMessage* const msg) {
         if(waitingPacket != nullptr){
             sendDown(waitingPacket);
             waitingPacket = nullptr;
-            scheduleAt(simTime()+forwardingSpacing, nextForwardTimer);
+            scheduleAt(simTime()+forwardingBackoff, nextForwardTimer);
         }
     }
 }
@@ -212,7 +210,7 @@ void OpportunisticRpl::finish() {
 void OpportunisticRpl::handleStartOperation(LifecycleOperation *op) {
     if(waitingPacket!=nullptr){
         // send packet after scheduled timer
-        scheduleAt(simTime()+forwardingSpacing, nextForwardTimer);
+        scheduleAt(simTime()+forwardingBackoff, nextForwardTimer);
     }
 }
 

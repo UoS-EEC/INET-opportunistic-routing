@@ -68,6 +68,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     const int WAKEUP_APPROVE = 502;
     const int WAKEUP_REJECT = 503;
     double candiateRelayContentionProbability = 0.7;
+    inet::B phyMtu = B(255);
 
 
     /** @brief MAC high level states */
@@ -144,6 +145,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     OpportunisticRpl* routingModule;
     void queryWakeupRequest(const Packet* wakeUp);
     void setRadioToTransmitIfFreeOrDelay(cMessage* timer, const simtime_t& maxDelay);
+    void setWuRadioToTransmitIfFreeOrDelay(const t_mac_event& event, cMessage* timer, const simtime_t& maxDelay);
 
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
@@ -162,11 +164,14 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     t_tx_state txState;
     void stepTxSM(const t_mac_event& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
+    const int requiredForwarders = 1;
+    const int maxForwarders = 4;
     int acknowledgedForwarders = 0;
-    int maxWakeUpRetries = 4;
+    const int maxWakeUpRetries = 4;
     int txInProgressForwarders = 0;
     int txInProgressRetries = 0; //TODO: rename to tries
     double expectedCostJump = 0;
+    simtime_t dataTransmissionDelay = 0;
     virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);
     void updateTxState(const t_tx_state& newTxState);
     /** @brief Wake-up listening State Machine **/
@@ -182,7 +187,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     void dropCurrentRxFrame(PacketDropDetails& details);
     void encapsulate(Packet* msg);
     void decapsulate(Packet* msg);
-    bool startImmediateTransmission(cMessage* msg); // Return false if immediate transmission is not possible
+    bool setupTransmission(); // Return false if immediate transmission is not possible
 
     // OperationalBase:
     virtual void handleStartOperation(LifecycleOperation *operation) override;

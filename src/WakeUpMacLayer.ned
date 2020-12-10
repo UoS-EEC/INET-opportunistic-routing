@@ -16,6 +16,7 @@
 package wakeupmac;
 import inet.linklayer.base.MacProtocolBase;
 import inet.linklayer.contract.IMacProtocol;
+import inet.queueing.contract.IPacketQueue;
 
 
 
@@ -30,7 +31,7 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         
         double txWakeUpWaitDuration @unit(s) = default(0.0006 s); // Must be bigger than radio OFF -> idle
         double ackWaitDuration @unit(s) = default(0.004 s); // Must be bigger than radio Rx -> Tx
-        double dataListeningDuration @unit(s) = default(0.008 s); // How long to listen after a wake-up
+        double dataListeningDuration @unit(s) = default(0.0085 s); // How long to listen after a wake-up
         double wuApproveResponseLimit @unit(s) = default(1000ns);
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
         
@@ -42,4 +43,10 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
     gates:
         input wakeUpRadioIn;
         output wakeUpRadioOut;
+    submodules:
+        queue: <default("DropHeadQueue")> like IPacketQueue {
+            parameters:
+                packetCapacity = default(2);
+                @display("p=100,100;q=l2queue");
+        }
 }
