@@ -32,6 +32,14 @@ using namespace physicallayer;
 Define_Module(WakeUpMacLayer);
 
 
+/**
+ * Energy consumption statistics
+ */
+simsignal_t receptionConsumptionSignal = cComponent::registerSignal("receptionConsumption");
+simsignal_t falseWakeUpConsumptionSignal = cComponent::registerSignal("falseWakeUpConsumption");
+simsignal_t transmissionConsumptionSignal = cComponent::registerSignal("transmissionConsumption");
+simsignal_t unknownConsumptionSignal = cComponent::registerSignal("unknownConsumption");
+
 void WakeUpMacLayer::initialize(int const stage) {
     MacProtocolBase::initialize(stage);
 //    // Allow serialization to better represent conflicting radio protocols
@@ -56,6 +64,10 @@ void WakeUpMacLayer::initialize(int const stage) {
         dataRadio = check_and_cast<IRadio *>(radioModule);
         radioModule = getModuleFromPar<cModule>(par("wakeUpRadioModule"), this);
         wakeUpRadio = check_and_cast<IRadio *>(radioModule);
+
+        cModule *storageModule = getModuleFromPar<cModule>(par("energyStorage"), this);
+        energyStorage = check_and_cast<inet::power::IEpEnergyStorage*>(storageModule);
+
         cModule *module = getModuleFromPar<cModule>(par("routingModule"), this, false);
         routingModule = check_and_cast_nullable<OpportunisticRpl*>(module);
         txQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("queue"));
@@ -394,6 +406,7 @@ void WakeUpMacLayer::completePacketReception()
         decapsulate(pkt);
         sendUp(pkt);
         currentRxFrame = nullptr;
+        finishEnergyConsumptionMonitoring(receptionConsumptionSignal);
     }
 }
 
@@ -434,6 +447,7 @@ void WakeUpMacLayer::stepRxAckProcess(const t_mac_event& event, cMessage * const
             changeActiveRadio(wakeUpRadio);
             cancelEvent(wuTimeout);
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+            finishEnergyConsumptionMonitoring(falseWakeUpConsumptionSignal);
             updateMacState(S_IDLE);
             PacketDropDetails details;
             EV_WARN << "Dropping packet because of channel congestion";
@@ -587,6 +601,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
     case TX_IDLE:
         if(event == EV_TX_START || event == EV_ACK_TIMEOUT){
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
+            startEnergyConsumptionMonitoring();
             txInProgressRetries++;
             changeActiveRadio(wakeUpRadio);
             updateTxState(TX_WAKEUP_WAIT);
@@ -637,6 +652,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         // End transmission by turning the radio off and start listening on wake-up radio
         changeActiveRadio(wakeUpRadio);
         wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+        finishEnergyConsumptionMonitoring(transmissionConsumptionSignal);
         updateMacState(S_IDLE);
         updateTxState(TX_IDLE);
         if(txInProgressForwarders<1){
@@ -768,6 +784,7 @@ void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
     receptionState = activeRadio->getReceptionState();
     interfaceEntry->setState(InterfaceEntry::State::UP);
     interfaceEntry->setCarrier(true);
+    startEnergyConsumptionMonitoring(); // Will probably end up as unknown
 }
 
 void WakeUpMacLayer::handleStopOperation(LifecycleOperation *operation) {
@@ -777,6 +794,7 @@ void WakeUpMacLayer::handleStopOperation(LifecycleOperation *operation) {
 WakeUpMacLayer::~WakeUpMacLayer() {
     // TODO: Move this to the finish function
     // TODO: Cleanup allocated shared packets
+    finishEnergyConsumptionMonitoring(unknownConsumptionSignal);
     cancelAllTimers();
     deleteAllTimers();
 }
@@ -808,6 +826,7 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
         if(event==EV_WU_START){
             changeActiveRadio(dataRadio);
             dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
+            startEnergyConsumptionMonitoring();
             updateWuState(WU_APPROVE_WAIT);
             scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
             queryWakeupRequest(check_and_cast<Packet*>(msg));
@@ -852,6 +871,7 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
         if(event==EV_DATA_RX_IDLE||event==EV_DATA_RX_READY){
             changeActiveRadio(wakeUpRadio);
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+            finishEnergyConsumptionMonitoring(falseWakeUpConsumptionSignal);
             updateWuState(WU_IDLE);
             updateMacState(S_IDLE);
         }
@@ -894,6 +914,46 @@ void WakeUpMacLayer::dropCurrentRxFrame(PacketDropDetails& details)
     currentRxFrame = nullptr;
 }
 
+void WakeUpMacLayer::startEnergyConsumptionMonitoring()
+{
+    if(storedEnergyStartValue > J(0) || ((storedEnergyStartTime - simTime()) > 0 && initialEnergyGeneration > W(0)) ){
+        // finish energy consumption monitoring was not called, catch and emit signal and warning
+        EV_WARN << "Unfinished Energy Consumption Monitoring" << endl;
+        finishEnergyConsumptionMonitoring(unknownConsumptionSignal);
+    }
+    storedEnergyStartValue = energyStorage->getResidualEnergyCapacity();
+    initialEnergyGeneration = energyStorage->getTotalPowerGeneration();
+    storedEnergyStartTime = simTime();
+}
+
+double WakeUpMacLayer::finishEnergyConsumptionMonitoring(const simsignal_t emitSignal)
+{
+    // Calculate the energy consumed by approximating energy generation as average over consumption period
+    if(storedEnergyStartValue <= J(0) && storedEnergyStartTime <= 0 && initialEnergyGeneration < W(0)){
+        EV_WARN << "Energy Monitoring must be started before calling finish" << endl;
+        return 0.0;
+    };
+    const J deltaEnergy = energyStorage->getResidualEnergyCapacity() - storedEnergyStartValue;
+    const W averageGeneration = 0.5*(energyStorage->getTotalPowerGeneration() + initialEnergyGeneration);
+    const simtime_t deltaTime = simTime() - storedEnergyStartTime;
+    if(!(deltaEnergy < J(0) && averageGeneration > W(0) && deltaTime > 0)){
+        EV_WARN << "Cannot calculate task energy consumption" << endl;
+        return 0.0;
+    }
+    const double calculatedConsumedJ = - deltaEnergy.get() - averageGeneration.get()*deltaTime.dbl();
+    if(calculatedConsumedJ < 0){
+        EV_WARN << "Cannot calculate task energy consumption" << endl;
+        return 0.0;
+    }
+    if(emitSignal != SIMSIGNAL_NULL){
+        emit(emitSignal, calculatedConsumedJ);
+    }
+
+    storedEnergyStartValue = J(0);
+    initialEnergyGeneration = W(0);
+    storedEnergyStartTime = 0;
+    return calculatedConsumedJ;
+}
 
 void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
     if(currentTxFrame != nullptr){
@@ -902,6 +962,7 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
             details.setReason(INTERFACE_DOWN);
             // Packet has been received by a forwarder
             dropCurrentTxFrame(details);
+            finishEnergyConsumptionMonitoring(transmissionConsumptionSignal);
         }
     }
     else if(currentRxFrame != nullptr){
@@ -910,6 +971,7 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
             // Ack not sent yet so just bow out
             delete currentRxFrame;
             currentRxFrame = nullptr;
+            finishEnergyConsumptionMonitoring(falseWakeUpConsumptionSignal);
         }// TODO: check how many contending acks there were
         else{
             // Send packet up upon restart by leaving in memory

@@ -23,11 +23,13 @@
 #include "inet/linklayer/base/MacProtocolBase.h"
 #include "inet/linklayer/contract/IMacProtocol.h"
 #include "inet/physicallayer/contract/packetlevel/IRadio.h"
+#include "inet/power/contract/IEpEnergyStorage.h"
 #include "inet/common/Protocol.h"
 #include "OpportunisticRpl.h"
 
 using namespace omnetpp;
 using namespace inet;
+
 
 /**
  * WakeUpMacLayer - Implements two stage message transmission of
@@ -45,6 +47,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         wakeUpRadio(nullptr),
         activeRadio(nullptr),
         routingModule(nullptr),
+        energyStorage(nullptr),
         currentRxFrame(nullptr)
       {}
     virtual ~WakeUpMacLayer();
@@ -135,6 +138,13 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     physicallayer::IRadio *activeRadio;
     physicallayer::IRadio::TransmissionState transmissionState;
     physicallayer::IRadio::ReceptionState receptionState;
+
+    inet::power::IEpEnergyStorage* energyStorage;
+    J storedEnergyStartValue = J(0);
+    W initialEnergyGeneration = W(-DBL_MIN);
+    simtime_t storedEnergyStartTime = 0;
+    void startEnergyConsumptionMonitoring();
+    double finishEnergyConsumptionMonitoring(const simsignal_t emitSignal);
 
     virtual void initialize(int stage) override;
     virtual void cancelAllTimers();
