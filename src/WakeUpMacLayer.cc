@@ -39,6 +39,8 @@ simsignal_t receptionConsumptionSignal = cComponent::registerSignal("receptionCo
 simsignal_t falseWakeUpConsumptionSignal = cComponent::registerSignal("falseWakeUpConsumption");
 simsignal_t transmissionConsumptionSignal = cComponent::registerSignal("transmissionConsumption");
 simsignal_t unknownConsumptionSignal = cComponent::registerSignal("unknownConsumption");
+simsignal_t transmissionRetriesSignal = cComponent::registerSignal("transmissionRetries");
+simsignal_t ackContentionRoundsSignal = cComponent::registerSignal("ackContentionRounds");
 
 void WakeUpMacLayer::initialize(int const stage) {
     MacProtocolBase::initialize(stage);
@@ -660,6 +662,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             // This reason could also justifiably be LIFETIME_EXPIRED
             details.setReason(PacketDropReason::NO_ROUTE_FOUND);
             dropCurrentTxFrame(details);
+            emit()
         }
         else deleteCurrentTxFrame();
         break;
@@ -784,7 +787,9 @@ void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
     receptionState = activeRadio->getReceptionState();
     interfaceEntry->setState(InterfaceEntry::State::UP);
     interfaceEntry->setCarrier(true);
-    startEnergyConsumptionMonitoring(); // Will probably end up as unknown
+    if(energyMonitoringInProgress){
+        resumeEnergyConsumptionMonitoring(); // Will probably end up as unknown
+    }
 }
 
 void WakeUpMacLayer::handleStopOperation(LifecycleOperation *operation) {
@@ -794,7 +799,6 @@ void WakeUpMacLayer::handleStopOperation(LifecycleOperation *operation) {
 WakeUpMacLayer::~WakeUpMacLayer() {
     // TODO: Move this to the finish function
     // TODO: Cleanup allocated shared packets
-    finishEnergyConsumptionMonitoring(unknownConsumptionSignal);
     cancelAllTimers();
     deleteAllTimers();
 }
@@ -916,14 +920,29 @@ void WakeUpMacLayer::dropCurrentRxFrame(PacketDropDetails& details)
 
 void WakeUpMacLayer::startEnergyConsumptionMonitoring()
 {
-    if(storedEnergyStartValue > J(0) || ((storedEnergyStartTime - simTime()) > 0 && initialEnergyGeneration > W(0)) ){
+    if(energyMonitoringInProgress){
         // finish energy consumption monitoring was not called, catch and emit signal and warning
         EV_WARN << "Unfinished Energy Consumption Monitoring" << endl;
         finishEnergyConsumptionMonitoring(unknownConsumptionSignal);
     }
+    energyMonitoringInProgress = true;
+    J intermediateDeltaEnergy = J(0);
     storedEnergyStartValue = energyStorage->getResidualEnergyCapacity();
     initialEnergyGeneration = energyStorage->getTotalPowerGeneration();
     storedEnergyStartTime = simTime();
+}
+
+const double WakeUpMacLayer::calculateDeltaEnergyConsumption()
+{
+    const J deltaEnergy = energyStorage->getResidualEnergyCapacity() - storedEnergyStartValue;
+    const W averageGeneration = 0.5 * (energyStorage->getTotalPowerGeneration() + initialEnergyGeneration);
+    const simtime_t deltaTime = simTime() - storedEnergyStartTime;
+    const double calculatedConsumedJ = -deltaEnergy.get() - averageGeneration.get() * deltaTime.dbl();
+    if(!(deltaEnergy < J(0) && averageGeneration > W(0) && deltaTime > 0)){
+        EV_WARN << "Cannot calculate task energy consumption" << endl;
+        return 0.0;
+    }
+    return calculatedConsumedJ;
 }
 
 double WakeUpMacLayer::finishEnergyConsumptionMonitoring(const simsignal_t emitSignal)
@@ -933,14 +952,7 @@ double WakeUpMacLayer::finishEnergyConsumptionMonitoring(const simsignal_t emitS
         EV_WARN << "Energy Monitoring must be started before calling finish" << endl;
         return 0.0;
     };
-    const J deltaEnergy = energyStorage->getResidualEnergyCapacity() - storedEnergyStartValue;
-    const W averageGeneration = 0.5*(energyStorage->getTotalPowerGeneration() + initialEnergyGeneration);
-    const simtime_t deltaTime = simTime() - storedEnergyStartTime;
-    if(!(deltaEnergy < J(0) && averageGeneration > W(0) && deltaTime > 0)){
-        EV_WARN << "Cannot calculate task energy consumption" << endl;
-        return 0.0;
-    }
-    const double calculatedConsumedJ = - deltaEnergy.get() - averageGeneration.get()*deltaTime.dbl();
+    const double calculatedConsumedJ = intermediateDeltaEnergy.get() + calculateDeltaEnergyConsumption();
     if(calculatedConsumedJ < 0){
         EV_WARN << "Cannot calculate task energy consumption" << endl;
         return 0.0;
@@ -949,10 +961,32 @@ double WakeUpMacLayer::finishEnergyConsumptionMonitoring(const simsignal_t emitS
         emit(emitSignal, calculatedConsumedJ);
     }
 
+    energyMonitoringInProgress = false;
+    J intermediateDeltaEnergy = J(0);
     storedEnergyStartValue = J(0);
     initialEnergyGeneration = W(0);
     storedEnergyStartTime = 0;
     return calculatedConsumedJ;
+}
+
+double WakeUpMacLayer::pauseEnergyConsumptionMonitoring()
+{
+    intermediateDeltaEnergy = J(calculateDeltaEnergyConsumption());
+    storedEnergyStartValue = J(0);
+    initialEnergyGeneration = W(0);
+    storedEnergyStartTime = 0;
+}
+
+void WakeUpMacLayer::resumeEnergyConsumptionMonitoring()
+{
+    storedEnergyStartValue = energyStorage->getResidualEnergyCapacity();
+    initialEnergyGeneration = energyStorage->getTotalPowerGeneration();
+    storedEnergyStartTime = simTime();
+}
+
+void WakeUpMacLayer::finish()
+{
+    finishEnergyConsumptionMonitoring(unknownConsumptionSignal);
 }
 
 void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
@@ -976,6 +1010,9 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
         else{
             // Send packet up upon restart by leaving in memory
         }
+    }
+    if(energyMonitoringInProgress){
+        pauseEnergyConsumptionMonitoring();
     }
     cancelAllTimers();
     // Stop all signals from being interpreted
