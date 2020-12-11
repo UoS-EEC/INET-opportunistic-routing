@@ -47,6 +47,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         wakeUpRadio(nullptr),
         activeRadio(nullptr),
         energyStorage(nullptr),
+        replenishmentTimer(nullptr),
         routingModule(nullptr),
         currentRxFrame(nullptr)
       {}
@@ -76,6 +77,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
 
     /** @brief MAC high level states */
     enum t_mac_state {
+        S_REPLENISH, // No listening, to charge storage
         S_IDLE, // WuRx listening
         S_WAKEUP_LSN, // WuRx receiving or processing
         S_RECEIVE, // Data radio listening
@@ -120,6 +122,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         EV_DATA_RX_IDLE,
         EV_DATA_RX_READY,
         EV_DATA_RECEIVED,
+        EV_REPLENISH_TIMEOUT
     };
 
 
@@ -140,6 +143,11 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     physicallayer::IRadio::ReceptionState receptionState;
 
     inet::power::IEpEnergyStorage* energyStorage;
+    J lastEnergyStorageLevel = J(0.0);
+    J transmissionStartMinEnergy = J(0.0);
+    simtime_t replenishmentCheckRate = SimTime(1, SimTimeUnit::SIMTIME_S);
+    cMessage* replenishmentTimer;
+    cMessage* postReplenishmentTimer;
     bool energyMonitoringInProgress = false;
     J storedEnergyStartValue = J(0);
     W initialEnergyGeneration = W(-DBL_MIN);
@@ -165,6 +173,8 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     void stepMacSM(const t_mac_event& event, cMessage *msg);
+    void stepReplenishSM(const physicallayer::IRadio::RadioMode wuRadioMode,
+            const physicallayer::IRadio::RadioMode dataRadioMode);
     simtime_t cumulativeAckBackoff = 0;
     virtual void stepRxAckProcess(const t_mac_event& event, cMessage *msg);
   private:
@@ -209,7 +219,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     virtual void handleStartOperation(LifecycleOperation *operation) override;
     virtual void handleStopOperation(LifecycleOperation *operation) override;
     virtual void handleCrashOperation(LifecycleOperation *operation) override;
-
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
