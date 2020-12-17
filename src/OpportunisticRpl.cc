@@ -145,7 +145,7 @@ void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress
 void OpportunisticRpl::decapsulate(Packet* const packet)
 {
     auto networkHeader = packet->popAtFront<OpportunisticRoutingHeader>();
-    auto payloadLength = networkHeader->getLength() - networkHeader->getChunkLength(); // TODO: Remove header length magic number
+    auto payloadLength = networkHeader->getLength() - networkHeader->getChunkLength();
     if (packet->getDataLength() < B(payloadLength) ) {
         throw cRuntimeError("Data error: illegal payload length");     //FIXME packet drop
     }
@@ -177,7 +177,7 @@ void OpportunisticRpl::queueDelayed(Packet* const packet, const simtime_t delay)
         //drop packet
         EV_INFO << "ORPL at" << simTime() << ": dropping packet at " << nodeAddress << " to " << header->getDestAddr() << endl;
         PacketDropDetails details;
-        if (waitingPacket == nullptr){
+        if (waitingPacket != nullptr){
             details.setReason(PacketDropReason::QUEUE_OVERFLOW);
         }
         else details.setReason(PacketDropReason::HOP_LIMIT_REACHED);

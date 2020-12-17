@@ -28,6 +28,8 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         string dataRadioModule = default("^.dataRadio");   // The path to the Radio module
         string wakeUpRadioModule = default("^.wakeUpRadio");   // The path to the Wake up radio
         string routingModule = default("^.^.generic.np");
+        string energyStorage = default("^.^.energyStorage");
+        double transmissionStartMinEnergy = 0.0044J @unit(J); // Don't start transmitting unless there is at least this in storage
         
         double txWakeUpWaitDuration @unit(s) = default(0.0006 s); // Must be bigger than radio OFF -> idle
         double ackWaitDuration @unit(s) = default(0.004 s); // Must be bigger than radio Rx -> Tx
@@ -35,6 +37,23 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         double wuApproveResponseLimit @unit(s) = default(1000ns);
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
         
+        // WakeUpMac energy consumption signals and statistics
+        @signal[receptionConsumption](type = double);
+        @signal[falseWakeUpConsumption](type = double);
+        @signal[transmissionConsumption](type = double);
+        @signal[unknownConsumption](type = double);
+        @statistic[receptionConsumption](title="Energy consumption for reception"; record=histogram);
+        @statistic[falseWakeUpConsumption](title="Energy consumption for false wake up"; record=histogram);
+        @statistic[transmissionConsumption](title="Energy consumption for transmission"; record=histogram);
+        @statistic[unknownConsumption](title="Energy consumption of unknown source"; record=histogram);
+        
+        // WakeUpMac retry signals and statistics
+        @signal[transmissionTries](type = long);
+        @signal[ackContentionRounds](type = long);
+        @statistic[transmissionTries](title="Number of Tries till packet discarded or received"; record=histogram, vector);
+        @statistic[ackContentionRounds](title="Number of ack contention rounds for each packet"; record=histogram, vector);
+        
+        // Generic packet loss statistics
         @statistic[packetDropNoRouteFound](title="packet drop: no route found"; source=packetDropReasonIsNoRouteFound(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
         @statistic[packetDropQueueOverflow](title="packet drop: queue overflow"; source=packetDropReasonIsQueueOverflow(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
         @statistic[packetDropDuplicateDetected](title="packet drop: duplicate detected, contention stopped"; source=packetDropReasonIsDuplicateDetected(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
