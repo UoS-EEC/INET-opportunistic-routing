@@ -193,9 +193,10 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     const int requiredForwarders = 1;
     const int maxForwarders = 4;
     int acknowledgedForwarders = 0;
-    const int maxWakeUpRetries = 4;
+    int ackRetryRounds = 0;
+    const int maxWakeUpTries = 4;
     int txInProgressForwarders = 0;
-    int txInProgressRetries = 0; //TODO: rename to tries
+    int txInProgressTries = 0; //TODO: rename to tries
     double expectedCostJump = 0;
     simtime_t dataTransmissionDelay = 0;
     virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);

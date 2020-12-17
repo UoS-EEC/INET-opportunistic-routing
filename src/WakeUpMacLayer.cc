@@ -39,7 +39,7 @@ simsignal_t receptionConsumptionSignal = cComponent::registerSignal("receptionCo
 simsignal_t falseWakeUpConsumptionSignal = cComponent::registerSignal("falseWakeUpConsumption");
 simsignal_t transmissionConsumptionSignal = cComponent::registerSignal("transmissionConsumption");
 simsignal_t unknownConsumptionSignal = cComponent::registerSignal("unknownConsumption");
-simsignal_t transmissionRetriesSignal = cComponent::registerSignal("transmissionRetries");
+simsignal_t transmissionTriesSignal = cComponent::registerSignal("transmissionTries");
 simsignal_t ackContentionRoundsSignal = cComponent::registerSignal("ackContentionRounds");
 
 void WakeUpMacLayer::initialize(int const stage) {
@@ -331,6 +331,9 @@ void WakeUpMacLayer::stepReplenishSM(const IRadio::RadioMode wuRadioMode, const 
         updateMacState(S_IDLE);
         // Return to the relevant EV_TX_START or EV_ACK_TIMEOUT
         scheduleAt(simTime() +  txWakeUpWaitDuration / 2, postReplenishmentTimer);
+        if(energyMonitoringInProgress){
+            resumeEnergyConsumptionMonitoring(); // Will probably end up as unknown
+        }
     }
     else {
         updateMacState(S_REPLENISH);
@@ -405,6 +408,9 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
             }
         }
         else if(event == EV_REPLENISH_TIMEOUT){
+            if(energyMonitoringInProgress){
+                pauseEnergyConsumptionMonitoring();
+            }
             stepReplenishSM(wuRadioMode, dataRadioMode);
         }
         else{
@@ -648,14 +654,14 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             dropCurrentTxFrame(details);
         }
         popTxQueue();
-        txInProgressRetries = 0;
+        txInProgressTries = 0;
     }
     switch (txState){
     case TX_IDLE:
         if(event == EV_TX_START || event == EV_ACK_TIMEOUT){
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
             startEnergyConsumptionMonitoring();
-            txInProgressRetries++;
+            txInProgressTries++;
             changeActiveRadio(wakeUpRadio);
             updateTxState(TX_WAKEUP_WAIT);
             EV_DEBUG << "TX SM: EV_TX_START --> TX_WAKEUP_WAIT";
@@ -664,7 +670,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
     case TX_WAKEUP_WAIT:
         if(event == EV_TX_READY){
             // TODO: Change this to a short WU packet
-            cMessage* const currentTxWakeUp = check_and_cast<cMessage*>(buildWakeUp(currentTxFrame, txInProgressRetries));
+            cMessage* const currentTxWakeUp = check_and_cast<cMessage*>(buildWakeUp(currentTxFrame, txInProgressTries));
             send(currentTxWakeUp, wakeUpRadioOutGateId);
             updateTxState(TX_WAKEUP_WAIT);
             EV_DEBUG << "TX SM in TX_WAKEUP_WAIT";
@@ -683,11 +689,13 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             // Reuse wakeup backoff for carrier sense backoff
             dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
             updateTxState(TX_DATA);
+            // Reset statistic variable counting retry rounds (from transmitter perspective)
+            ackRetryRounds = 0;
         }
         break;
     case TX_DATA:
         if(event == EV_DATA_RX_READY || event == EV_WAKEUP_BACKOFF){
-            setRadioToTransmitIfFreeOrDelay(wakeUpBackoffTimer, ackWaitDuration/5); // Hardcoded into phyMTU
+            setRadioToTransmitIfFreeOrDelay(wakeUpBackoffTimer, ackWaitDuration/5); // Hardcoded into phyMTU calc in initialize()
             updateTxState(TX_DATA);
         }
         else if(event == EV_TX_READY){
@@ -708,12 +716,12 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         finishEnergyConsumptionMonitoring(transmissionConsumptionSignal);
         updateMacState(S_IDLE);
         updateTxState(TX_IDLE);
-        if(txInProgressForwarders<1){
+        emit(transmissionTriesSignal, txInProgressTries);
+        if(txInProgressForwarders<=0){
             PacketDropDetails details;
             // This reason could also justifiably be LIFETIME_EXPIRED
             details.setReason(PacketDropReason::NO_ROUTE_FOUND);
             dropCurrentTxFrame(details);
-
         }
         else deleteCurrentTxFrame();
         break;
@@ -791,14 +799,16 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             //TODO: stabilize and parameterize this control of expected cost jump
             expectedCostJump += supplementaryForwarders*0.2; // Grow slower
             expectedCostJump = std::max(0.0, expectedCostJump);
+            ackRetryRounds++;
             updateMacState(S_TRANSMIT);
         }
         else{
             txInProgressForwarders = txInProgressForwarders+acknowledgedForwarders; // TODO: Check forwarders uniqueness
-            if(txInProgressForwarders<requiredForwarders && txInProgressRetries<maxWakeUpRetries){
+            emit(ackContentionRoundsSignal, ackRetryRounds);
+            if(txInProgressForwarders<requiredForwarders && txInProgressTries<maxWakeUpTries){
                 // Reduce expected cost jump to find more forwarders
-                const int retriesOver1 = std::max(1, txInProgressRetries) - 1;
-                expectedCostJump -= retriesOver1 * 0.5; // Shrink faster
+                const int retries = std::max(1, txInProgressTries) - 1;
+                expectedCostJump -= retries * 0.5; // Shrink faster
                 expectedCostJump = std::max(0.0, expectedCostJump);
                 // Try transmitting wake-up again after standard ack backoff
                 scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
@@ -1046,11 +1056,13 @@ void WakeUpMacLayer::finish()
 
 void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
     if(currentTxFrame != nullptr){
+        emit(ackContentionRoundsSignal, ackRetryRounds);
         if(txInProgressForwarders>0){
             PacketDropDetails details;
             details.setReason(INTERFACE_DOWN);
             // Packet has been received by a forwarder
             dropCurrentTxFrame(details);
+            emit(transmissionTriesSignal, txInProgressForwarders);
             finishEnergyConsumptionMonitoring(transmissionConsumptionSignal);
         }
     }

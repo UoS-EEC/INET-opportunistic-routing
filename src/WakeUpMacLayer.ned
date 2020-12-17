@@ -37,15 +37,21 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         double wuApproveResponseLimit @unit(s) = default(1000ns);
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
         
+        // WakeUpMac energy consumption signals and statistics
         @signal[receptionConsumption](type = double);
         @signal[falseWakeUpConsumption](type = double);
         @signal[transmissionConsumption](type = double);
         @signal[unknownConsumption](type = double);
-        // WakeUpMac energy consumption statistics
         @statistic[receptionConsumption](title="Energy consumption for reception"; record=histogram);
         @statistic[falseWakeUpConsumption](title="Energy consumption for false wake up"; record=histogram);
         @statistic[transmissionConsumption](title="Energy consumption for transmission"; record=histogram);
         @statistic[unknownConsumption](title="Energy consumption of unknown source"; record=histogram);
+        
+        // WakeUpMac retry signals and statistics
+        @signal[transmissionTries](type = long);
+        @signal[ackContentionRounds](type = long);
+        @statistic[transmissionTries](title="Number of Tries till packet discarded or received"; record=histogram, vector);
+        @statistic[ackContentionRounds](title="Number of ack contention rounds for each packet"; record=histogram, vector);
         
         // Generic packet loss statistics
         @statistic[packetDropNoRouteFound](title="packet drop: no route found"; source=packetDropReasonIsNoRouteFound(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
