@@ -70,7 +70,13 @@ void OpportunisticRpl::handleUpperPacket(Packet* const packet) {
 
 void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
     auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
-    if(header->getDestAddr()==nodeAddress){
+    auto const payloadLength = header->getLength() - header->getChunkLength();
+    if(payloadLength<B(1)){
+        // No data contained so silently accept packet
+        // This only occurs when OpportunisticRpl sends hello messages
+        delete packet; // TODO: emit removedPacket signal as well
+    }
+    else if(header->getDestAddr()==nodeAddress){
         decapsulate(packet);
         sendUp(packet);
     }

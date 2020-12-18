@@ -26,6 +26,8 @@
 #include "OpportunisticRpl.h"
 #include "WakeUpGram_m.h"
 #include "ExpectedCostTag_m.h"
+#include "EncounterDetails_m.h"
+
 using namespace inet;
 using namespace physicallayer;
 
@@ -39,8 +41,17 @@ simsignal_t receptionConsumptionSignal = cComponent::registerSignal("receptionCo
 simsignal_t falseWakeUpConsumptionSignal = cComponent::registerSignal("falseWakeUpConsumption");
 simsignal_t transmissionConsumptionSignal = cComponent::registerSignal("transmissionConsumption");
 simsignal_t unknownConsumptionSignal = cComponent::registerSignal("unknownConsumption");
+
 simsignal_t transmissionTriesSignal = cComponent::registerSignal("transmissionTries");
 simsignal_t ackContentionRoundsSignal = cComponent::registerSignal("ackContentionRounds");
+
+/**
+ * Neighbor Update signals
+ * Sent when information overheard from neighbors
+ */
+simsignal_t expectedEncounterSignal = cComponent::registerSignal("expectedEncounter");
+simsignal_t coincidentalEncounterSignal = cComponent::registerSignal("coincidentalEncounter");
+
 
 void WakeUpMacLayer::initialize(int const stage) {
     MacProtocolBase::initialize(stage);
@@ -539,6 +550,7 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         cancelEvent(ackBackoffTimer);
         // Reset cumulative ack backoff
         cumulativeAckBackoff = uniform(0,ackWaitDuration/3);
+        rxAckRound++;
         scheduleAt(simTime() + cumulativeAckBackoff, ackBackoffTimer);
     }
     else if(incomingMacData->getType()==WU_DATA/* && currentRxFrame != nullptr*/){
@@ -561,6 +573,7 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
             // Start CCA Timer to send Ack
             double relayDiceRoll = uniform(0,1);
             if(relayDiceRoll<candiateRelayContentionProbability){
+                rxAckRound++;
                 scheduleAt(simTime() + cumulativeAckBackoff, ackBackoffTimer);
             }
             else{
@@ -584,6 +597,12 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         // Overheard Ack from neighbor
         EV_WARN << "Overheard Ack from neighbor is it worth sending own ACK?" << endl;
         // Leave in current mac state which could be S_RECEIVE or S_ACK
+        EncounterDetails details;
+        // Only count coincidental ack in the first round to reduce double counting
+        if(rxAckRound<=1){
+            // TODO: possibly double weight since it is coincidental
+            emit(coincidentalEncounterSignal, 1/candiateRelayContentionProbability, &details);
+        }
         delete incomingFrame;
     }
     else{
@@ -689,8 +708,8 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             // Reuse wakeup backoff for carrier sense backoff
             dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
             updateTxState(TX_DATA);
-            // Reset statistic variable counting retry rounds (from transmitter perspective)
-            ackRetryRounds = 0;
+            // Reset statistic variable counting ack rounds (from transmitter perspective)
+            acknowledgmentRound = 1;
         }
         break;
     case TX_DATA:
@@ -768,6 +787,8 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         auto receivedAck = receivedData->popAtFront<WakeUpGram>();
         updateMacState(S_TRANSMIT);
         if(receivedAck->getType() == WU_ACK){
+            EncounterDetails details;
+            emit(expectedEncounterSignal, 1.0/acknowledgmentRound, &details);
             // TODO: Update neighbors and check source and dest address match
             // count first few ack
             acknowledgedForwarders++;
@@ -783,6 +804,8 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             delete receivedData;
         }
         else{
+            EncounterDetails details;
+            emit(coincidentalEncounterSignal, 2.0, &details);
             updateTxState(TX_ACK_WAIT);
             EV_DEBUG <<  "Discarding overheard data as busy transmitting" << endl;
             delete receivedData;
@@ -799,12 +822,12 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             //TODO: stabilize and parameterize this control of expected cost jump
             expectedCostJump += supplementaryForwarders*0.2; // Grow slower
             expectedCostJump = std::max(0.0, expectedCostJump);
-            ackRetryRounds++;
+            acknowledgmentRound++;
             updateMacState(S_TRANSMIT);
         }
         else{
             txInProgressForwarders = txInProgressForwarders+acknowledgedForwarders; // TODO: Check forwarders uniqueness
-            emit(ackContentionRoundsSignal, ackRetryRounds);
+            emit(ackContentionRoundsSignal, acknowledgmentRound);
             if(txInProgressForwarders<requiredForwarders && txInProgressTries<maxWakeUpTries){
                 // Reduce expected cost jump to find more forwarders
                 const int retries = std::max(1, txInProgressTries) - 1;
@@ -896,12 +919,15 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
             updateWuState(WU_APPROVE_WAIT);
             scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
             queryWakeupRequest(check_and_cast<Packet*>(msg));
+            EncounterDetails details;
+            emit(coincidentalEncounterSignal, 2.0, &details);
         }
         break;
     case WU_APPROVE_WAIT:
         if(event==EV_WU_APPROVE){
             updateMacState(S_WAKEUP_LSN);
             updateWuState(WU_WAKEUP_WAIT);
+            rxAckRound = 0;
             cancelEvent(wuTimeout);
             // Cancel transmit packet backoff till receive is done
             cancelEvent(ackBackoffTimer);
@@ -1056,7 +1082,7 @@ void WakeUpMacLayer::finish()
 
 void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
     if(currentTxFrame != nullptr){
-        emit(ackContentionRoundsSignal, ackRetryRounds);
+        emit(ackContentionRoundsSignal, acknowledgmentRound);
         if(txInProgressForwarders>0){
             PacketDropDetails details;
             details.setReason(INTERFACE_DOWN);

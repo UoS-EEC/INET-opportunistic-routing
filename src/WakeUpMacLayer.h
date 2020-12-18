@@ -176,6 +176,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     void stepReplenishSM(const physicallayer::IRadio::RadioMode wuRadioMode,
             const physicallayer::IRadio::RadioMode dataRadioMode);
     simtime_t cumulativeAckBackoff = 0;
+    int rxAckRound = 0;
     virtual void stepRxAckProcess(const t_mac_event& event, cMessage *msg);
   private:
     void handleDataReceivedInAckState(cMessage *msg);
@@ -193,7 +194,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     const int requiredForwarders = 1;
     const int maxForwarders = 4;
     int acknowledgedForwarders = 0;
-    int ackRetryRounds = 0;
+    int acknowledgmentRound = 1;
     const int maxWakeUpTries = 4;
     int txInProgressForwarders = 0;
     int txInProgressTries = 0; //TODO: rename to tries
