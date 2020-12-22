@@ -32,7 +32,7 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         double transmissionStartMinEnergy = 0.004345J @unit(J); // Don't start transmitting unless there is at least this in storage
         
         double txWakeUpWaitDuration @unit(s) = default(0.0006 s); // Must be bigger than radio OFF -> idle
-        double ackWaitDuration @unit(s) = default(0.004 s); // Must be bigger than radio Rx -> Tx
+        double ackWaitDuration @unit(s) = default(0.0024 s); // Must be bigger than radio Rx -> Tx
         double dataListeningDuration @unit(s) = default(0.0085 s); // How long to listen after a wake-up
         double wuApproveResponseLimit @unit(s) = default(1000ns);
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
