@@ -23,7 +23,6 @@ import wakeupmac.IntermittentORPLNode;
 import inet.visualizer.integrated.IntegratedCanvasVisualizer;
 import inet.networklayer.configurator.nexthop.NextHopNetworkConfigurator;
 
-
 network IntermittentDenseTest
 {
     parameters:
@@ -43,7 +42,7 @@ network IntermittentDenseTest
         transmittingWakeUpNode: IntermittentORPLNode {
             @display("p=28.034737,46.358093");
             generic.np.hubAddress = "receivingWakeUpNode";
-            generic.np.hubExpectedCost = 9;
+            generic.np.hubExpectedCost = 9ExpectedCost;
             packetGenerator.destAddresses = "receivingWakeUpNode(modulepath)";
             packetGenerator.startTime = 0.5s;
             energyGenerator.powerGeneration = 200uW;
@@ -51,56 +50,56 @@ network IntermittentDenseTest
         node1: IntermittentORPLNode {
             @display("p=44.9627,33.68679");
             generic.np.hubAddress = "receivingWakeUpNode";
-            generic.np.hubExpectedCost = 1;
+            generic.np.hubExpectedCost = 1ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node2: IntermittentORPLNode {
             @display("p=38.62,35.378174");
             generic.np.hubAddress = "receivingWakeUpNode";
-            generic.np.hubExpectedCost = 2;
+            generic.np.hubExpectedCost = 2ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node3: IntermittentORPLNode {
             @display("p=31.149708,30.966473");
             generic.np.hubAddress = "receivingWakeUpNode";
-            generic.np.hubExpectedCost = 4;
+            generic.np.hubExpectedCost = 4ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node4: IntermittentORPLNode {
             @display("p=40.452335,39.183796");
             generic.np.hubAddress = "receivingWakeUpNode";
-            generic.np.hubExpectedCost = 2;
+            generic.np.hubExpectedCost = 2ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node5: IntermittentORPLNode {
             @display("p=33.404892,41.861824");
             generic.np.hubAddress = "receivingWakeUpNode";
-            generic.np.hubExpectedCost = 6;
+            generic.np.hubExpectedCost = 6ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node6: IntermittentORPLNode {
             @display("p=38.901897,47.358833");
             generic.np.hubAddress = "receivingWakeUpNode";
-            generic.np.hubExpectedCost = 6;
+            generic.np.hubExpectedCost = 6ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node7: IntermittentORPLNode {
             @display("p=25.6527,39.183796");
             generic.np.hubAddress = "receivingWakeUpNode";
-            generic.np.hubExpectedCost = 6;
+            generic.np.hubExpectedCost = 6ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node8: IntermittentORPLNode {
             @display("p=31.149708,50.60066");
             generic.np.hubAddress = "receivingWakeUpNode";
-            generic.np.hubExpectedCost = 8;
+            generic.np.hubExpectedCost = 8ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }

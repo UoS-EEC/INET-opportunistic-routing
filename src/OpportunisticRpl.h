@@ -24,10 +24,12 @@
 #include "inet/networklayer/contract/INetworkProtocol.h"
 #include "inet/networklayer/contract/IRoutingTable.h"
 #include "inet/networklayer/contract/IArp.h"
+#include "Units.h"
 #include <set>
 #include <map>
 
 using namespace inet;
+using namespace orpl;
 
 const Protocol OpportunisticRouting("ORPL", "ORPL", Protocol::NetworkLayer);
 
@@ -41,7 +43,6 @@ public:
         arp(nullptr),
         waitingPacket(nullptr){}
     virtual void initialize(int stage) override;
-    typedef uint16_t ExpectedCost;
     bool queryAcceptPacket(const MacAddress& destination, const ExpectedCost& currentExpectedCost) const;
 protected:
     cMessage* nextForwardTimer;

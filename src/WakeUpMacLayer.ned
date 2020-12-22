@@ -29,10 +29,10 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         string wakeUpRadioModule = default("^.wakeUpRadio");   // The path to the Wake up radio
         string routingModule = default("^.^.generic.np");
         string energyStorage = default("^.^.energyStorage");
-        double transmissionStartMinEnergy = 0.0044J @unit(J); // Don't start transmitting unless there is at least this in storage
+        double transmissionStartMinEnergy = 0.004345J @unit(J); // Don't start transmitting unless there is at least this in storage
         
         double txWakeUpWaitDuration @unit(s) = default(0.0006 s); // Must be bigger than radio OFF -> idle
-        double ackWaitDuration @unit(s) = default(0.004 s); // Must be bigger than radio Rx -> Tx
+        double ackWaitDuration @unit(s) = default(0.0024 s); // Must be bigger than radio Rx -> Tx
         double dataListeningDuration @unit(s) = default(0.0085 s); // How long to listen after a wake-up
         double wuApproveResponseLimit @unit(s) = default(1000ns);
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
@@ -46,6 +46,12 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         @statistic[falseWakeUpConsumption](title="Energy consumption for false wake up"; record=histogram);
         @statistic[transmissionConsumption](title="Energy consumption for transmission"; record=histogram);
         @statistic[unknownConsumption](title="Energy consumption of unknown source"; record=histogram);
+        
+        // Weighted Encounters signals and with attached L2Addr and EDC/EquivalentTx(EqTx) details
+        @signal[coincidentalEncounter](type = double);
+        @signal[expectedEncounter](type = double);
+        @statistic[coincidentalEncounter](title="Weighted coincidental neighbor encounter"; record=vector);
+        @statistic[expectedEncounter](title="Weighted expected neighbor encounter"; record=vector);
         
         // WakeUpMac retry signals and statistics
         @signal[transmissionTries](type = long);
