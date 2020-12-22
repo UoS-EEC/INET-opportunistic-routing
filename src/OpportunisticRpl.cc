@@ -21,6 +21,7 @@
 #include "inet/networklayer/common/L3AddressTag_m.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
 #include "inet/common/ProtocolGroup.h"
+#include "Units.h"
 #include "OpportunisticRpl.h"
 #include "ExpectedCostTag_m.h"
 
@@ -47,7 +48,8 @@ void OpportunisticRpl::initialize(int const stage) {
         // Initialize expectedCost table
         L3Address hubAddress;
         L3AddressResolver().tryResolve(par("hubAddress"), hubAddress, L3AddressResolver::ADDR_MODULEPATH);
-        ExpectedCost hubExpectedCost(par("hubExpectedCost"));
+        const EqDC EqDC_equiv = ExpectedCost(par("hubExpectedCost"));
+        ExpectedCost hubExpectedCost = ExpectedCost(EqDC_equiv);
         if(!hubAddress.isUnspecified()){
             expectedCostTable.insert(std::pair<L3Address, ExpectedCost>(hubAddress, hubExpectedCost));
         }
@@ -134,7 +136,7 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
     header->setTtl(initialTTL);
     header->setVersion(IpProtocolId::IP_PROT_MANET);
     packet->insertAtFront(header);
-    ExpectedCost initialCost = 65535;
+    ExpectedCost initialCost = ExpectedCost(EqDC(25.5));
     if(expectedCostTable.find(header->getDestAddr())!=expectedCostTable.end()){
         initialCost = expectedCostTable.at(header->getDestAddr());
     }

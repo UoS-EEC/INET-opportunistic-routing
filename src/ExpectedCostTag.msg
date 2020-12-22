@@ -5,10 +5,10 @@
 import inet.common.INETDefs;
 import inet.common.TagBase;
 import inet.networklayer.common.L3Address;
-
+import Units;
 namespace inet;
 
 class ExpectedCostReq extends TagBase
 {
-    int expectedCost;
+    orpl::ExpectedCost expectedCost;
 }
