@@ -25,7 +25,7 @@
 #include "inet/common/packet/chunk/Chunk.h"
 #include "OpportunisticRpl.h"
 #include "WakeUpGram_m.h"
-#include "ExpectedCostTag_m.h"
+#include "EqDCTag_m.h"
 #include "EncounterDetails_m.h"
 
 using namespace inet;
@@ -597,9 +597,11 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         // Overheard Ack from neighbor
         EV_WARN << "Overheard Ack from neighbor is it worth sending own ACK?" << endl;
         // Leave in current mac state which could be S_RECEIVE or S_ACK
-        EncounterDetails details;
         // Only count coincidental ack in the first round to reduce double counting
         if(rxAckRound<=1){
+            EncounterDetails details;
+            details.setEncountered(incomingMacData->getTransmitterAddress());
+            details.setCurrentEqDC(incomingMacData->getExpectedCostInd());
             // TODO: possibly double weight since it is coincidental
             emit(coincidentalEncounterSignal, 1/candiateRelayContentionProbability, &details);
         }
@@ -753,20 +755,22 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
     }
 }
 Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount) const{
-    auto expectedCostTag = subject->findTag<ExpectedCostReq>();
+    auto equivalentDCTag = subject->findTag<EqDCReq>();
+    auto equivalentDCInd = subject->findTag<EqDCInd>();
     ExpectedCost minExpectedCost = ExpectedCost(255);
     // When between int ExpectedCost values (0.1EqDC res) choose one or other
     const ExpectedCost bernTrial = ExpectedCost((int)bernoulli(10.0*std::fmod(EqDCJump.get(), 0.1)));
     ExpectedCost expJumpBern = ExpectedCost(EqDCJump) + bernTrial - ExpectedCost(retryCount);
     if(expJumpBern < ExpectedCost(0)) expJumpBern = ExpectedCost(0);
-    if(expectedCostTag != nullptr){
-        minExpectedCost = expectedCostTag->getExpectedCost();
+    if(equivalentDCTag != nullptr){
+        minExpectedCost = equivalentDCTag->getEqDC();
         minExpectedCost = minExpectedCost - expJumpBern;
     }
     if(minExpectedCost < ExpectedCost(0)) minExpectedCost = ExpectedCost(0);
     auto wuHeader = makeShared<WakeUpBeacon>();
     wuHeader->setType(WU_BEACON);
     wuHeader->setMinExpectedCost(minExpectedCost);
+    wuHeader->setExpectedCostInd(equivalentDCInd->getEqDC());
     wuHeader->setTransmitterAddress(interfaceEntry->getMacAddress());
     wuHeader->setReceiverAddress(subject->peekAtFront<WakeUpDatagram>()->getReceiverAddress());
     auto frame = new Packet("wake-up", wuHeader);
@@ -790,6 +794,8 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         updateMacState(S_TRANSMIT);
         if(receivedAck->getType() == WU_ACK){
             EncounterDetails details;
+            details.setEncountered(receivedAck->getTransmitterAddress());
+            details.setCurrentEqDC(receivedAck->getExpectedCostInd());
             emit(expectedEncounterSignal, 1.0/acknowledgmentRound, &details);
             // TODO: Update neighbors and check source and dest address match
             // count first few ack
@@ -807,6 +813,8 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         }
         else{
             EncounterDetails details;
+            details.setEncountered(receivedAck->getTransmitterAddress());
+            details.setCurrentEqDC(receivedAck->getExpectedCostInd());
             emit(coincidentalEncounterSignal, 2.0, &details);
             updateTxState(TX_ACK_WAIT);
             EV_DEBUG <<  "Discarding overheard data as busy transmitting" << endl;
@@ -919,8 +927,12 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
             startEnergyConsumptionMonitoring();
             updateWuState(WU_APPROVE_WAIT);
             scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
-            queryWakeupRequest(check_and_cast<Packet*>(msg));
+            const Packet* wuPkt = check_and_cast<Packet*>(msg);
+            queryWakeupRequest(wuPkt);
+            auto wakeUpHeader = wuPkt->peekAtFront<WakeUpGram>();
             EncounterDetails details;
+            details.setEncountered(wakeUpHeader->getTransmitterAddress());
+            details.setCurrentEqDC(wakeUpHeader->getExpectedCostInd());
             emit(coincidentalEncounterSignal, 2.0, &details);
         }
         break;

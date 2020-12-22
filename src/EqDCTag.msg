@@ -8,7 +8,11 @@ import inet.networklayer.common.L3Address;
 import Units;
 namespace inet;
 
-class ExpectedCostReq extends TagBase
+class EqDCReq extends TagBase
 {
-    orpl::ExpectedCost expectedCost;
+    orpl::EqDC eqDC;
+}
+class EqDCInd extends TagBase
+{
+    orpl::EqDC eqDC;
 }

@@ -15,7 +15,7 @@
 
 import inet.common.INETDefs;
 import inet.linklayer.common.MacAddress;
-
+import Units;
 namespace inet;
 
 //
@@ -23,5 +23,5 @@ namespace inet;
 //
 class EncounterDetails extends cObject{
     inet::MacAddress encountered;
-    double currentEDC;
+    orpl::EqDC currentEqDC;
 }

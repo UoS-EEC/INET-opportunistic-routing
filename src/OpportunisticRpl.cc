@@ -23,7 +23,7 @@
 #include "inet/common/ProtocolGroup.h"
 #include "Units.h"
 #include "OpportunisticRpl.h"
-#include "ExpectedCostTag_m.h"
+#include "EqDCTag_m.h"
 
 Define_Module(OpportunisticRpl);
 
@@ -145,7 +145,8 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
 
 void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const ExpectedCost& expectedCost) {
     packet->addTagIfAbsent<MacAddressReq>()->setDestAddress(macMulticast);
-    packet->addTagIfAbsent<ExpectedCostReq>()->setExpectedCost(expectedCost);
+    packet->addTagIfAbsent<EqDCReq>()->setEqDC(expectedCost); // Set expected cost of any forwarder
+    packet->addTagIfAbsent<EqDCInd>()->setEqDC(expectedCost); // Indicate own expectedCost for updating metric
     packet->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&OpportunisticRouting);
     packet->addTagIfAbsent<DispatchProtocolInd>()->setProtocol(&OpportunisticRouting);
 }
