@@ -49,8 +49,9 @@ simsignal_t ackContentionRoundsSignal = cComponent::registerSignal("ackContentio
  * Neighbor Update signals
  * Sent when information overheard from neighbors
  */
-simsignal_t expectedEncounterSignal = cComponent::registerSignal("expectedEncounter");
-simsignal_t coincidentalEncounterSignal = cComponent::registerSignal("coincidentalEncounter");
+simsignal_t WakeUpMacLayer::expectedEncounterSignal = cComponent::registerSignal("expectedEncounter");
+simsignal_t WakeUpMacLayer::coincidentalEncounterSignal = cComponent::registerSignal("coincidentalEncounter");
+simsignal_t WakeUpMacLayer::noExpectedEncountersSignal = cComponent::registerSignal("noExpectedEncounters");
 
 
 void WakeUpMacLayer::initialize(int const stage) {
@@ -315,14 +316,19 @@ void WakeUpMacLayer::queryWakeupRequest(const Packet* wakeUp) {
     }
     else if(header->getReceiverAddress() == interfaceEntry->getMacAddress()){
         approve = true;
+        ackEqDCResponse = EqDC(0.0);
     }
     else if(header->getReceiverAddress() == MacAddress::BROADCAST_ADDRESS){
         approve = true;
+        ackEqDCResponse = EqDC(0.0);
     }
     else if(routingModule != nullptr && header->getType()==WakeUpGramType::WU_BEACON){
         auto costHeader = wakeUp->peekAtFront<WakeUpBeacon>();
         // TODO: Query Opportunistic layer for permission to wake-up
-        if(routingModule->queryAcceptPacket(header->getReceiverAddress(), costHeader->getMinExpectedCost())){
+        EqDC acceptPacketThreshold = routingModule->queryAcceptPacket(header->getReceiverAddress(),
+                                                                        costHeader->getMinExpectedCost());
+        if(acceptPacketThreshold<EqDC(25.5)){
+            ackEqDCResponse = acceptPacketThreshold;
             approve = true;
         }
     }
@@ -654,6 +660,7 @@ Packet* WakeUpMacLayer::buildAck(const Packet* receivedFrame) const{
     auto ackPacket = makeShared<WakeUpAck>();
     ackPacket->setTransmitterAddress(interfaceEntry->getMacAddress());
     ackPacket->setReceiverAddress(receivedMacData->getTransmitterAddress());
+    ackPacket->setExpectedCostInd(ExpectedCost(ackEqDCResponse));
     auto frame = new Packet("CsmaAck");
     frame->insertAtFront(ackPacket);
     frame->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
@@ -822,6 +829,10 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         }
     }
     else if(event == EV_ACK_TIMEOUT){
+        // If there were no forwarders, increase send signal that none received when expected
+        if(acknowledgedForwarders < 1){
+            emit(noExpectedEncountersSignal, 0.0);
+        }
         // TODO: Get required forwarders count from packetTag from n/w layer
         // TODO: Test this with more nodes should this include forwarders from prev timeslot?
         const int supplementaryForwarders = acknowledgedForwarders - requiredForwarders;
@@ -928,6 +939,7 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
             updateWuState(WU_APPROVE_WAIT);
             scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
             const Packet* wuPkt = check_and_cast<Packet*>(msg);
+            ackEqDCResponse = EqDC(25.5);
             queryWakeupRequest(wuPkt);
             auto wakeUpHeader = wuPkt->peekAtFront<WakeUpGram>();
             EncounterDetails details;

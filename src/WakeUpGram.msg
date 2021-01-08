@@ -20,7 +20,7 @@ class WakeUpGram extends inet::FieldsChunk
     WakeUpGramType type;    // header type (1 byte)
     inet::MacAddress transmitterAddress;    // (2 byte) but inet represents as 6
     inet::MacAddress receiverAddress;    // (2 byte) but inet represents as 6
-    orpl::ExpectedCost expectedCostInd; // (1 byte)
+    orpl::ExpectedCost expectedCostInd = orpl::ExpectedCost(255); // (1 byte)
 }
 class WakeUpBeacon extends WakeUpGram
 {

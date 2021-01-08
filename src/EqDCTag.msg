@@ -14,5 +14,5 @@ class EqDCReq extends TagBase
 }
 class EqDCInd extends TagBase
 {
-    orpl::EqDC eqDC;
+    orpl::EqDC eqDC = orpl::EqDC(25.5);
 }

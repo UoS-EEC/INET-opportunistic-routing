@@ -1,0 +1,155 @@
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+// 
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see http://www.gnu.org/licenses/.
+// 
+
+#include "ORPLRoutingTable.h"
+#include "WakeUpMacLayer.h"
+#include "EncounterDetails_m.h"
+#include "inet/networklayer/nexthop/NextHopInterfaceData.h"
+
+using namespace omnetpp;
+using namespace inet;
+
+Define_Module(ORPLRoutingTable);
+simsignal_t ORPLRoutingTable::updatedEqDCValueSignal = cComponent::registerSignal("updatedEqDCValue");
+
+void ORPLRoutingTable::initialize(int stage){
+    if(stage == INITSTAGE_LOCAL){
+        cModule* encountersModule = getModuleFromPar<cModule>(par("encountersSourceModule"), this);
+        encountersModule->subscribe(WakeUpMacLayer::coincidentalEncounterSignal, this);
+        encountersModule->subscribe(WakeUpMacLayer::expectedEncounterSignal, this);
+        encountersModule->subscribe(WakeUpMacLayer::noExpectedEncountersSignal, this);
+
+        interfaceTable = getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
+
+        arp = getModuleFromPar<IArp>(par("arpModule"), this);
+
+        const char *addressTypeString = par("addressType");
+        if (!strcmp(addressTypeString, "mac"))
+            addressType = L3Address::MAC;
+        else if (!strcmp(addressTypeString, "modulepath"))
+            addressType = L3Address::MODULEPATH;
+        else if (!strcmp(addressTypeString, "moduleid"))
+            addressType = L3Address::MODULEID;
+        else
+            throw cRuntimeError("Unknown address type");
+    }
+    else if(stage == INITSTAGE_LINK_LAYER){
+        for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i)
+            configureInterface(interfaceTable->getInterface(i));
+    }
+    else if(stage == INITSTAGE_NETWORK_LAYER){
+        // TODO: Set table graph root
+
+    }
+}
+
+void ORPLRoutingTable::receiveSignal(cComponent* source, simsignal_t signalID, double weight, cObject* details)
+{
+    if(signalID == WakeUpMacLayer::coincidentalEncounterSignal || signalID == WakeUpMacLayer::expectedEncounterSignal){
+        EncounterDetails* encounterMacDetails = check_and_cast<EncounterDetails*>(details);
+        const L3Address inboundMacAddress = arp->getL3AddressFor(encounterMacDetails->getEncountered());
+        updateEncounters(inboundMacAddress, encounterMacDetails->getCurrentEqDC(), weight);
+    }
+    else if(signalID == WakeUpMacLayer::noExpectedEncountersSignal){
+        increaseInteractionDenominator();
+    }
+}
+
+void ORPLRoutingTable::updateEncounters(const L3Address address, const orpl::EqDC cost, const double weight)
+{
+    // Update encounters table entry. Optionally adding if it doesn't exist
+    encountersTable[address].lastEqDC = cost;
+    encountersTable[address].interactionsTotal += weight;
+    encountersCount++;
+    increaseInteractionDenominator();
+}
+
+
+
+EqDC ORPLRoutingTable::calculateEqDC()
+{
+    typedef std::pair<EqDC, double> EncPair;
+    std::vector<EncPair> neighborEncounterPairs;
+    for(auto const& entry : encountersTable){
+        // Copy pairs to sortable vector
+        const EncPair
+            encounterPair(entry.second.lastEqDC, entry.second.recentInteractionProb);
+        neighborEncounterPairs.push_back(encounterPair);
+    }
+    // Sort neighborEncounterPairs increasing on EqDC
+    std::sort(neighborEncounterPairs.begin(), neighborEncounterPairs.end(), [](const EncPair &left, const EncPair &right) {
+        return left.first < right.first;
+    });
+
+    double probSum = 0.0;
+    EqDC probProductSum = EqDC(0.0);
+    EqDC estimatedCost = EqDC(25.5);
+    EqDC forwardingCostW = EqDC(0.1); // TODO: Define this properly in terms of EqTransmissions etc.
+    for(auto const& entry : neighborEncounterPairs){
+        // Check if in forwarding set
+        if(entry.first <= estimatedCost - forwardingCostW){
+            probSum += entry.second;
+            probProductSum += entry.second * entry.first;
+            if(probSum > 0){
+                estimatedCost = (EqDC(1.0) + probProductSum)/probSum;
+            }
+            else{
+                estimatedCost = EqDC(25.5);
+            }
+        }
+        else{
+            break;
+        }
+    }
+    // Limit resolution before reporting.
+    estimatedCost = ExpectedCost(estimatedCost);
+    emit(updatedEqDCValueSignal, estimatedCost.get());
+    return estimatedCost;
+}
+
+void ORPLRoutingTable::calculateInteractionProbability()
+{
+    for(auto & entry : encountersTable){
+        const double new_prob = entry.second.interactionsTotal/interactionDenominator;
+        entry.second.recentInteractionProb = new_prob;
+        entry.second.interactionsTotal = 0;
+
+    }
+    interactionDenominator = 0;
+}
+
+void ORPLRoutingTable::configureInterface(inet::InterfaceEntry* ie)
+{
+    int interfaceModuleId = ie->getId();
+    // mac
+    NextHopInterfaceData *d = ie->addProtocolData<NextHopInterfaceData>();
+    d->setMetric(1);
+    if (addressType == L3Address::MAC)
+        d->setAddress(ie->getMacAddress());
+    else if (ie && addressType == L3Address::MODULEPATH)
+        d->setAddress(ModulePathAddress(interfaceModuleId));
+    else if (ie && addressType == L3Address::MODULEID)
+        d->setAddress(ModuleIdAddress(interfaceModuleId));
+}
+
+void ORPLRoutingTable::increaseInteractionDenominator()
+{
+    interactionDenominator++;
+    if(encountersCount > probCalcEncountersThreshold){
+        calculateInteractionProbability();
+        encountersCount = 0;
+        interactionDenominator = 0;
+    }
+}

@@ -34,7 +34,7 @@ module OpportunisticRoutingLayer extends SimpleNetworkLayer
         *.routingTableModule = default(absPath(".routingTable"));
         *.arpModule = default(absPath(".arp"));
     submodules:
-        routingTable: NextHopRoutingTable {
+        routingTable: ORPLRoutingTable {
             parameters:
                 @display("p=100,100;is=s");
         }

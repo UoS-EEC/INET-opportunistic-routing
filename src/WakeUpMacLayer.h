@@ -32,7 +32,6 @@ using namespace omnetpp;
 using namespace inet;
 using namespace orpl;
 
-
 /**
  * WakeUpMacLayer - Implements two stage message transmission of
  * high power wake up followed by the data message
@@ -76,7 +75,15 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     double candiateRelayContentionProbability = 0.7;
     inet::B phyMtu = B(255);
 
+public:
+    /**
+     * Neighbor Update signals definitions TODO: Move elsewhere
+     */
+    static simsignal_t expectedEncounterSignal;
+    static simsignal_t coincidentalEncounterSignal;
+    static simsignal_t noExpectedEncountersSignal;
 
+protected:
     /** @brief MAC high level states */
     enum t_mac_state {
         S_REPLENISH, // No listening, to charge storage
@@ -178,6 +185,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     void stepReplenishSM(const physicallayer::IRadio::RadioMode wuRadioMode,
             const physicallayer::IRadio::RadioMode dataRadioMode);
     simtime_t cumulativeAckBackoff = 0;
+    EqDC ackEqDCResponse = EqDC(25.5);
     int rxAckRound = 0;
     virtual void stepRxAckProcess(const t_mac_event& event, cMessage *msg);
   private:

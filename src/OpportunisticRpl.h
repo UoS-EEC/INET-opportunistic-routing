@@ -25,6 +25,7 @@
 #include "inet/networklayer/contract/IRoutingTable.h"
 #include "inet/networklayer/contract/IArp.h"
 #include "Units.h"
+#include "ORPLRoutingTable.h"
 #include <set>
 #include <map>
 
@@ -43,14 +44,14 @@ public:
         arp(nullptr),
         waitingPacket(nullptr){}
     virtual void initialize(int stage) override;
-    bool queryAcceptPacket(const MacAddress& destination, const ExpectedCost& currentExpectedCost) const;
+    EqDC queryAcceptPacket(const MacAddress& destination, const ExpectedCost& currentExpectedCost) const;
 protected:
     cMessage* nextForwardTimer;
     // Crude net layer backoff to reduce contention of forwarded packets with multiple forwarders
     simtime_t forwardingBackoff;
     uint8_t initialTTL = 3; // Overwritten by NED
 
-    IRoutingTable *routingTable;
+    ORPLRoutingTable *routingTable; // TODO: Make IRoutingTable if features allow
     IArp *arp;
 
     L3Address nodeAddress;
