@@ -17,6 +17,7 @@
 #include "WakeUpMacLayer.h"
 #include "EncounterDetails_m.h"
 #include "inet/networklayer/nexthop/NextHopInterfaceData.h"
+#include "inet/networklayer/common/L3AddressResolver.h"
 
 using namespace omnetpp;
 using namespace inet;
@@ -44,14 +45,15 @@ void ORPLRoutingTable::initialize(int stage){
             addressType = L3Address::MODULEID;
         else
             throw cRuntimeError("Unknown address type");
+
     }
     else if(stage == INITSTAGE_LINK_LAYER){
         for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i)
             configureInterface(interfaceTable->getInterface(i));
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
-        // TODO: Set table graph root
-
+        const char* rootParameter = par("hubAddress");
+        L3AddressResolver().tryResolve(rootParameter, rootAddress, L3AddressResolver::ADDR_MODULEPATH);
     }
 }
 
@@ -70,16 +72,30 @@ void ORPLRoutingTable::receiveSignal(cComponent* source, simsignal_t signalID, d
 void ORPLRoutingTable::updateEncounters(const L3Address address, const orpl::EqDC cost, const double weight)
 {
     // Update encounters table entry. Optionally adding if it doesn't exist
-    encountersTable[address].lastEqDC = cost;
+    const EqDC oldEqDC = calculateEqDC(rootAddress);
+    if(cost!=encountersTable[address].lastEqDC){
+        encountersTable[address].lastEqDC = cost;
+        if(cost<oldEqDC){
+            emit(updatedEqDCValueSignal, oldEqDC.get());
+            emit(updatedEqDCValueSignal, calculateEqDC(rootAddress).get());
+        }
+    }
     encountersTable[address].interactionsTotal += weight;
     encountersCount++;
-    increaseInteractionDenominator();
 }
 
 
 
-EqDC ORPLRoutingTable::calculateEqDC()
+EqDC ORPLRoutingTable::calculateEqDC(const L3Address destination) const
 {
+    const InterfaceEntry* interface = interfaceTable->findFirstNonLoopbackInterface();
+    if(interface->getNetworkAddress() == destination){
+        return EqDC(0.0);
+    }
+    else if(destination != rootAddress){
+        throw cRuntimeError("Routing error, unknown graph root");
+    }
+
     typedef std::pair<EqDC, double> EncPair;
     std::vector<EncPair> neighborEncounterPairs;
     for(auto const& entry : encountersTable){
@@ -113,9 +129,12 @@ EqDC ORPLRoutingTable::calculateEqDC()
             break;
         }
     }
+    // Set initial values of EqDC to aid startup
+    if(probSum == 0){
+        estimatedCost = ExpectedCost(par("hubExpectedCost"));
+    }
     // Limit resolution before reporting.
     estimatedCost = ExpectedCost(estimatedCost);
-    emit(updatedEqDCValueSignal, estimatedCost.get());
     return estimatedCost;
 }
 
@@ -127,6 +146,7 @@ void ORPLRoutingTable::calculateInteractionProbability()
         entry.second.interactionsTotal = 0;
 
     }
+    emit(updatedEqDCValueSignal, calculateEqDC(rootAddress).get());
     interactionDenominator = 0;
 }
 

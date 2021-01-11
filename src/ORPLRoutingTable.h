@@ -44,6 +44,7 @@ protected:
         double recentInteractionProb = 0;
         double interactionsTotal = 0;
     };
+    inet::L3Address rootAddress;
     typedef std::map<inet::L3Address, NeighborEntry> NeighbourRecords;
     NeighbourRecords encountersTable;
     int encountersCount = 0;
@@ -53,7 +54,7 @@ protected:
     void configureInterface(inet::InterfaceEntry *ie);
     static omnetpp::simsignal_t updatedEqDCValueSignal;
 public:
-    orpl::EqDC calculateEqDC();
+    orpl::EqDC calculateEqDC(const inet::L3Address destination) const;
     void increaseInteractionDenominator();
 };
 

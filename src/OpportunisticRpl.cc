@@ -99,8 +99,7 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
             EV_WARN << "Forwarding message to unknown L3Address" << endl;
         }
         packet->insertAtFront(mutableHeader);
-        ExpectedCost currentExpectedCost = expectedCostTable.at(header->getDestAddr());
-        routingTable->calculateEqDC();
+        ExpectedCost currentExpectedCost = routingTable->calculateEqDC(header->getDestAddr());
         setDownControlInfo(packet, outboundMacAddress, currentExpectedCost);
 
         // Delay forwarded packets to reduce physical layer contention
@@ -138,11 +137,7 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
     header->setTtl(initialTTL);
     header->setVersion(IpProtocolId::IP_PROT_MANET);
     packet->insertAtFront(header);
-    ExpectedCost initialCost = ExpectedCost(EqDC(25.5));
-    routingTable->calculateEqDC();
-    if(expectedCostTable.find(header->getDestAddr())!=expectedCostTable.end()){
-        initialCost = expectedCostTable.at(header->getDestAddr());
-    }
+    ExpectedCost initialCost = routingTable->calculateEqDC(header->getDestAddr());
     setDownControlInfo(packet, outboundMacAddress, initialCost);
 }
 
@@ -236,17 +231,16 @@ void OpportunisticRpl::handleCrashOperation(LifecycleOperation *op) {
 
 EqDC OpportunisticRpl::queryAcceptPacket(const MacAddress& destination,
         const ExpectedCost& currentExpectedCost) const{
-    L3Address l3dest = arp->getL3AddressFor(destination);
-    L3Address modPathAddr = l3dest.toModulePath();
+    const L3Address l3dest = arp->getL3AddressFor(destination);
+    const L3Address modPathAddr = l3dest.toModulePath();
     if(l3dest==nodeAddress){
         // Mac layer should probably perform this check anyway
         return EqDC(0.0);
     }
-    else if(expectedCostTable.find(modPathAddr)!=expectedCostTable.end()){
-        ExpectedCost newCost = expectedCostTable.at(modPathAddr);
+    else{
+        const ExpectedCost newCost = routingTable->calculateEqDC(l3dest);
         if(newCost < currentExpectedCost){
-            // TODO: replace with routingTable->calculateEqDC(destination);
-            return routingTable->calculateEqDC();
+            return newCost;
         }
     }
     // Insufficient progress or unknown destination so don't accept

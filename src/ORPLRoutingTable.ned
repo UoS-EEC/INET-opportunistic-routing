@@ -25,6 +25,8 @@ parameters:
     string interfaceTableModule;   // The path to the InterfaceTable module
     @display("i=block/table");
     string addressType @enum("mac","modulepath","moduleid") = default("modulepath");
+    string hubAddress = default("routingHub");
+    int hubExpectedCost @unit(ExpectedCost) = default(255ExpectedCost);
     string encountersSourceModule = default("^.^");
     string arpModule = default("^.arp");
     
