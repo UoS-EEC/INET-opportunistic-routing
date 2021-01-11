@@ -51,7 +51,7 @@ simsignal_t ackContentionRoundsSignal = cComponent::registerSignal("ackContentio
  */
 simsignal_t WakeUpMacLayer::expectedEncounterSignal = cComponent::registerSignal("expectedEncounter");
 simsignal_t WakeUpMacLayer::coincidentalEncounterSignal = cComponent::registerSignal("coincidentalEncounter");
-simsignal_t WakeUpMacLayer::noExpectedEncountersSignal = cComponent::registerSignal("noExpectedEncounters");
+simsignal_t WakeUpMacLayer::listenForEncountersEndedSignal = cComponent::registerSignal("listenForEncountersEnded");
 
 
 void WakeUpMacLayer::initialize(int const stage) {
@@ -550,6 +550,13 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         updateMacState(S_ACK);
         // Store the new received packet
         currentRxFrame = incomingFrame;
+        // If better EqDC improved, update
+        EqDC newAckEqDCResponse = routingModule->queryAcceptPacket(incomingMacData->getReceiverAddress(),
+                ackEqDCResponse);
+        if(newAckEqDCResponse < ackEqDCResponse){
+            ackEqDCResponse = newAckEqDCResponse;
+        }
+
         // Cancel delivery timer until next round
         cancelEvent(wuTimeout);
         // Start ack backoff
@@ -829,9 +836,9 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         }
     }
     else if(event == EV_ACK_TIMEOUT){
-        // If there were no forwarders, increase send signal that none received when expected
-        if(acknowledgedForwarders < 1){
-            emit(noExpectedEncountersSignal, 0.0);
+        if(acknowledgmentRound <= 1){
+            // At the end of the first ack round, notify of expecting encounters
+            emit(listenForEncountersEndedSignal, (double)acknowledgedForwarders);
         }
         // TODO: Get required forwarders count from packetTag from n/w layer
         // TODO: Test this with more nodes should this include forwarders from prev timeslot?
@@ -849,6 +856,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             txInProgressForwarders = txInProgressForwarders+acknowledgedForwarders; // TODO: Check forwarders uniqueness
             emit(ackContentionRoundsSignal, acknowledgmentRound);
             if(txInProgressForwarders<requiredForwarders && txInProgressTries<maxWakeUpTries){
+                // TODO: Remove expected Cost jump, shouldn't be necessary with auto EqDC calc
                 // Reduce expected cost jump to find more forwarders
                 const int retries = std::max(1, txInProgressTries) - 1;
                 EqDCJump -= EqDC(0.05)*retries; // Shrink faster

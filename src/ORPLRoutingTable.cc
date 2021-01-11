@@ -30,7 +30,7 @@ void ORPLRoutingTable::initialize(int stage){
         cModule* encountersModule = getModuleFromPar<cModule>(par("encountersSourceModule"), this);
         encountersModule->subscribe(WakeUpMacLayer::coincidentalEncounterSignal, this);
         encountersModule->subscribe(WakeUpMacLayer::expectedEncounterSignal, this);
-        encountersModule->subscribe(WakeUpMacLayer::noExpectedEncountersSignal, this);
+        encountersModule->subscribe(WakeUpMacLayer::listenForEncountersEndedSignal, this);
 
         interfaceTable = getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
 
@@ -64,7 +64,7 @@ void ORPLRoutingTable::receiveSignal(cComponent* source, simsignal_t signalID, d
         const L3Address inboundMacAddress = arp->getL3AddressFor(encounterMacDetails->getEncountered());
         updateEncounters(inboundMacAddress, encounterMacDetails->getCurrentEqDC(), weight);
     }
-    else if(signalID == WakeUpMacLayer::noExpectedEncountersSignal){
+    if(signalID == WakeUpMacLayer::listenForEncountersEndedSignal || signalID == WakeUpMacLayer::coincidentalEncounterSignal){
         increaseInteractionDenominator();
     }
 }
@@ -167,7 +167,8 @@ void ORPLRoutingTable::configureInterface(inet::InterfaceEntry* ie)
 void ORPLRoutingTable::increaseInteractionDenominator()
 {
     interactionDenominator++;
-    if(encountersCount > probCalcEncountersThreshold){
+    if(encountersCount > probCalcEncountersThreshold
+            || interactionDenominator > 2*probCalcEncountersThreshold){// KLUDGE of interaction denominator until hello messages are implemented
         calculateInteractionProbability();
         encountersCount = 0;
         interactionDenominator = 0;

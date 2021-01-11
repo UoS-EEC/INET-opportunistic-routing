@@ -81,7 +81,7 @@ public:
      */
     static simsignal_t expectedEncounterSignal;
     static simsignal_t coincidentalEncounterSignal;
-    static simsignal_t noExpectedEncountersSignal;
+    static simsignal_t listenForEncountersEndedSignal;
 
 protected:
     /** @brief MAC high level states */

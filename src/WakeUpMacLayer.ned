@@ -50,10 +50,10 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         // Weighted Encounters signals and with attached L2Addr and EDC/EquivalentTx(EqTx) details
         @signal[coincidentalEncounter](type = double);
         @signal[expectedEncounter](type = double);
-        @signal[noExpectedEncounters](type = double);
+        @signal[listenForEncountersEnded](type = double);
         @statistic[coincidentalEncounter](title="Weighted coincidental neighbor encounter"; record=vector);
         @statistic[expectedEncounter](title="Weighted expected neighbor encounter"; record=vector);
-        @statistic[noExpectedEncounters](title="Transmission did not receive any expected ack encounters"; record=vector);
+        @statistic[listenForEncountersEnded](title="Ended expected encounters listening period"; record=vector);
         
         // WakeUpMac retry signals and statistics
         @signal[transmissionTries](type = long);
