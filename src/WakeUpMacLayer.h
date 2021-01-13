@@ -24,6 +24,8 @@
 #include "inet/linklayer/contract/IMacProtocol.h"
 #include "inet/physicallayer/contract/packetlevel/IRadio.h"
 #include "inet/power/contract/IEpEnergyStorage.h"
+#include "inet/common/lifecycle/LifecycleController.h"
+#include "inet/common/lifecycle/NodeStatus.h"
 #include "inet/common/Protocol.h"
 #include "OpportunisticRpl.h"
 #include "Units.h"
@@ -48,6 +50,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         wakeUpRadio(nullptr),
         activeRadio(nullptr),
         energyStorage(nullptr),
+        networkNode(nullptr),
         replenishmentTimer(nullptr),
         routingModule(nullptr),
         currentRxFrame(nullptr)
@@ -152,11 +155,13 @@ protected:
     physicallayer::IRadio::ReceptionState receptionState;
 
     inet::power::IEpEnergyStorage* energyStorage;
+    inet::LifecycleController lifecycleController;
+    cModule* networkNode;
+
     J lastEnergyStorageLevel = J(0.0);
     J transmissionStartMinEnergy = J(0.0);
     simtime_t replenishmentCheckRate = SimTime(1, SimTimeUnit::SIMTIME_S);
     cMessage* replenishmentTimer;
-    cMessage* postReplenishmentTimer;
     bool energyMonitoringInProgress = false;
     J storedEnergyStartValue = J(0);
     W initialEnergyGeneration = W(-DBL_MIN);
@@ -182,8 +187,6 @@ protected:
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     void stepMacSM(const t_mac_event& event, cMessage *msg);
-    void stepReplenishSM(const physicallayer::IRadio::RadioMode wuRadioMode,
-            const physicallayer::IRadio::RadioMode dataRadioMode);
     simtime_t cumulativeAckBackoff = 0;
     EqDC ackEqDCResponse = EqDC(25.5);
     int rxAckRound = 0;

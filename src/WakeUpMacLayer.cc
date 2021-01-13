@@ -68,7 +68,6 @@ void WakeUpMacLayer::initialize(int const stage) {
         ackBackoffTimer = new cMessage("ack backoff");
         wuTimeout = new cMessage("wake-up accept timeout");
         replenishmentTimer = new cMessage("replenishment check timeout");
-        postReplenishmentTimer = wakeUpBackoffTimer;
         dataListeningDuration = par("dataListeningDuration");
         txWakeUpWaitDuration = par("txWakeUpWaitDuration");
         ackWaitDuration = par("ackWaitDuration");
@@ -84,6 +83,7 @@ void WakeUpMacLayer::initialize(int const stage) {
 
         cModule *storageModule = getModuleFromPar<cModule>(par("energyStorage"), this);
         energyStorage = check_and_cast<inet::power::IEpEnergyStorage*>(storageModule);
+        networkNode = getModuleFromPar<cModule>(par("networkNode"), this);
 
         cModule *module = getModuleFromPar<cModule>(par("routingModule"), this, false);
         routingModule = check_and_cast_nullable<OpportunisticRpl*>(module);
@@ -341,30 +341,6 @@ void WakeUpMacLayer::queryWakeupRequest(const Packet* wakeUp) {
     }
 }
 
-void WakeUpMacLayer::stepReplenishSM(const IRadio::RadioMode wuRadioMode, const IRadio::RadioMode dataRadioMode)
-{
-    if (energyStorage->getResidualEnergyCapacity() > transmissionStartMinEnergy) {
-        wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-        updateMacState(S_IDLE);
-        // Return to the relevant EV_TX_START or EV_ACK_TIMEOUT
-        scheduleAt(simTime() +  txWakeUpWaitDuration / 2, postReplenishmentTimer);
-        if(energyMonitoringInProgress){
-            resumeEnergyConsumptionMonitoring(); // Will probably end up as unknown
-        }
-    }
-    else {
-        updateMacState(S_REPLENISH);
-        // If radios are on, stop them
-        if (wuRadioMode != IRadio::RADIO_MODE_SWITCHING) {
-            wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_OFF); // Does nothing if already off
-        }
-        if (dataRadioMode != IRadio::RADIO_MODE_SWITCHING) {
-            dataRadio->setRadioMode(IRadio::RADIO_MODE_OFF); // Does nothing if already off
-        }
-        // Reschedule next check of stored energy
-        scheduleAt(simTime() + replenishmentCheckRate, replenishmentTimer);
-    }
-}
 
 void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
     if(event == EV_DATA_RECEIVED){
@@ -375,37 +351,26 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
     const IRadio::RadioMode dataRadioMode = wakeUpRadio->getRadioMode();
     switch (macState){
     case S_REPLENISH:
-        if(event == EV_REPLENISH_TIMEOUT){
-                stepReplenishSM(wuRadioMode, dataRadioMode);
-        }
+        updateMacState(S_IDLE);
         break;
     case S_IDLE:
         ASSERT(wuRadioMode == IRadio::RADIO_MODE_RECEIVER
                 || wuRadioMode == IRadio::RADIO_MODE_SWITCHING);
+        cancelEvent(replenishmentTimer);
         if(event == EV_WU_START){
             // Start the wake-up state machine
             stepWuSM(event, msg);
             updateMacState(S_WAKEUP_LSN);
         }
         else if((event == EV_ACK_TIMEOUT || event == EV_DATA_RX_READY) && !ackBackoffTimer->isScheduled()){
-            // Check if there is enough energy. If not, replenish before retransmitting
-            if(energyStorage->getResidualEnergyCapacity() < transmissionStartMinEnergy){
-                // Schedule switch to replenishment state, after small wait for other packets
-                cancelEvent(replenishmentTimer);
-                scheduleAt(simTime() + txWakeUpWaitDuration*5, replenishmentTimer);
-                postReplenishmentTimer = ackBackoffTimer;
-                updateMacState(S_IDLE);
+            // EV_ACK_TIMEOUT triggered by need for retry of packet
+            // EV_DATA_RX_READY triggered at the end of a receive period,
+            // but check ackBackoffTimer in case of longer backoff before transmission
+            // Perform carrier sense if there is a currentTxFrame
+            if(currentTxFrame != nullptr){
+                setWuRadioToTransmitIfFreeOrDelay(EV_ACK_TIMEOUT, ackBackoffTimer, txWakeUpWaitDuration/2);
             }
-            else{
-                // EV_ACK_TIMEOUT triggered by need for retry of packet
-                // EV_DATA_RX_READY triggered at the end of a receive period,
-                // but check ackBackoffTimer in case of longer backoff before transmission
-                // Perform carrier sense if there is a currentTxFrame
-                if(currentTxFrame != nullptr){
-                    setWuRadioToTransmitIfFreeOrDelay(EV_ACK_TIMEOUT, ackBackoffTimer, txWakeUpWaitDuration/2);
-                }
-                // Else do nothing, wait for packet from upper or wake-up
-            }
+            // Else do nothing, wait for packet from upper or wake-up
         }
         else if(event == EV_QUEUE_SEND || event == EV_WAKEUP_BACKOFF){
             // EV_WAKEUP_BACKOFF triggered by wait before transmit when busy rxing or txing
@@ -418,17 +383,23 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
                 setWuRadioToTransmitIfFreeOrDelay(EV_TX_START, wakeUpBackoffTimer, txWakeUpWaitDuration/2);
             }
             else{
-                postReplenishmentTimer = wakeUpBackoffTimer;
                 // Schedule switch to replenishment state, after small wait for other packets
-                scheduleAt(simTime() + txWakeUpWaitDuration*5, replenishmentTimer);
+                scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
                 updateMacState(S_IDLE);
             }
         }
         else if(event == EV_REPLENISH_TIMEOUT){
-            if(energyMonitoringInProgress){
-                pauseEnergyConsumptionMonitoring();
+            // Check if there is enough energy. If not, replenish to maintain above tx threshold
+            if(energyStorage->getResidualEnergyCapacity() < transmissionStartMinEnergy){
+                // Turn off and let the SimpleEpEnergyManager turn back on at the on threshold
+                LifecycleOperation::StringMap params;
+                auto *operation = new ModuleStopOperation();
+                operation->initialize(networkNode, params);
+                lifecycleController.initiateOperation(operation);
             }
-            stepReplenishSM(wuRadioMode, dataRadioMode);
+            else{
+                scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
+            }
         }
         else{
             EV_WARN << "Wake-up MAC received unhandled event" << msg << endl;
@@ -524,6 +495,7 @@ void WakeUpMacLayer::stepRxAckProcess(const t_mac_event& event, cMessage * const
             cancelEvent(wuTimeout);
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
             finishEnergyConsumptionMonitoring(falseWakeUpConsumptionSignal);
+            scheduleAt(simTime(), replenishmentTimer);
             updateMacState(S_IDLE);
             PacketDropDetails details;
             EV_WARN << "Dropping packet because of channel congestion";
@@ -538,6 +510,7 @@ void WakeUpMacLayer::stepRxAckProcess(const t_mac_event& event, cMessage * const
         changeActiveRadio(wakeUpRadio);
         cancelEvent(wuTimeout);
         wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+        scheduleAt(simTime(), replenishmentTimer);
         updateMacState(S_IDLE);
     }
 }
@@ -749,6 +722,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         changeActiveRadio(wakeUpRadio);
         wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
         finishEnergyConsumptionMonitoring(transmissionConsumptionSignal);
+        scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
         updateMacState(S_IDLE);
         updateTxState(TX_IDLE);
         emit(transmissionTriesSignal, txInProgressTries);
@@ -866,6 +840,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
                 // Break into "transitionToIdle()" (see TX_END)
                 changeActiveRadio(wakeUpRadio);
                 wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+                scheduleAt(simTime(), replenishmentTimer);
                 updateMacState(S_IDLE);
                 updateTxState(TX_IDLE);
             }
@@ -889,6 +864,7 @@ void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
     // complete unfinished reception
     completePacketReception();
     // Unfinished transmission so restart that transmission
+    scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
     updateMacState(S_IDLE);
     updateWuState(WU_IDLE);
     updateTxState(TX_IDLE);
@@ -976,6 +952,7 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
             changeActiveRadio(wakeUpRadio);
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
             updateWuState(WU_IDLE);
+            scheduleAt(simTime(), replenishmentTimer);
             updateMacState(S_IDLE);
         }
         break;
@@ -998,6 +975,7 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
             finishEnergyConsumptionMonitoring(falseWakeUpConsumptionSignal);
             updateWuState(WU_IDLE);
+            scheduleAt(simTime(), replenishmentTimer);
             updateMacState(S_IDLE);
         }
         else if(event==EV_WU_TIMEOUT||event==EV_WU_REJECT){
