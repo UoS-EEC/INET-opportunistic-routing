@@ -29,6 +29,7 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         string wakeUpRadioModule = default("^.wakeUpRadio");   // The path to the Wake up radio
         string routingModule = default("^.^.generic.np");
         string energyStorage = default("^.^.energyStorage");
+        string networkNode = default("^.^");
         double transmissionStartMinEnergy = 0.004345J @unit(J); // Don't start transmitting unless there is at least this in storage
         
         double txWakeUpWaitDuration @unit(s) = default(0.0006 s); // Must be bigger than radio OFF -> idle
@@ -50,8 +51,10 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         // Weighted Encounters signals and with attached L2Addr and EDC/EquivalentTx(EqTx) details
         @signal[coincidentalEncounter](type = double);
         @signal[expectedEncounter](type = double);
+        @signal[listenForEncountersEnded](type = double);
         @statistic[coincidentalEncounter](title="Weighted coincidental neighbor encounter"; record=vector);
         @statistic[expectedEncounter](title="Weighted expected neighbor encounter"; record=vector);
+        @statistic[listenForEncountersEnded](title="Ended expected encounters listening period"; record=vector);
         
         // WakeUpMac retry signals and statistics
         @signal[transmissionTries](type = long);
