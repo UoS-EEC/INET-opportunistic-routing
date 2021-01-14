@@ -142,6 +142,7 @@ void ORPLHello::sendHelloBroadcast(L3Address destination)
     pkt->addTag<PacketProtocolTag>()->setProtocol(protocol);
     pkt->addTag<DispatchProtocolReq>()->setProtocol(addressType->getNetworkProtocol());
     pkt->addTag<L3AddressReq>()->setDestAddress(destAddr);
+    pkt->addTag<EqDCBroadcast>();
 
     EV_INFO << "Sending hello broadcast";
     send(pkt,"lowerLayerOut");

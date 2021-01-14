@@ -16,3 +16,7 @@ class EqDCInd extends TagBase
 {
     orpl::EqDC eqDC = orpl::EqDC(25.5);
 }
+class EqDCBroadcast extends TagBase
+{
+    bool isBroadcast = true;
+}

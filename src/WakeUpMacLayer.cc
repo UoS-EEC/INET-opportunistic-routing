@@ -319,8 +319,9 @@ void WakeUpMacLayer::queryWakeupRequest(const Packet* wakeUp) {
         ackEqDCResponse = EqDC(0.0);
     }
     else if(header->getReceiverAddress() == MacAddress::BROADCAST_ADDRESS){
+        // Broadcast beacons accepted as they are for "Hello" messages
         approve = true;
-        ackEqDCResponse = EqDC(0.0);
+        ackEqDCResponse = EqDC(25.5);
     }
     else if(routingModule != nullptr && header->getType()==WakeUpGramType::WU_BEACON){
         auto costHeader = wakeUp->peekAtFront<WakeUpBeacon>();
@@ -814,10 +815,19 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             // At the end of the first ack round, notify of expecting encounters
             emit(listenForEncountersEndedSignal, (double)acknowledgedForwarders);
         }
+        auto broadcastTag = currentTxFrame->findTag<EqDCBroadcast>();
+
         // TODO: Get required forwarders count from packetTag from n/w layer
         // TODO: Test this with more nodes should this include forwarders from prev timeslot?
         const int supplementaryForwarders = acknowledgedForwarders - requiredForwarders;
-        if(supplementaryForwarders>0){
+        if(broadcastTag != nullptr){
+            // Don't resend data, broadcasts only get sent once
+            updateTxState(TX_END);
+            updateMacState(S_TRANSMIT);
+            //The Radio Receive->Sleep triggers next SM transition
+            dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
+        }
+        else if(supplementaryForwarders>0){
             // Go straight to immediate data retransmission to reduce forwarders
             updateTxState(TX_DATA);
             scheduleAt(simTime(), wakeUpBackoffTimer);
@@ -897,6 +907,7 @@ void WakeUpMacLayer::encapsulate(Packet* const pkt) { // From CsmaCaMac
     macHeader->setTransmitterAddress(interfaceEntry->getMacAddress());
     // TODO: Make Receiver a multicast address for progress
     macHeader->setReceiverAddress(pkt->getTag<MacAddressReq>()->getDestAddress());;
+    macHeader->setExpectedCostInd(pkt->getTag<EqDCInd>()->getEqDC());
     pkt->insertAtFront(macHeader);
     pkt->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
 }
