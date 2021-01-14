@@ -107,6 +107,7 @@ network IntermittentDenseTest
             @display("p=18.323357,5.13054");
             networkRouteVisualizer.typename = "ORPLRouteCanvasVisualizer";
             networkRouteVisualizer.displayRoutes = true;
+            networkRouteVisualizer.packetFilter = "appData*";
         }
         configurator: NextHopNetworkConfigurator {
             @display("p=141.42014,15.976333");

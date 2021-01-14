@@ -171,6 +171,5 @@ void ORPLRoutingTable::increaseInteractionDenominator()
             || interactionDenominator > 2*probCalcEncountersThreshold){// KLUDGE of interaction denominator until hello messages are implemented
         calculateInteractionProbability();
         encountersCount = 0;
-        interactionDenominator = 0;
     }
 }

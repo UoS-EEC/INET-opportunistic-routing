@@ -128,7 +128,13 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
     header->setLength(packet->getDataLength() + header->getChunkLength());
     auto protocolTag = packet->findTag<PacketProtocolTag>();
     if(protocolTag != nullptr){
-        header->setProtocol(protocolTag->getProtocol());
+        const Protocol* protocol = protocolTag->getProtocol();
+        if(protocol != nullptr){
+            header->setProtocol(protocol);
+        }
+        else{
+            throw cRuntimeError("Invalid protocol value");
+        }
     }
     else{
         header->setProtocol(&Protocol::manet);
