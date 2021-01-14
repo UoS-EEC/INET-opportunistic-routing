@@ -29,6 +29,7 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         string wakeUpRadioModule = default("^.wakeUpRadio");   // The path to the Wake up radio
         string routingModule = default("^.^.generic.np");
         string energyStorage = default("^.^.energyStorage");
+        string networkNode = default("^.^");
         double transmissionStartMinEnergy = 0.004345J @unit(J); // Don't start transmitting unless there is at least this in storage
         
         double txWakeUpWaitDuration @unit(s) = default(0.0006 s); // Must be bigger than radio OFF -> idle

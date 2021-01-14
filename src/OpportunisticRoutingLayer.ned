@@ -38,4 +38,9 @@ module OpportunisticRoutingLayer extends SimpleNetworkLayer
             parameters:
                 @display("p=100,100;is=s");
         }
+        helloManager: ORPLHello {
+            @display("p=150,100");
+        }
+    connections:
+        up.in++ <-- helloManager.lowerLayerOut;
 }
