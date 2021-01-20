@@ -21,6 +21,7 @@ package wakeupmac;
 module IntermittentORPLNode extends ORPLLayerNode
 {
     parameters:
+        @display("i=old/x_green");
         // Drastically reduced energy, tx rate over 0.01Hz will cause intermittency
         energyGenerator.powerGeneration = default(14uW); 
 }
