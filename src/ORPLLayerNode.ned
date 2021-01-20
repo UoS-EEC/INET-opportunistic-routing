@@ -14,13 +14,10 @@
 // 
 
 package wakeupmac;
-import inet.applications.generic.IIpvxTrafficGenerator;
 import inet.applications.generic.IpvxTrafGen;
-import inet.applications.generic.IpvxTrafSink;
 import inet.node.base.NetworkLayerNodeBase;
 import inet.queueing.source.ActivePacketSource;
 import inet.queueing.sink.PassivePacketSink;
-import inet.common.Protocol;
 
 //
 // TODO auto-generated type
@@ -38,7 +35,7 @@ module ORPLLayerNode extends NetworkLayerNodeBase
         energyManagement.nodeShutdownCapacity = 0.002J;
         energyManagement.nodeStartCapacity = 0.006J;
         energyGenerator.typename = "AlternatingEpEnergyGenerator";
-        energyGenerator.powerGeneration = 20mW; // Abundant energy for now
+        energyGenerator.powerGeneration = default(20mW); // Abundant energy for now
         energyGenerator.generationInterval = 0.5s;
         energyGenerator.sleepInterval = 0s;
         wlan[*].dataRadio.antenna.mobilityModule = default("^.^.^.mobility");

@@ -15,15 +15,12 @@
 
 package wakeupmac;
 
-import inet.visualizer.networklayer.NetworkRouteCanvasVisualizer;
-
 //
 // TODO auto-generated type
 //
-module ORPLRouteCanvasVisualizer extends NetworkRouteCanvasVisualizer
+module IntermittentORPLNode extends ORPLLayerNode
 {
     parameters:
-        @class(ORPLRouteCanvasVisualizer);
-        fadeOutMode = "simulationTime";
-        fadeOutTime = 100s;
+        // Drastically reduced energy, tx rate over 0.01Hz will cause intermittency
+        energyGenerator.powerGeneration = default(14uW); 
 }

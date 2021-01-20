@@ -23,11 +23,16 @@
 #include "inet/linklayer/base/MacProtocolBase.h"
 #include "inet/linklayer/contract/IMacProtocol.h"
 #include "inet/physicallayer/contract/packetlevel/IRadio.h"
+#include "inet/power/contract/IEpEnergyStorage.h"
+#include "inet/common/lifecycle/LifecycleController.h"
+#include "inet/common/lifecycle/NodeStatus.h"
 #include "inet/common/Protocol.h"
 #include "OpportunisticRpl.h"
+#include "Units.h"
 
 using namespace omnetpp;
 using namespace inet;
+using namespace orpl;
 
 /**
  * WakeUpMacLayer - Implements two stage message transmission of
@@ -41,23 +46,14 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         wakeUpBackoffTimer(nullptr),
         ackBackoffTimer(nullptr),
         wuTimeout(nullptr),
-        wuPacketInProgress(nullptr),
-        txPacketInProgress(nullptr),
-        rxPacketInProgress(nullptr),
-        wakeUpRadio(nullptr),
         dataRadio(nullptr),
+        wakeUpRadio(nullptr),
         activeRadio(nullptr),
+        energyStorage(nullptr),
+        networkNode(nullptr),
+        replenishmentTimer(nullptr),
         routingModule(nullptr),
-        ackWaitDuration(0),
-        txWakeUpWaitDuration(0),
-        dataListeningDuration(0),
-        wuApproveResponseLimit(0),
-        candiateRelayContentionProbability(0.7),
-        cumulativeAckBackoff(0),
-        acknowledgedForwarders(0),
-        maxWakeUpRetries(4), // TODO: Parameterize
-        txInProgressForwarders(0),
-        txInProgressRetries(0)
+        currentRxFrame(nullptr)
       {}
     virtual ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
@@ -71,19 +67,29 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
 
   protected:
     /** @brief User Configured parameters */
-    simtime_t txWakeUpWaitDuration;
-    simtime_t ackWaitDuration;
-    simtime_t dataListeningDuration;
-    simtime_t wuApproveResponseLimit;
+    simtime_t txWakeUpWaitDuration = 0;
+    simtime_t ackWaitDuration = 0;
+    simtime_t dataListeningDuration = 0;
+    simtime_t wuApproveResponseLimit = 0;
 
     // TODO: Replace by type to represent accept, reject messages
     const int WAKEUP_APPROVE = 502;
     const int WAKEUP_REJECT = 503;
-    double candiateRelayContentionProbability;
+    double candiateRelayContentionProbability = 0.7;
+    inet::B phyMtu = B(255);
 
+public:
+    /**
+     * Neighbor Update signals definitions TODO: Move elsewhere
+     */
+    static simsignal_t expectedEncounterSignal;
+    static simsignal_t coincidentalEncounterSignal;
+    static simsignal_t listenForEncountersEndedSignal;
 
+protected:
     /** @brief MAC high level states */
     enum t_mac_state {
+        S_REPLENISH, // No listening, to charge storage
         S_IDLE, // WuRx listening
         S_WAKEUP_LSN, // WuRx receiving or processing
         S_RECEIVE, // Data radio listening
@@ -128,6 +134,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         EV_DATA_RX_IDLE,
         EV_DATA_RX_READY,
         EV_DATA_RECEIVED,
+        EV_REPLENISH_TIMEOUT
     };
 
 
@@ -139,7 +146,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     /*@}*/
     int wakeUpRadioInGateId = -1;
     int wakeUpRadioOutGateId = -1;
-    cMessage *wuPacketPrototype;
 
     /** @brief The radio. */
     physicallayer::IRadio *dataRadio;
@@ -148,21 +154,48 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     physicallayer::IRadio::TransmissionState transmissionState;
     physicallayer::IRadio::ReceptionState receptionState;
 
+    inet::power::IEpEnergyStorage* energyStorage;
+    inet::LifecycleController lifecycleController;
+    cModule* networkNode;
+
+    J lastEnergyStorageLevel = J(0.0);
+    J transmissionStartMinEnergy = J(0.0);
+    simtime_t replenishmentCheckRate = SimTime(1, SimTimeUnit::SIMTIME_S);
+    cMessage* replenishmentTimer;
+    bool energyMonitoringInProgress = false;
+    J storedEnergyStartValue = J(0);
+    W initialEnergyGeneration = W(-DBL_MIN);
+    simtime_t storedEnergyStartTime = 0;
+    J intermediateDeltaEnergy = J(0);
+    void startEnergyConsumptionMonitoring();
+    double finishEnergyConsumptionMonitoring(const simsignal_t emitSignal);
+    double pauseEnergyConsumptionMonitoring();
+    void resumeEnergyConsumptionMonitoring();
+
     virtual void initialize(int stage) override;
+    virtual void finish() override;
+    virtual void cancelAllTimers();
+    virtual void deleteAllTimers();
     void changeActiveRadio(physicallayer::IRadio*);
     virtual bool isLowerMessage(cMessage* message) override;
     virtual void configureInterfaceEntry() override;
     OpportunisticRpl* routingModule;
-    const void queryWakeupRequest(const Packet* wakeUp);
+    void queryWakeupRequest(const Packet* wakeUp);
     void setRadioToTransmitIfFreeOrDelay(cMessage* timer, const simtime_t& maxDelay);
+    void setWuRadioToTransmitIfFreeOrDelay(const t_mac_event& event, cMessage* timer, const simtime_t& maxDelay);
 
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     void stepMacSM(const t_mac_event& event, cMessage *msg);
-    simtime_t cumulativeAckBackoff;
+    simtime_t cumulativeAckBackoff = 0;
+    EqDC ackEqDCResponse = EqDC(25.5);
+    int rxAckRound = 0;
     virtual void stepRxAckProcess(const t_mac_event& event, cMessage *msg);
   private:
     void handleDataReceivedInAckState(cMessage *msg);
+    void completePacketReception();
+    const double calculateDeltaEnergyConsumption();
+
   protected:
     Packet* buildAck(const Packet* subject) const;
     void updateMacState(const t_mac_state& newMacState);
@@ -170,11 +203,16 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     bool txStateChange = false;
     t_tx_state txState;
     void stepTxSM(const t_mac_event& event, cMessage* msg);
-    Packet* buildWakeUp(const Packet* subject) const;
-    int acknowledgedForwarders;
-    int maxWakeUpRetries;
-    int txInProgressForwarders;
-    int txInProgressRetries;
+    Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
+    const int requiredForwarders = 1;
+    const int maxForwarders = 4;
+    int acknowledgedForwarders = 0;
+    int acknowledgmentRound = 1;
+    const int maxWakeUpTries = 4;
+    int txInProgressForwarders = 0;
+    int txInProgressTries = 0; //TODO: rename to tries
+    EqDC EqDCJump = EqDC(0);
+    simtime_t dataTransmissionDelay = 0;
     virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);
     void updateTxState(const t_tx_state& newTxState);
     /** @brief Wake-up listening State Machine **/
@@ -186,18 +224,16 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     /** @brief Receiving and acknowledgement **/
     // TODO: implement
 
-    cMessage *wuPacketInProgress;
-    Packet *txPacketInProgress;
-    cMessage *rxPacketInProgress;
+    cMessage *currentRxFrame;
+    void dropCurrentRxFrame(PacketDropDetails& details);
     void encapsulate(Packet* msg);
     void decapsulate(Packet* msg);
-    bool startImmediateTransmission(cMessage* msg); // Return false if immediate transmission is not possible
+    bool setupTransmission(); // Return false if immediate transmission is not possible
 
     // OperationalBase:
     virtual void handleStartOperation(LifecycleOperation *operation) override;
     virtual void handleStopOperation(LifecycleOperation *operation) override;
     virtual void handleCrashOperation(LifecycleOperation *operation) override;
-
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);

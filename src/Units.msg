@@ -11,19 +11,22 @@
 // 
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/.
-// 
-
-package wakeupmac;
-
-import inet.visualizer.networklayer.NetworkRouteCanvasVisualizer;
-
 //
-// TODO auto-generated type
-//
-module ORPLRouteCanvasVisualizer extends NetworkRouteCanvasVisualizer
+cplusplus {{
+#include "Units.h"
+}}
+
+namespace orpl;
+
+class ExpectedCost
 {
-    parameters:
-        @class(ORPLRouteCanvasVisualizer);
-        fadeOutMode = "simulationTime";
-        fadeOutTime = 100s;
+    @existingClass;
+    @opaque;
+    @toString(.str());
+}
+class EqDC
+{
+    @existingClass;
+    @opaque;
+    @toString(.str());
 }

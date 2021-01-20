@@ -15,15 +15,21 @@
 
 package wakeupmac;
 
-import inet.visualizer.networklayer.NetworkRouteCanvasVisualizer;
-
 //
 // TODO auto-generated type
 //
-module ORPLRouteCanvasVisualizer extends NetworkRouteCanvasVisualizer
+simple ORPLRoutingTable
 {
-    parameters:
-        @class(ORPLRouteCanvasVisualizer);
-        fadeOutMode = "simulationTime";
-        fadeOutTime = 100s;
+parameters:
+    @class(ORPLRoutingTable);
+    string interfaceTableModule;   // The path to the InterfaceTable module
+    @display("i=block/table");
+    string addressType @enum("mac","modulepath","moduleid") = default("modulepath");
+    string hubAddress = default("routingHub");
+    int hubExpectedCost @unit(ExpectedCost) = default(255ExpectedCost);
+    string encountersSourceModule = default("^.^");
+    string arpModule = default("^.arp");
+    
+    @signal[updatedEqDCValue](type = double);
+    @statistic[updatedEqDCValue](title="Calculated value of node EqDC"; record=vector);
 }

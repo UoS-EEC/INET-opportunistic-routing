@@ -13,17 +13,15 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package wakeupmac;
-
-import inet.visualizer.networklayer.NetworkRouteCanvasVisualizer;
+import inet.common.INETDefs;
+import inet.linklayer.common.MacAddress;
+import Units;
+namespace inet;
 
 //
-// TODO auto-generated type
+// EncounterDetails stores information about an encounter for updating a relevant routing table
 //
-module ORPLRouteCanvasVisualizer extends NetworkRouteCanvasVisualizer
-{
-    parameters:
-        @class(ORPLRouteCanvasVisualizer);
-        fadeOutMode = "simulationTime";
-        fadeOutTime = 100s;
+class EncounterDetails extends cObject{
+    inet::MacAddress encountered;
+    orpl::EqDC currentEqDC;
 }

@@ -15,14 +15,15 @@
 
 #include "inet/common/INETDefs.h"
 #include "inet/common/ProtocolTag_m.h"
-#include "inet/networklayer/nexthop/NextHopRoutingTable.h"
+#include "ORPLRoutingTable.h"
 #include "OpportunisticRoutingHeader_m.h"
 #include "inet/linklayer/common/MacAddressTag_m.h"
 #include "inet/networklayer/common/L3AddressTag_m.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
 #include "inet/common/ProtocolGroup.h"
+#include "Units.h"
 #include "OpportunisticRpl.h"
-#include "ExpectedCostTag_m.h"
+#include "EqDCTag_m.h"
 
 Define_Module(OpportunisticRpl);
 
@@ -31,10 +32,10 @@ void OpportunisticRpl::initialize(int const stage) {
 
     if(stage == INITSTAGE_LOCAL){
         nextForwardTimer = new cMessage("Forwarding Backoff Timer");
-        // This is a crude measure to stop the Mac buffer becoming overloaded
-        forwardingSpacing = SimTime(30, SIMTIME_MS);
-        routingTable = getModuleFromPar<NextHopRoutingTable>(par("routingTableModule"), this);
+        auto const routingTableModule = getModuleFromPar<cModule>(par("routingTableModule"), this);
+        routingTable = check_and_cast<ORPLRoutingTable*>(routingTableModule);
         arp = getModuleFromPar<IArp>(par("arpModule"), this);
+        initialTTL = par("initialTTL");
     }
     else if (stage == INITSTAGE_NETWORK_LAYER) {
         ProtocolGroup::ipprotocol.addProtocol(245, &OpportunisticRouting);
@@ -48,7 +49,8 @@ void OpportunisticRpl::initialize(int const stage) {
         // Initialize expectedCost table
         L3Address hubAddress;
         L3AddressResolver().tryResolve(par("hubAddress"), hubAddress, L3AddressResolver::ADDR_MODULEPATH);
-        ExpectedCost hubExpectedCost(par("hubExpectedCost"));
+        const EqDC EqDC_equiv = ExpectedCost(par("hubExpectedCost"));
+        ExpectedCost hubExpectedCost = ExpectedCost(EqDC_equiv);
         if(!hubAddress.isUnspecified()){
             expectedCostTable.insert(std::pair<L3Address, ExpectedCost>(hubAddress, hubExpectedCost));
         }
@@ -66,12 +68,18 @@ void OpportunisticRpl::handleUpperPacket(Packet* const packet) {
         EV_WARN << "ORPL, setting received packet address to default hub address" << endl;
     }
     encapsulate(packet);
-    queuePacket(packet);
+    sendDown(packet);
 }
 
 void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
     auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
-    if(header->getDestAddr()==nodeAddress){
+    auto const payloadLength = header->getLength() - header->getChunkLength();
+    if(payloadLength<B(1)){
+        // No data contained so silently accept packet
+        // This only occurs when OpportunisticRpl sends hello messages
+        delete packet; // TODO: emit removedPacket signal as well
+    }
+    else if(header->getDestAddr()==nodeAddress){
         decapsulate(packet);
         sendUp(packet);
     }
@@ -91,12 +99,16 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
             EV_WARN << "Forwarding message to unknown L3Address" << endl;
         }
         packet->insertAtFront(mutableHeader);
-        ExpectedCost currentExpectedCost = expectedCostTable.at(header->getDestAddr());
+        ExpectedCost currentExpectedCost = routingTable->calculateEqDC(header->getDestAddr());
         setDownControlInfo(packet, outboundMacAddress, currentExpectedCost);
-        queuePacket(packet);
+
+        // Delay forwarded packets to reduce physical layer contention
+        queueDelayed(packet, uniform(0, forwardingBackoff));
     }
     else{
-        delete packet;
+        PacketDropDetails details;
+        details.setReason(PacketDropReason::NO_ROUTE_FOUND);
+        dropPacket(packet, details);
     }
 }
 
@@ -112,27 +124,33 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
         header->setDestAddr( L3Address() );
         EV_WARN << "Packet sent with no destination";
     }
-    // TODO: auto increment ID;
-    header->setId(60000);
-    // TODO: remove tiny ttl when routing implemented
+    header->setId(sequenceNumber++);
     header->setLength(packet->getDataLength() + header->getChunkLength());
     auto protocolTag = packet->findTag<PacketProtocolTag>();
     if(protocolTag != nullptr){
-        header->setProtocol(protocolTag->getProtocol());
+        const Protocol* protocol = protocolTag->getProtocol();
+        if(protocol != nullptr){
+            header->setProtocol(protocol);
+        }
+        else{
+            throw cRuntimeError("Invalid protocol value");
+        }
     }
     else{
         header->setProtocol(&Protocol::manet);
     }
     header->setSrcAddr(nodeAddress);
-    header->setTtl(3);
+    header->setTtl(initialTTL);
     header->setVersion(IpProtocolId::IP_PROT_MANET);
     packet->insertAtFront(header);
-    setDownControlInfo(packet, outboundMacAddress, 65535);
+    ExpectedCost initialCost = routingTable->calculateEqDC(header->getDestAddr());
+    setDownControlInfo(packet, outboundMacAddress, initialCost);
 }
 
 void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const ExpectedCost& expectedCost) {
     packet->addTagIfAbsent<MacAddressReq>()->setDestAddress(macMulticast);
-    packet->addTagIfAbsent<ExpectedCostReq>()->setExpectedCost(expectedCost);
+    packet->addTagIfAbsent<EqDCReq>()->setEqDC(expectedCost); // Set expected cost of any forwarder
+    packet->addTagIfAbsent<EqDCInd>()->setEqDC(expectedCost); // Indicate own expectedCost for updating metric
     packet->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&OpportunisticRouting);
     packet->addTagIfAbsent<DispatchProtocolInd>()->setProtocol(&OpportunisticRouting);
 }
@@ -140,7 +158,7 @@ void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress
 void OpportunisticRpl::decapsulate(Packet* const packet)
 {
     auto networkHeader = packet->popAtFront<OpportunisticRoutingHeader>();
-    auto payloadLength = networkHeader->getLength() - networkHeader->getChunkLength(); // TODO: Remove header length magic number
+    auto payloadLength = networkHeader->getLength() - networkHeader->getChunkLength();
     if (packet->getDataLength() < B(payloadLength) ) {
         throw cRuntimeError("Data error: illegal payload length");     //FIXME packet drop
     }
@@ -155,27 +173,37 @@ void OpportunisticRpl::decapsulate(Packet* const packet)
     packet->addTagIfAbsent<L3AddressInd>()->setSrcAddress(networkHeader->getSrcAddr());
 }
 
-void OpportunisticRpl::queuePacket(Packet* const packet) {
+void OpportunisticRpl::queueDelayed(Packet* const packet, const simtime_t delay) {
     auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
     // If packet lifetime not expired and there is space in queue
     if(waitingPacket == nullptr && header->getTtl()>0){
         // queue packet
         waitingPacket = packet;
-        // TODO: Allow immediate send once WuMAC Layer problem
-        // of radio mode switching is solved
         // If forwarding delay timer expired, reset
         if(!nextForwardTimer->isScheduled()){
             // send packet after scheduled timer
-            scheduleAt(simTime()+forwardingSpacing, nextForwardTimer);
+            scheduleAt(simTime()+delay, nextForwardTimer);
             waitingPacket = packet;
         }
     }
     else{
         //drop packet
         EV_INFO << "ORPL at" << simTime() << ": dropping packet at " << nodeAddress << " to " << header->getDestAddr() << endl;
-        delete packet;
+        PacketDropDetails details;
+        if (waitingPacket != nullptr){
+            details.setReason(PacketDropReason::QUEUE_OVERFLOW);
+        }
+        else details.setReason(PacketDropReason::HOP_LIMIT_REACHED);
+        dropPacket(packet, details);
     }
 }
+
+void OpportunisticRpl::dropPacket(Packet* const packet, PacketDropDetails& details)
+{
+    emit(packetDroppedSignal, packet, &details);
+    delete packet;
+}
+
 
 void OpportunisticRpl::handleSelfMessage(cMessage* const msg) {
     if(msg == nextForwardTimer){
@@ -183,7 +211,7 @@ void OpportunisticRpl::handleSelfMessage(cMessage* const msg) {
         if(waitingPacket != nullptr){
             sendDown(waitingPacket);
             waitingPacket = nullptr;
-            scheduleAt(simTime()+forwardingSpacing, nextForwardTimer);
+            scheduleAt(simTime()+forwardingBackoff, nextForwardTimer);
         }
     }
 }
@@ -193,29 +221,35 @@ void OpportunisticRpl::finish() {
 }
 
 void OpportunisticRpl::handleStartOperation(LifecycleOperation *op) {
+    if(waitingPacket!=nullptr){
+        // send packet after scheduled timer
+        scheduleAt(simTime()+forwardingBackoff, nextForwardTimer);
+    }
 }
 
 void OpportunisticRpl::handleStopOperation(LifecycleOperation *op) {
+    cancelEvent(nextForwardTimer);
 }
 
 void OpportunisticRpl::handleCrashOperation(LifecycleOperation *op) {
+    handleStopOperation(op);
 }
 
-bool OpportunisticRpl::queryAcceptPacket(const MacAddress& destination,
-        const ExpectedCost& currentExpectedCost) {
-    L3Address l3dest = arp->getL3AddressFor(destination);
-    L3Address modPathAddr = l3dest.toModulePath();
+EqDC OpportunisticRpl::queryAcceptPacket(const MacAddress& destination,
+        const ExpectedCost& currentExpectedCost) const{
+    const L3Address l3dest = arp->getL3AddressFor(destination);
+    const L3Address modPathAddr = l3dest.toModulePath();
     if(l3dest==nodeAddress){
         // Mac layer should probably perform this check anyway
-        return true;
+        return EqDC(0.0);
     }
-    else if(expectedCostTable.find(modPathAddr)!=expectedCostTable.end()){
-        ExpectedCost newCost = expectedCostTable.at(modPathAddr);
+    else{
+        const ExpectedCost newCost = routingTable->calculateEqDC(l3dest);
         if(newCost < currentExpectedCost){
-            return true;
+            return newCost;
         }
     }
     // Insufficient progress or unknown destination so don't accept
-    return false;
+    return EqDC(25.5);
 
 }
