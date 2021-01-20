@@ -135,7 +135,7 @@ void WakeUpMacLayer::initialize(int const stage) {
     else if(stage == INITSTAGE_NETWORK_LAYER){
         // Find network layer with query wake-up request
         if (routingModule != nullptr){
-            // Found routing module that implements OpportunisticRpl::queryAcceptPacket();
+            // Found routing module that implements T::queryAcceptWakeUp(..) and T::queryAcceptPacket(..);
 
         }
         else{
@@ -331,7 +331,7 @@ void WakeUpMacLayer::queryWakeupRequest(const Packet* wakeUp) {
     else if(routingModule != nullptr && header->getType()==WakeUpGramType::WU_BEACON){
         auto costHeader = wakeUp->peekAtFront<WakeUpBeacon>();
         // TODO: Query Opportunistic layer for permission to wake-up
-        EqDC acceptPacketThreshold = routingModule->queryAcceptPacket(header->getReceiverAddress(),
+        EqDC acceptPacketThreshold = routingModule->queryAcceptWakeUp(header->getReceiverAddress(),
                                                                         costHeader->getMinExpectedCost());
         if(acceptPacketThreshold<EqDC(25.5)){
             ackEqDCResponse = acceptPacketThreshold;
@@ -531,7 +531,7 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         currentRxFrame = incomingFrame;
         // If better EqDC improved, update
         EqDC newAckEqDCResponse = routingModule->queryAcceptPacket(incomingMacData->getReceiverAddress(),
-                ackEqDCResponse);
+                ackEqDCResponse, check_and_cast<Packet*>(currentRxFrame)); // TODO: Decapsulate first? (requires changing buildAck(..) and completePacketReception(..)
         if(newAckEqDCResponse < ackEqDCResponse){
             ackEqDCResponse = newAckEqDCResponse;
         }
@@ -540,10 +540,19 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         cancelEvent(wuTimeout);
         // Start ack backoff
         cancelEvent(ackBackoffTimer);
-        // Reset cumulative ack backoff
-        cumulativeAckBackoff = uniform(0,ackWaitDuration/3);
-        rxAckRound++;
-        scheduleAt(simTime() + cumulativeAckBackoff, ackBackoffTimer);
+        if(newAckEqDCResponse == EqDC(25.5)){
+            // New information in the data packet means do not accept data packet
+            // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
+            scheduleAt(simTime(), wuTimeout);
+
+            // TODO: Send "Negative Ack"?
+        }
+        else{
+            // Reset cumulative ack backoff
+            cumulativeAckBackoff = uniform(0,ackWaitDuration/3);
+            rxAckRound++;
+            scheduleAt(simTime() + cumulativeAckBackoff, ackBackoffTimer);
+        }
     }
     else if(incomingMacData->getType()==WU_DATA/* && currentRxFrame != nullptr*/){
         updateMacState(S_ACK);

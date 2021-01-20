@@ -226,6 +226,12 @@ void OpportunisticRpl::handleCrashOperation(LifecycleOperation *op) {
 }
 
 EqDC OpportunisticRpl::queryAcceptPacket(const MacAddress& destination,
+        const EqDC& costThreshold, const Packet* data) const{
+    // TODO: Check other fields in the data packet after wake-up, before
+    return queryAcceptWakeUp(destination,
+            costThreshold);
+}
+EqDC OpportunisticRpl::queryAcceptWakeUp(const MacAddress& destination,
         const EqDC& costThreshold) const{
     const L3Address l3dest = arp->getL3AddressFor(destination);
     const L3Address modPathAddr = l3dest.toModulePath();
