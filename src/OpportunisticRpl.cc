@@ -45,18 +45,6 @@ void OpportunisticRpl::initialize(int const stage) {
             nodeAddress = ie->getNetworkAddress();
         else
             throw cRuntimeError("No non-loopback interface found!");
-
-        // Initialize expectedCost table
-        L3Address hubAddress;
-        L3AddressResolver().tryResolve(par("hubAddress"), hubAddress, L3AddressResolver::ADDR_MODULEPATH);
-        const EqDC EqDC_equiv = ExpectedCost(par("hubExpectedCost"));
-        ExpectedCost hubExpectedCost = ExpectedCost(EqDC_equiv);
-        if(!hubAddress.isUnspecified()){
-            expectedCostTable.insert(std::pair<L3Address, ExpectedCost>(hubAddress, hubExpectedCost));
-        }
-        else{
-            EV_WARN << "Unspecified hubAddress" << endl;
-        }
     }
 }
 
@@ -74,19 +62,22 @@ void OpportunisticRpl::handleUpperPacket(Packet* const packet) {
 void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
     auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
     auto const payloadLength = header->getLength() - header->getChunkLength();
+    const inet::L3Address destinationAddress = header->getDestAddr();
+    EqDC onwardRoutingCost = routingTable->calculateEqDC(header->getDestAddr());
     if(payloadLength<B(1)){
         // No data contained so silently accept packet
         // This only occurs when OpportunisticRpl sends hello messages
         delete packet; // TODO: emit removedPacket signal as well
     }
-    else if(header->getDestAddr()==nodeAddress){
+    else
+    if (onwardRoutingCost == EqDC(0.0)) {
         decapsulate(packet);
         sendUp(packet);
     }
-    else if(expectedCostTable.find(header->getDestAddr())!=expectedCostTable.end()){
+    else if(onwardRoutingCost < EqDC(25.5)){
         // Route to a node in the routing table
         // Packet not destined for this node
-        // Decrease TTL, calculate expectedCost and Forward.
+        // Decrease TTL, set routing cost threshold and Forward.
         // "trim" required to remove the popped headers from lower layers
         packet->trim();
         auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
@@ -99,8 +90,7 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
             EV_WARN << "Forwarding message to unknown L3Address" << endl;
         }
         packet->insertAtFront(mutableHeader);
-        ExpectedCost currentExpectedCost = routingTable->calculateEqDC(header->getDestAddr());
-        setDownControlInfo(packet, outboundMacAddress, currentExpectedCost);
+        setDownControlInfo(packet, outboundMacAddress, onwardRoutingCost);
 
         // Delay forwarded packets to reduce physical layer contention
         queueDelayed(packet, uniform(0, forwardingBackoff));
@@ -143,14 +133,14 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
     header->setTtl(initialTTL);
     header->setVersion(IpProtocolId::IP_PROT_MANET);
     packet->insertAtFront(header);
-    ExpectedCost initialCost = routingTable->calculateEqDC(header->getDestAddr());
+    EqDC initialCost = routingTable->calculateEqDC(header->getDestAddr());
     setDownControlInfo(packet, outboundMacAddress, initialCost);
 }
 
-void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const ExpectedCost& expectedCost) {
+void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const EqDC& routingCost) {
     packet->addTagIfAbsent<MacAddressReq>()->setDestAddress(macMulticast);
-    packet->addTagIfAbsent<EqDCReq>()->setEqDC(expectedCost); // Set expected cost of any forwarder
-    packet->addTagIfAbsent<EqDCInd>()->setEqDC(expectedCost); // Indicate own expectedCost for updating metric
+    packet->addTagIfAbsent<EqDCReq>()->setEqDC(routingCost); // Set expected cost of any forwarder
+    packet->addTagIfAbsent<EqDCInd>()->setEqDC(routingCost); // Indicate own routingCost for updating metric
     packet->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&OpportunisticRouting);
     packet->addTagIfAbsent<DispatchProtocolInd>()->setProtocol(&OpportunisticRouting);
 }
@@ -236,7 +226,7 @@ void OpportunisticRpl::handleCrashOperation(LifecycleOperation *op) {
 }
 
 EqDC OpportunisticRpl::queryAcceptPacket(const MacAddress& destination,
-        const ExpectedCost& currentExpectedCost) const{
+        const EqDC& costThreshold) const{
     const L3Address l3dest = arp->getL3AddressFor(destination);
     const L3Address modPathAddr = l3dest.toModulePath();
     if(l3dest==nodeAddress){
@@ -244,8 +234,8 @@ EqDC OpportunisticRpl::queryAcceptPacket(const MacAddress& destination,
         return EqDC(0.0);
     }
     else{
-        const ExpectedCost newCost = routingTable->calculateEqDC(l3dest);
-        if(newCost < currentExpectedCost){
+        const EqDC newCost = routingTable->calculateEqDC(l3dest);
+        if(newCost < costThreshold){
             return newCost;
         }
     }

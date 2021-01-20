@@ -44,7 +44,7 @@ public:
         arp(nullptr),
         waitingPacket(nullptr){}
     virtual void initialize(int stage) override;
-    EqDC queryAcceptPacket(const MacAddress& destination, const ExpectedCost& currentExpectedCost) const;
+    EqDC queryAcceptPacket(const MacAddress& destination, const EqDC& costThreshold) const;
 protected:
     cMessage* nextForwardTimer;
     // Crude net layer backoff to reduce contention of forwarded packets with multiple forwarders
@@ -65,12 +65,10 @@ protected:
     } packetRecord;
     typedef std::set<packetRecord> packetHistory;
 
-    typedef std::map<L3Address, ExpectedCost> recordTable;
-    recordTable expectedCostTable;
 
     virtual void encapsulate(Packet* packet);
     virtual void decapsulate(Packet* packet);
-    virtual void setDownControlInfo(Packet* packet, const MacAddress& macMulticast, const ExpectedCost& expectedCost);
+    virtual void setDownControlInfo(Packet* packet, const MacAddress& macMulticast, const EqDC& routingCost);
 
     const Protocol& getProtocol() const override { return OpportunisticRouting; }
 
