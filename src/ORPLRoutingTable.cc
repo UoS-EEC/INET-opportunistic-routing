@@ -60,7 +60,7 @@ void ORPLRoutingTable::initialize(int stage){
 void ORPLRoutingTable::receiveSignal(cComponent* source, simsignal_t signalID, double weight, cObject* details)
 {
     if(signalID == WakeUpMacLayer::coincidentalEncounterSignal || signalID == WakeUpMacLayer::expectedEncounterSignal){
-        EncounterDetails* encounterMacDetails = check_and_cast<EncounterDetails*>(details);
+        orpl::EncounterDetails* encounterMacDetails = check_and_cast<orpl::EncounterDetails*>(details);
         const L3Address inboundMacAddress = arp->getL3AddressFor(encounterMacDetails->getEncountered());
         updateEncounters(inboundMacAddress, encounterMacDetails->getCurrentEqDC(), weight);
     }

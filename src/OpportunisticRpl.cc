@@ -69,10 +69,22 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
         // This only occurs when OpportunisticRpl sends hello messages
         delete packet; // TODO: emit removedPacket signal as well
     }
-    else
-    if (onwardRoutingCost == EqDC(0.0)) {
-        decapsulate(packet);
-        sendUp(packet);
+    else if (onwardRoutingCost == EqDC(0.0)) {
+        // Check for duplicates
+        orpl::PacketRecord pktRecord;
+        pktRecord.setSource(header->getSourceAddress());
+        pktRecord.setSeqNo(header->getId());
+        if(messageKnown(pktRecord)){
+            // Don't deliver duplicates to higher levels
+            PacketDropDetails details;
+            details.setReason(PacketDropReason::DUPLICATE_DETECTED);
+            dropPacket(packet, details);
+        }
+        else{
+            packetHistory.insert(pktRecord);
+            decapsulate(packet);
+            sendUp(packet);
+        }
     }
     else if(onwardRoutingCost < EqDC(25.5)){
         // Route to a node in the routing table
@@ -248,4 +260,9 @@ EqDC OpportunisticRpl::queryAcceptWakeUp(const MacAddress& destination,
     // Insufficient progress or unknown destination so don't accept
     return EqDC(25.5);
 
+}
+
+bool OpportunisticRpl::messageKnown(const orpl::PacketRecord record)
+{
+    return packetHistory.find(record);
 }
