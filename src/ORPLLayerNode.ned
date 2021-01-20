@@ -14,9 +14,7 @@
 // 
 
 package wakeupmac;
-import inet.applications.generic.IIpvxTrafficGenerator;
 import inet.applications.generic.IpvxTrafGen;
-import inet.applications.generic.IpvxTrafSink;
 import inet.node.base.NetworkLayerNodeBase;
 import inet.queueing.source.ActivePacketSource;
 import inet.queueing.sink.PassivePacketSink;
