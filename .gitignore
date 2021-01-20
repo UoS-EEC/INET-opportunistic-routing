@@ -50,3 +50,4 @@ simulations/results/
 
 # qt GUI settings
 .qtenvrc
+/.computed/

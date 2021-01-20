@@ -25,6 +25,7 @@ import inet.queueing.sink.PassivePacketSink;
 module ORPLLayerNode extends NetworkLayerNodeBase
 {
     parameters:
+        @display("i=misc/receiving");
         numWlanInterfaces = 1;
         wlan[0].typename = "WakeUpMacInterface";
         mobility.typename = "StationaryMobility";
