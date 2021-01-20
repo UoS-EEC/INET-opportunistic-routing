@@ -36,7 +36,7 @@ module OpportunisticRoutingLayer extends SimpleNetworkLayer
     submodules:
         routingTable: ORPLRoutingTable {
             parameters:
-                @display("p=100,100;is=s");
+                @display("p=449.53998,299.13;is=m");
         }
         helloManager: ORPLHello {
             @display("p=150,100");

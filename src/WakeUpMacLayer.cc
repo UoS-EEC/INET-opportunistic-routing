@@ -76,16 +76,21 @@ void WakeUpMacLayer::initialize(int const stage) {
         transmissionStartMinEnergy = J(par("transmissionStartMinEnergy"));
         EqDCJump = ExpectedCost(2);
 
-        cModule *radioModule = getModuleFromPar<cModule>(par("dataRadioModule"), this);
+        const char *radioModulePath = par("dataRadioModule");
+        cModule *radioModule = getModuleByPath(radioModulePath);
         dataRadio = check_and_cast<IRadio *>(radioModule);
-        radioModule = getModuleFromPar<cModule>(par("wakeUpRadioModule"), this);
+        const char* wakeUpRadioModulePath = par("wakeUpRadioModule");
+        radioModule = getModuleByPath(wakeUpRadioModulePath);
         wakeUpRadio = check_and_cast<IRadio *>(radioModule);
 
-        cModule *storageModule = getModuleFromPar<cModule>(par("energyStorage"), this);
+        const char* energyStoragePath = par("energyStorage");
+        cModule* storageModule = getModuleByPath(energyStoragePath);
         energyStorage = check_and_cast<inet::power::IEpEnergyStorage*>(storageModule);
-        networkNode = getModuleFromPar<cModule>(par("networkNode"), this);
+        const char* networkNodePath = par("networkNode");
+        networkNode = getModuleByPath(networkNodePath);
 
-        cModule *module = getModuleFromPar<cModule>(par("routingModule"), this, false);
+        const char* routingModulePath = par("routingModule");
+        cModule* module = getModuleByPath(routingModulePath);
         routingModule = check_and_cast_nullable<OpportunisticRpl*>(module);
         txQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("queue"));
 
