@@ -78,6 +78,11 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     double candiateRelayContentionProbability = 0.7;
     inet::B phyMtu = B(255);
 
+    /** @brief Calculated (in initialize) parameters */
+    simtime_t initialContentionDuration = 0;
+    simtime_t ackTxWaitDuration = 0;
+    simtime_t minimumContentionWindow = 0;
+
 public:
     /**
      * Neighbor Update signals definitions TODO: Move elsewhere
@@ -181,7 +186,7 @@ protected:
     virtual void configureInterfaceEntry() override;
     OpportunisticRpl* routingModule;
     void queryWakeupRequest(const Packet* wakeUp);
-    void setRadioToTransmitIfFreeOrDelay(cMessage* timer, const simtime_t& maxDelay);
+    simtime_t setRadioToTransmitIfFreeOrDelay(cMessage* timer, const simtime_t& maxDelay);
     void setWuRadioToTransmitIfFreeOrDelay(const t_mac_event& event, cMessage* timer, const simtime_t& maxDelay);
 
     t_mac_state macState; //Record the current state of the MAC State machine
@@ -211,7 +216,6 @@ protected:
     const int maxWakeUpTries = 4;
     int txInProgressForwarders = 0;
     int txInProgressTries = 0; //TODO: rename to tries
-    EqDC EqDCJump = EqDC(0);
     simtime_t dataTransmissionDelay = 0;
     virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);
     void updateTxState(const t_tx_state& newTxState);
@@ -226,8 +230,8 @@ protected:
 
     cMessage *currentRxFrame;
     void dropCurrentRxFrame(PacketDropDetails& details);
-    void encapsulate(Packet* msg);
-    void decapsulate(Packet* msg);
+    void encapsulate(Packet* msg) const;
+    void decapsulate(Packet* msg) const;
     bool setupTransmission(); // Return false if immediate transmission is not possible
 
     // OperationalBase:

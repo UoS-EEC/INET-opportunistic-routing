@@ -96,8 +96,8 @@ protected:
 
 
     virtual void encapsulate(Packet* packet);
-    virtual void decapsulate(Packet* packet);
-    virtual void setDownControlInfo(Packet* packet, const MacAddress& macMulticast, const EqDC& routingCost);
+    virtual void decapsulate(Packet* packet) const;
+    virtual void setDownControlInfo(Packet* packet, const MacAddress& macMulticast, const EqDC& routingCost, const EqDC& onwardCost) const;
 
     const Protocol& getProtocol() const override { return OpportunisticRouting; }
 

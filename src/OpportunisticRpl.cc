@@ -37,9 +37,11 @@ void OpportunisticRpl::initialize(int const stage) {
         arp = getModuleFromPar<IArp>(par("arpModule"), this);
         initialTTL = par("initialTTL");
     }
-    else if (stage == INITSTAGE_NETWORK_LAYER) {
+    else if (stage == INITSTAGE_NETWORK_CONFIGURATION){
         ProtocolGroup::ipprotocol.addProtocol(245, &OpportunisticRouting);
         registerService(Protocol::nextHopForwarding, gate("transportIn"), gate("queueIn"));
+    }
+    else if (stage == INITSTAGE_NETWORK_LAYER) {
         auto ie = interfaceTable->findFirstNonLoopbackInterface();
         if (ie != nullptr)
             nodeAddress = ie->getNetworkAddress();
@@ -63,13 +65,14 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
     auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
     auto const payloadLength = header->getLength() - header->getChunkLength();
     const inet::L3Address destinationAddress = header->getDestAddr();
-    EqDC onwardRoutingCost = routingTable->calculateEqDC(header->getDestAddr());
+    EqDC nextHopCost = EqDC(25.5);
+    EqDC ownCost = routingTable->calculateEqDC(header->getDestAddr(), nextHopCost);
     if(payloadLength<B(1)){
         // No data contained so silently accept packet
         // This only occurs when OpportunisticRpl sends hello messages
         delete packet; // TODO: emit removedPacket signal as well
     }
-    else if (onwardRoutingCost == EqDC(0.0)) {
+    else if (ownCost == EqDC(0.0)) {
         // Check for duplicates
         orpl::PacketRecord pktRecord;
         pktRecord.setSource(header->getSourceAddress());
@@ -86,7 +89,7 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
             sendUp(packet);
         }
     }
-    else if(onwardRoutingCost < EqDC(25.5)){
+    else if(nextHopCost < EqDC(25.5)){
         // Route to a node in the routing table
         // Packet not destined for this node
         // Decrease TTL, set routing cost threshold and Forward.
@@ -102,7 +105,7 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
             EV_WARN << "Forwarding message to unknown L3Address" << endl;
         }
         packet->insertAtFront(mutableHeader);
-        setDownControlInfo(packet, outboundMacAddress, onwardRoutingCost);
+        setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
 
         // Delay forwarded packets to reduce physical layer contention
         queueDelayed(packet, uniform(0, forwardingBackoff));
@@ -145,19 +148,21 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
     header->setTtl(initialTTL);
     header->setVersion(IpProtocolId::IP_PROT_MANET);
     packet->insertAtFront(header);
-    EqDC initialCost = routingTable->calculateEqDC(header->getDestAddr());
-    setDownControlInfo(packet, outboundMacAddress, initialCost);
+    EqDC nextHopCost = EqDC(25.5);
+    EqDC ownCost = routingTable->calculateEqDC(header->getDestAddr(), nextHopCost);
+    setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
 }
 
-void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const EqDC& routingCost) {
+void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const EqDC& costIndicator, const EqDC& onwardCost) const
+{
     packet->addTagIfAbsent<MacAddressReq>()->setDestAddress(macMulticast);
-    packet->addTagIfAbsent<EqDCReq>()->setEqDC(routingCost); // Set expected cost of any forwarder
-    packet->addTagIfAbsent<EqDCInd>()->setEqDC(routingCost); // Indicate own routingCost for updating metric
+    packet->addTagIfAbsent<EqDCReq>()->setEqDC(onwardCost); // Set expected cost of any forwarder
+    packet->addTagIfAbsent<EqDCInd>()->setEqDC(costIndicator); // Indicate own routingCost for updating metric
     packet->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&OpportunisticRouting);
     packet->addTagIfAbsent<DispatchProtocolInd>()->setProtocol(&OpportunisticRouting);
 }
 
-void OpportunisticRpl::decapsulate(Packet* const packet)
+void OpportunisticRpl::decapsulate(Packet* const packet) const
 {
     auto networkHeader = packet->popAtFront<OpportunisticRoutingHeader>();
     auto payloadLength = networkHeader->getLength() - networkHeader->getChunkLength();
@@ -253,7 +258,7 @@ EqDC OpportunisticRpl::queryAcceptWakeUp(const MacAddress& destination,
     }
     else{
         const EqDC newCost = routingTable->calculateEqDC(l3dest);
-        if(newCost < costThreshold){
+        if(newCost <= costThreshold){
             return newCost;
         }
     }

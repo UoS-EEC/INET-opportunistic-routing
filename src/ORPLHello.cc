@@ -33,10 +33,10 @@ void ORPLHello::initialize(int const stage)
         minTransmissionProbability = par("intermittentPacketRate");
         ASSERT(minTransmissionProbability > 0 && minTransmissionProbability < 1);
         packetSourceModule = getModuleFromPar<cModule>(par("packetSignalSourceModule"), this);
-        protocol = ProtocolGroup::ipprotocol.findProtocol(240);
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
         packetSourceModule->subscribe(packetSentToLowerSignal, this);
+        protocol = ProtocolGroup::ipprotocol.findProtocol(240);
         // Populate the queue with dummy packets to begin with
         auto packetRecord = makeShared<OpportunisticRoutingHeader>();
         packetRecord->setId(onOffCycles); // Reuse ID for what cycle packet transmitted in

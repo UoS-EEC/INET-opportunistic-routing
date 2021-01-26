@@ -46,6 +46,7 @@ void ORPLRoutingTable::initialize(int stage){
         else
             throw cRuntimeError("Unknown address type");
 
+        forwardingCostW = EqDC(par("forwardingCost"));
     }
     else if(stage == INITSTAGE_LINK_LAYER){
         for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i)
@@ -84,9 +85,7 @@ void ORPLRoutingTable::updateEncounters(const L3Address address, const orpl::EqD
     encountersCount++;
 }
 
-
-
-EqDC ORPLRoutingTable::calculateEqDC(const L3Address destination) const
+EqDC ORPLRoutingTable::calculateEqDC(const L3Address destination, EqDC& nextHopEqDC) const
 {
     const InterfaceEntry* interface = interfaceTable->findFirstNonLoopbackInterface();
     if(interface->getNetworkAddress() == destination){
@@ -111,18 +110,17 @@ EqDC ORPLRoutingTable::calculateEqDC(const L3Address destination) const
 
     double probSum = 0.0;
     EqDC probProductSum = EqDC(0.0);
-    EqDC estimatedCost = EqDC(25.5);
-    EqDC forwardingCostW = EqDC(0.1); // TODO: Define this properly in terms of EqTransmissions etc.
+    EqDC estimatedCostLessW = EqDC(25.5);
     for(auto const& entry : neighborEncounterPairs){
         // Check if in forwarding set
-        if(entry.first <= estimatedCost - forwardingCostW){
+        if(entry.first <= estimatedCostLessW){
             probSum += entry.second;
             probProductSum += entry.second * entry.first;
             if(probSum > 0){
-                estimatedCost = (EqDC(1.0) + probProductSum)/probSum;
+                estimatedCostLessW = (EqDC(1.0) + probProductSum)/probSum;
             }
             else{
-                estimatedCost = EqDC(25.5);
+                estimatedCostLessW = EqDC(25.5);
             }
         }
         else{
@@ -131,11 +129,17 @@ EqDC ORPLRoutingTable::calculateEqDC(const L3Address destination) const
     }
     // Set initial values of EqDC to aid startup
     if(probSum == 0){
-        estimatedCost = ExpectedCost(par("hubExpectedCost"));
+        estimatedCostLessW = ExpectedCost(par("hubExpectedCost"));
     }
-    // Limit resolution before reporting.
-    estimatedCost = ExpectedCost(estimatedCost);
+    nextHopEqDC = ExpectedCost(estimatedCostLessW);
+    // Limit resolution and add own routing cost before reporting.
+    const EqDC estimatedCost = ExpectedCost(estimatedCostLessW + forwardingCostW);
     return estimatedCost;
+}
+EqDC ORPLRoutingTable::calculateEqDC(const inet::L3Address destination) const
+{
+    EqDC nextHopDummyVar = EqDC(0.0);
+    return calculateEqDC(destination, nextHopDummyVar);
 }
 
 void ORPLRoutingTable::calculateInteractionProbability()
