@@ -104,7 +104,7 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
 
         }
         mac: WakeUpMacLayer {
-
+			radioTurnaroundTime = 50us; // Should match the dataRadio switching times 
             @display("p=208,120");
         }
     connections:
