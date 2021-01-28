@@ -26,13 +26,42 @@
 #include "inet/networklayer/contract/IArp.h"
 #include "Units.h"
 #include "ORPLRoutingTable.h"
+#include "EncounterDetails_m.h"
 #include <set>
 #include <map>
+#include <algorithm> // For std::find
 
 using namespace inet;
 using namespace orpl;
 
 const Protocol OpportunisticRouting("ORPL", "ORPL", Protocol::NetworkLayer);
+template <class T>
+class OrderedDropHeadQueue{
+private:
+    std::deque<T> q;
+    int maxSize;
+public:
+    OrderedDropHeadQueue(int _size = 64):
+        q(_size), maxSize(_size){}
+
+    const typename std::deque<T>::const_iterator getIndex(const T& element) const{
+        return std::find(q.begin(),q.end(),element);
+    }
+    bool find(const T& element) const{
+        return getIndex(element) != q.end();
+    }
+
+    void insert(const T& element){
+        auto duplicate = getIndex(element);
+        if(duplicate!=q.end()){
+            q.erase(duplicate);
+        }
+        while(q.size()>=maxSize){
+            q.pop_front();
+        }
+        q.push_back(element);
+    }
+};
 
 class OpportunisticRpl : public NetworkProtocolBase, public INetworkProtocol{
 public:
@@ -44,7 +73,9 @@ public:
         arp(nullptr),
         waitingPacket(nullptr){}
     virtual void initialize(int stage) override;
-    EqDC queryAcceptPacket(const MacAddress& destination, const ExpectedCost& currentExpectedCost) const;
+    EqDC queryAcceptPacket(const MacAddress& destination,
+            const EqDC& costThreshold, const Packet* data) const;
+    EqDC queryAcceptWakeUp(const MacAddress& destination, const EqDC& costThreshold) const;
 protected:
     cMessage* nextForwardTimer;
     // Crude net layer backoff to reduce contention of forwarded packets with multiple forwarders
@@ -58,19 +89,15 @@ protected:
 
     Packet* waitingPacket;
     uint16_t sequenceNumber = 0;
-    // Address and Sequence number record of packet received or sent
-    typedef struct packetRecord{
-         MacAddress source;
-         unsigned int seq;
-    } packetRecord;
-    typedef std::set<packetRecord> packetHistory;
 
-    typedef std::map<L3Address, ExpectedCost> recordTable;
-    recordTable expectedCostTable;
+    // Address and Sequence number record of packet received or sent
+    OrderedDropHeadQueue<orpl::PacketRecord> packetHistory;
+    bool messageKnown(const orpl::PacketRecord record);
+
 
     virtual void encapsulate(Packet* packet);
-    virtual void decapsulate(Packet* packet);
-    virtual void setDownControlInfo(Packet* packet, const MacAddress& macMulticast, const ExpectedCost& expectedCost);
+    virtual void decapsulate(Packet* packet) const;
+    virtual void setDownControlInfo(Packet* packet, const MacAddress& macMulticast, const EqDC& routingCost, const EqDC& onwardCost) const;
 
     const Protocol& getProtocol() const override { return OpportunisticRouting; }
 
@@ -85,5 +112,6 @@ protected:
     virtual void handleStopOperation(LifecycleOperation* op) override;
     virtual void handleCrashOperation(LifecycleOperation* op) override;
 };
+
 
 #endif /* OPPORTUNISTICRPL_H_ */
