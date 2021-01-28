@@ -29,7 +29,9 @@
 #include "EncounterDetails_m.h"
 
 using namespace inet;
-using namespace physicallayer;
+using physicallayer::IRadio;
+using physicallayer::FlatTransmitterBase;
+using namespace oppostack;
 
 Define_Module(WakeUpMacLayer);
 

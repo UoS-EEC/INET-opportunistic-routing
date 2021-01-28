@@ -21,6 +21,7 @@
 #include "inet/networklayer/common/L3AddressResolver.h"
 
 using namespace inet;
+using namespace oppostack;
 Define_Module(ORPLHello);
 
 void ORPLHello::initialize(int const stage)

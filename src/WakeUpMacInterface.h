@@ -17,14 +17,11 @@
 #define WAKEUPMACINTERFACE_H_
 
 #include "inet/networklayer/common/InterfaceEntry.h"
+namespace oppostack{
 
-using namespace inet;
-
-
-class WakeUpMacInterface : public InterfaceEntry{
-public:
-//    WakeUpMacInterface();
-//    virtual ~WakeUpMacInterface();
+class WakeUpMacInterface : public inet::InterfaceEntry{
+    // Stub class
 };
 
+} // namespace oppostack
 #endif /* WAKEUPMACINTERFACE_H_ */

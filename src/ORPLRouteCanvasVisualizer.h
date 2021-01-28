@@ -17,7 +17,8 @@
 #define ORPLROUTECANVASVISUALIZER_H_
 
 #include "inet/visualizer/networklayer/NetworkRouteCanvasVisualizer.h"
-using namespace inet;
+
+namespace oppostack{
 
 class ORPLRouteCanvasVisualizer : public inet::visualizer::NetworkRouteCanvasVisualizer{
 public:
@@ -29,4 +30,5 @@ protected:
 
 };
 
+} //namespace oppostack
 #endif /* ORPLROUTECANVASVISUALIZER_H_ */

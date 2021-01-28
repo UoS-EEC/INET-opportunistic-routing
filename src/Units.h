@@ -9,19 +9,22 @@
 #define UNITS_H_
 
 #include "inet/common/Units.h"
-namespace orpl{
-struct DC; // Duty cycle
-typedef inet::units::value<double, DC> EqDC; // Equivalent dutycycles = 1/10th of ExpectedCost
-namespace internal{
-typedef inet::units::scale<DC, 10> ExpectedCost;
-}
-typedef inet::units::value<int, internal::ExpectedCost> ExpectedCost;
-}
+namespace oppostack{
+
+    struct DC; // Duty cycle
+    typedef inet::units::value<double, DC> EqDC; // Equivalent dutycycles = 1/10th of ExpectedCost
+    namespace internal{
+        typedef inet::units::scale<DC, 10> ExpectedCost;
+    }
+    typedef inet::units::value<int, internal::ExpectedCost> ExpectedCost;
+
+}// namespace oppostack
+
 namespace inet::units::internal{
     // Specialized conversion implementation for conversion
     // between integer ExpectedCost and double EqDC
     template<>
-    struct convert<orpl::internal::ExpectedCost, orpl::DC>
+    struct convert<oppostack::internal::ExpectedCost, oppostack::DC>
     {
         static double fn(const int& v)
         {

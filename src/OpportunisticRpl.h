@@ -31,8 +31,9 @@
 #include <map>
 #include <algorithm> // For std::find
 
+namespace oppostack{
+
 using namespace inet;
-using namespace orpl;
 
 const Protocol OpportunisticRouting("ORPL", "ORPL", Protocol::NetworkLayer);
 template <class T>
@@ -91,8 +92,8 @@ protected:
     uint16_t sequenceNumber = 0;
 
     // Address and Sequence number record of packet received or sent
-    OrderedDropHeadQueue<orpl::PacketRecord> packetHistory;
-    bool messageKnown(const orpl::PacketRecord record);
+    OrderedDropHeadQueue<oppostack::PacketRecord> packetHistory;
+    bool messageKnown(const oppostack::PacketRecord record);
 
 
     virtual void encapsulate(Packet* packet);
@@ -113,5 +114,6 @@ protected:
     virtual void handleCrashOperation(LifecycleOperation* op) override;
 };
 
+} // namespace oppostack
 
 #endif /* OPPORTUNISTICRPL_H_ */

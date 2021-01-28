@@ -21,6 +21,7 @@
 
 using namespace omnetpp;
 using namespace inet;
+using namespace oppostack;
 
 Define_Module(ORPLRoutingTable);
 simsignal_t ORPLRoutingTable::updatedEqDCValueSignal = cComponent::registerSignal("updatedEqDCValue");
@@ -61,7 +62,7 @@ void ORPLRoutingTable::initialize(int stage){
 void ORPLRoutingTable::receiveSignal(cComponent* source, simsignal_t signalID, double weight, cObject* details)
 {
     if(signalID == WakeUpMacLayer::coincidentalEncounterSignal || signalID == WakeUpMacLayer::expectedEncounterSignal){
-        orpl::EncounterDetails* encounterMacDetails = check_and_cast<orpl::EncounterDetails*>(details);
+        oppostack::EncounterDetails* encounterMacDetails = check_and_cast<oppostack::EncounterDetails*>(details);
         const L3Address inboundMacAddress = arp->getL3AddressFor(encounterMacDetails->getEncountered());
         updateEncounters(inboundMacAddress, encounterMacDetails->getCurrentEqDC(), weight);
     }
@@ -70,7 +71,7 @@ void ORPLRoutingTable::receiveSignal(cComponent* source, simsignal_t signalID, d
     }
 }
 
-void ORPLRoutingTable::updateEncounters(const L3Address address, const orpl::EqDC cost, const double weight)
+void ORPLRoutingTable::updateEncounters(const L3Address address, const oppostack::EqDC cost, const double weight)
 {
     // Update encounters table entry. Optionally adding if it doesn't exist
     const EqDC oldEqDC = calculateEqDC(rootAddress);

@@ -30,9 +30,10 @@
 #include "OpportunisticRpl.h"
 #include "Units.h"
 
+namespace oppostack{
+
 using namespace omnetpp;
 using namespace inet;
-using namespace orpl;
 
 /**
  * WakeUpMacLayer - Implements two stage message transmission of
@@ -241,5 +242,7 @@ protected:
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
+
+} //namespace oppostack
 
 #endif

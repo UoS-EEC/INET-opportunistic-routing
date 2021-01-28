@@ -25,6 +25,7 @@
 #include "OpportunisticRpl.h"
 #include "EqDCTag_m.h"
 
+using namespace oppostack;
 Define_Module(OpportunisticRpl);
 
 void OpportunisticRpl::initialize(int const stage) {
@@ -74,7 +75,7 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
     }
     else if (ownCost == EqDC(0.0)) {
         // Check for duplicates
-        orpl::PacketRecord pktRecord;
+        oppostack::PacketRecord pktRecord;
         pktRecord.setSource(header->getSourceAddress());
         pktRecord.setSeqNo(header->getId());
         if(messageKnown(pktRecord)){
@@ -267,7 +268,7 @@ EqDC OpportunisticRpl::queryAcceptWakeUp(const MacAddress& destination,
 
 }
 
-bool OpportunisticRpl::messageKnown(const orpl::PacketRecord record)
+bool OpportunisticRpl::messageKnown(const oppostack::PacketRecord record)
 {
     return packetHistory.find(record);
 }

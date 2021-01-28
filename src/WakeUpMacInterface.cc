@@ -15,14 +15,4 @@
 
 #include "WakeUpMacInterface.h"
 
-Define_Module(WakeUpMacInterface);
-
-//WakeUpMacInterface::WakeUpMacInterface() {
-//    // TODO Auto-generated constructor stub
-//
-//}
-//
-//WakeUpMacInterface::~WakeUpMacInterface() {
-//    // TODO Auto-generated destructor stub
-//}
-
+Define_Module(oppostack::WakeUpMacInterface);

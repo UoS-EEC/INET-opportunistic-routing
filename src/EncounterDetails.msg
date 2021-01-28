@@ -17,14 +17,14 @@ import inet.common.INETDefs;
 import inet.linklayer.common.MacAddress;
 import inet.networklayer.common.L3Address;
 import Units;
-namespace orpl;
+namespace oppostack;
 
 //
 // EncounterDetails stores information about an encounter for updating a relevant routing table
 //
 class EncounterDetails extends cObject{
     inet::MacAddress encountered;
-    orpl::EqDC currentEqDC;
+    EqDC currentEqDC;
 }
 
 class PacketRecord extends cObject{
