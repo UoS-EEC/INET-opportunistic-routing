@@ -20,13 +20,13 @@
 #define __WAKEUPMAC_WAKEUPMACLAYER_H_
 
 #include <omnetpp.h>
-#include "inet/linklayer/base/MacProtocolBase.h"
-#include "inet/linklayer/contract/IMacProtocol.h"
-#include "inet/physicallayer/contract/packetlevel/IRadio.h"
-#include "inet/power/contract/IEpEnergyStorage.h"
-#include "inet/common/lifecycle/LifecycleController.h"
-#include "inet/common/lifecycle/NodeStatus.h"
-#include "inet/common/Protocol.h"
+#include <inet/linklayer/base/MacProtocolBase.h>
+#include <inet/linklayer/contract/IMacProtocol.h>
+#include <inet/physicallayer/contract/packetlevel/IRadio.h>
+#include <inet/power/contract/IEpEnergyStorage.h>
+#include <inet/common/lifecycle/LifecycleController.h>
+#include <inet/common/lifecycle/NodeStatus.h>
+#include <inet/common/Protocol.h>
 
 #include "common/Units.h"
 #include "networklayer/OpportunisticRpl.h"

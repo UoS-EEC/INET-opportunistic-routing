@@ -17,10 +17,10 @@
 #define NETWORKLAYER_ORPLROUTINGTABLE_H_
 
 #include <omnetpp.h>
-#include "inet/common/INETDefs.h"
-#include "inet/networklayer/common/L3Address.h"
-#include "inet/networklayer/contract/IArp.h"
-#include "inet/networklayer/contract/IInterfaceTable.h"
+#include <inet/common/INETDefs.h>
+#include <inet/networklayer/common/L3Address.h>
+#include <inet/networklayer/contract/IArp.h>
+#include <inet/networklayer/contract/IInterfaceTable.h>
 
 #include "common/Units.h"
 

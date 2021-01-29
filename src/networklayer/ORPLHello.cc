@@ -17,9 +17,10 @@
 
 #include "OpportunisticRoutingHeader_m.h"
 #include "common/EqDCTag_m.h"
-#include "inet/networklayer/common/L3AddressTag_m.h"
-#include "inet/networklayer/contract/IL3AddressType.h"
-#include "inet/networklayer/common/L3AddressResolver.h"
+#include <inet/networklayer/common/L3AddressTag_m.h>
+#include <inet/networklayer/contract/IL3AddressType.h>
+#include <inet/networklayer/common/L3AddressResolver.h>
+#include <inet/common/ModuleAccess.h>
 
 using namespace inet;
 using namespace oppostack;
