@@ -14,6 +14,7 @@
 // 
 
 #include "WakeUpMacLayer.h"
+#include "WuMacEnergyMonitor.h"
 
 #include <omnetpp.h>
 #include <algorithm> // for min max
