@@ -13,14 +13,16 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#include "ORPLHello.h"
+#include "networklayer/ORPLHello.h"
+
 #include "OpportunisticRoutingHeader_m.h"
-#include "EqDCTag_m.h"
+#include "common/EqDCTag_m.h"
 #include "inet/networklayer/common/L3AddressTag_m.h"
 #include "inet/networklayer/contract/IL3AddressType.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
 
 using namespace inet;
+using namespace oppostack;
 Define_Module(ORPLHello);
 
 void ORPLHello::initialize(int const stage)

@@ -27,12 +27,14 @@
 #include "inet/common/lifecycle/LifecycleController.h"
 #include "inet/common/lifecycle/NodeStatus.h"
 #include "inet/common/Protocol.h"
-#include "OpportunisticRpl.h"
-#include "Units.h"
+
+#include "common/Units.h"
+#include "networklayer/OpportunisticRpl.h"
+
+namespace oppostack{
 
 using namespace omnetpp;
 using namespace inet;
-using namespace orpl;
 
 /**
  * WakeUpMacLayer - Implements two stage message transmission of
@@ -84,6 +86,11 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     simtime_t minimumContentionWindow = 0;
 
 public:
+    /**
+     * Mac statistics
+     */
+    static simsignal_t transmissionTriesSignal;
+    static simsignal_t ackContentionRoundsSignal;
     /**
      * Neighbor Update signals definitions TODO: Move elsewhere
      */
@@ -241,5 +248,19 @@ protected:
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
+
+/**
+ * Receive Signals from WakeUpMac about starting and stopping of reception or transmission
+ * Implemented using Stop and Start operation to pause monitoring when interrupted due to node shutdown
+ */
+class WuMacEnergyMonitor{ // TODO: OperationalBase
+public:
+    static simsignal_t receptionEndedSignal;
+    static simsignal_t falseWakeUpEndedSignal;
+    static simsignal_t transmissionEndedSignal;
+    static simsignal_t unknownEndedSignal;
+};
+
+} //namespace oppostack
 
 #endif

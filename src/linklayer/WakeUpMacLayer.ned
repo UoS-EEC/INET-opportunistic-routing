@@ -13,7 +13,7 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package wakeupmac;
+package oppostack.linklayer;
 import inet.linklayer.base.MacProtocolBase;
 import inet.linklayer.contract.IMacProtocol;
 import inet.queueing.contract.IPacketQueue;
@@ -39,7 +39,7 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         double wuApproveResponseLimit @unit(s) = default(1000ns);
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
         
-        // WakeUpMac energy consumption signals and statistics
+        // oppostack energy consumption signals and statistics
         @signal[receptionConsumption](type = double);
         @signal[falseWakeUpConsumption](type = double);
         @signal[transmissionConsumption](type = double);
@@ -57,7 +57,7 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         @statistic[expectedEncounter](title="Weighted expected neighbor encounter"; record=vector);
         @statistic[listenForEncountersEnded](title="Ended expected encounters listening period"; record=vector);
         
-        // WakeUpMac retry signals and statistics
+        // oppostack retry signals and statistics
         @signal[transmissionTries](type = long);
         @signal[ackContentionRounds](type = long);
         @statistic[transmissionTries](title="Number of Tries till packet discarded or received"; record=histogram, vector);

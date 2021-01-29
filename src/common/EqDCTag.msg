@@ -6,17 +6,17 @@ import inet.common.INETDefs;
 import inet.common.TagBase;
 import inet.networklayer.common.L3Address;
 import Units;
-namespace inet;
+namespace oppostack;
 
-class EqDCReq extends TagBase
+class EqDCReq extends inet::TagBase
 {
-    orpl::EqDC eqDC;
+    oppostack::EqDC eqDC;
 }
-class EqDCInd extends TagBase
+class EqDCInd extends inet::TagBase
 {
-    orpl::EqDC eqDC = orpl::EqDC(25.5);
+    oppostack::EqDC eqDC = oppostack::EqDC(25.5);
 }
-class EqDCBroadcast extends TagBase
+class EqDCBroadcast extends inet::TagBase
 {
     bool isBroadcast = true;
 }

@@ -13,16 +13,15 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#include "WakeUpMacInterface.h"
+#ifndef LINKLAYER_WAKEUPMACINTERFACE_H_
+#define LINKLAYER_WAKEUPMACINTERFACE_H_
 
-Define_Module(WakeUpMacInterface);
+#include "inet/networklayer/common/InterfaceEntry.h"
+namespace oppostack{
 
-//WakeUpMacInterface::WakeUpMacInterface() {
-//    // TODO Auto-generated constructor stub
-//
-//}
-//
-//WakeUpMacInterface::~WakeUpMacInterface() {
-//    // TODO Auto-generated destructor stub
-//}
+class WakeUpMacInterface : public inet::InterfaceEntry{
+    // Stub class
+};
 
+} // namespace oppostack
+#endif /* LINKLAYER_WAKEUPMACINTERFACE_H_ */

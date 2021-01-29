@@ -4,9 +4,11 @@
 // TODO generated message class
 //
 
+import common.Units;
 import inet.common.packet.chunk.Chunk;
 import inet.linklayer.common.MacAddress;
-import Units;
+
+namespace oppostack;
 
 enum WakeUpGramType {
     WU_DATA = 1;
@@ -20,12 +22,12 @@ class WakeUpGram extends inet::FieldsChunk
     WakeUpGramType type;    // header type (1 byte)
     inet::MacAddress transmitterAddress;    // (2 byte) but inet represents as 6
     inet::MacAddress receiverAddress;    // (2 byte) but inet represents as 6
-    orpl::ExpectedCost expectedCostInd = orpl::ExpectedCost(255); // (1 byte)
+    oppostack::ExpectedCost expectedCostInd = oppostack::ExpectedCost(255); // (1 byte)
 }
 class WakeUpBeacon extends WakeUpGram
 {
     type = WU_BEACON; //Max value is 255 (1 byte) in a wake-up this forms the preamble
-    orpl::ExpectedCost minExpectedCost;  // Actually represented by the ExpectedCost type
+    oppostack::ExpectedCost minExpectedCost;  // Actually represented by the ExpectedCost type
     chunkLength = inet::B(8);
 }
 

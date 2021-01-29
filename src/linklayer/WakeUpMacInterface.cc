@@ -11,22 +11,8 @@
 // 
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/.
-//
-cplusplus {{
-#include "Units.h"
-}}
+// 
 
-namespace orpl;
+#include "WakeUpMacInterface.h"
 
-class ExpectedCost
-{
-    @existingClass;
-    @opaque;
-    @toString(.str());
-}
-class EqDC
-{
-    @existingClass;
-    @opaque;
-    @toString(.str());
-}
+Define_Module(oppostack::WakeUpMacInterface);

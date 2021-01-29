@@ -13,13 +13,15 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef ORPLHELLO_H_
-#define ORPLHELLO_H_
+#ifndef NETWORKLAYER_ORPLHELLO_H_
+#define NETWORKLAYER_ORPLHELLO_H_
 
 #include <omnetpp.h>
 #include "inet/applications/base/ApplicationBase.h"
 #include "inet/queueing/contract/IPacketQueue.h"
 #include "OpportunisticRoutingHeader_m.h"
+
+namespace oppostack{
 
 /**
  * Simple module to send hello messages if messages are infrequent
@@ -50,10 +52,12 @@ protected:
     virtual void handleStopOperation(inet::LifecycleOperation* op) override;
     virtual void handleCrashOperation(inet::LifecycleOperation* op) override;
 
-    virtual void handleMessageWhenUp(cMessage *message); // From LayeredProtocolBase
-    virtual void handleSelfMessage(cMessage* msg);
+    virtual void handleMessageWhenUp(omnetpp::cMessage *message); // From LayeredProtocolBase
+    virtual void handleSelfMessage(omnetpp::cMessage* msg);
     virtual void sendHelloBroadcast(inet::L3Address destination);
     void rescheduleTransmissionTimer();
 };
 
-#endif /* ORPLHELLO_H_ */
+} //namespace oppostack
+
+#endif /* NETWORKLAYER_ORPLHELLO_H_ */

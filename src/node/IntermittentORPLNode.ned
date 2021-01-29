@@ -13,7 +13,7 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package wakeupmac;
+package oppostack.node;
 
 //
 // TODO auto-generated type

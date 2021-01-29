@@ -13,9 +13,9 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package wakeupmac;
+package oppostack.linklayer;
 //
-// WakeUpMACInterface
+// opportunisticInterface
 // Implementation of a wake up and transmit commmunication interface 
 // Each transmission consists of a beacon transmission, followed by 
 // a pause, before the data transmission. 

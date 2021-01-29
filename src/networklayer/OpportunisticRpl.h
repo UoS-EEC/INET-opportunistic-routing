@@ -13,8 +13,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef OPPORTUNISTICRPL_H_
-#define OPPORTUNISTICRPL_H_
+#ifndef NETWORKLAYER_OPPORTUNISTICRPL_H_
+#define NETWORKLAYER_OPPORTUNISTICRPL_H_
 
 #include "inet/common/ProtocolTag_m.h"
 #include "inet/networklayer/base/NetworkProtocolBase.h"
@@ -24,15 +24,17 @@
 #include "inet/networklayer/contract/INetworkProtocol.h"
 #include "inet/networklayer/contract/IRoutingTable.h"
 #include "inet/networklayer/contract/IArp.h"
-#include "Units.h"
-#include "ORPLRoutingTable.h"
-#include "EncounterDetails_m.h"
+#include "common/EncounterDetails_m.h"
 #include <set>
 #include <map>
 #include <algorithm> // For std::find
 
+#include "common/Units.h"
+#include "networklayer/ORPLRoutingTable.h"
+
+namespace oppostack{
+
 using namespace inet;
-using namespace orpl;
 
 const Protocol OpportunisticRouting("ORPL", "ORPL", Protocol::NetworkLayer);
 template <class T>
@@ -91,8 +93,8 @@ protected:
     uint16_t sequenceNumber = 0;
 
     // Address and Sequence number record of packet received or sent
-    OrderedDropHeadQueue<orpl::PacketRecord> packetHistory;
-    bool messageKnown(const orpl::PacketRecord record);
+    OrderedDropHeadQueue<oppostack::PacketRecord> packetHistory;
+    bool messageKnown(const oppostack::PacketRecord record);
 
 
     virtual void encapsulate(Packet* packet);
@@ -113,5 +115,6 @@ protected:
     virtual void handleCrashOperation(LifecycleOperation* op) override;
 };
 
+} // namespace oppostack
 
-#endif /* OPPORTUNISTICRPL_H_ */
+#endif /* NETWORKLAYER_OPPORTUNISTICRPL_H_ */

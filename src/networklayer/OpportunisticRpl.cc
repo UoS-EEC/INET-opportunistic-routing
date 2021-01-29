@@ -13,18 +13,21 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
+#include "networklayer/OpportunisticRpl.h"
+
 #include "inet/common/INETDefs.h"
 #include "inet/common/ProtocolTag_m.h"
-#include "ORPLRoutingTable.h"
 #include "OpportunisticRoutingHeader_m.h"
 #include "inet/linklayer/common/MacAddressTag_m.h"
 #include "inet/networklayer/common/L3AddressTag_m.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
 #include "inet/common/ProtocolGroup.h"
-#include "Units.h"
-#include "OpportunisticRpl.h"
-#include "EqDCTag_m.h"
 
+#include "common/Units.h"
+#include "common/EqDCTag_m.h"
+#include "networklayer/ORPLRoutingTable.h"
+
+using namespace oppostack;
 Define_Module(OpportunisticRpl);
 
 void OpportunisticRpl::initialize(int const stage) {
@@ -74,7 +77,7 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
     }
     else if (ownCost == EqDC(0.0)) {
         // Check for duplicates
-        orpl::PacketRecord pktRecord;
+        oppostack::PacketRecord pktRecord;
         pktRecord.setSource(header->getSourceAddress());
         pktRecord.setSeqNo(header->getId());
         if(messageKnown(pktRecord)){
@@ -267,7 +270,7 @@ EqDC OpportunisticRpl::queryAcceptWakeUp(const MacAddress& destination,
 
 }
 
-bool OpportunisticRpl::messageKnown(const orpl::PacketRecord record)
+bool OpportunisticRpl::messageKnown(const oppostack::PacketRecord record)
 {
     return packetHistory.find(record);
 }

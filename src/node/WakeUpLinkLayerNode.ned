@@ -13,19 +13,16 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package wakeupmac;
-import inet.applications.generic.IpvxTrafGen;
-import inet.node.base.NetworkLayerNodeBase;
+package oppostack.node;
+
+import inet.node.base.LinkLayerNodeBase;
 import inet.queueing.source.ActivePacketSource;
 import inet.queueing.sink.PassivePacketSink;
 
-//
-// TODO auto-generated type
-//
-module ORPLLayerNode extends NetworkLayerNodeBase
+
+module WakeUpLinkLayerNode extends LinkLayerNodeBase
 {
     parameters:
-        @display("i=misc/receiving");
         numWlanInterfaces = 1;
         wlan[0].typename = "WakeUpMacInterface";
         mobility.typename = "StationaryMobility";
@@ -36,26 +33,22 @@ module ORPLLayerNode extends NetworkLayerNodeBase
         energyManagement.nodeShutdownCapacity = 0.002J;
         energyManagement.nodeStartCapacity = 0.006J;
         energyGenerator.typename = "AlternatingEpEnergyGenerator";
-        energyGenerator.powerGeneration = default(20mW); // Abundant energy for now
+        energyGenerator.powerGeneration = 20mW; // Abundant energy for now
         energyGenerator.generationInterval = 0.5s;
         energyGenerator.sleepInterval = 0s;
         wlan[*].dataRadio.antenna.mobilityModule = default("^.^.^.mobility");
         wlan[*].wakeUpRadio.antenna.mobilityModule = default("^.^.^.mobility");
-		// Disable default ipv4 enable generic
-        hasIpv4 = false;
-        hasGn = true;
-        generic.typename = "OpportunisticRoutingLayer";
-        generic.interfaceTableModule = default(".interfaceTable");
-        generic.hubAddress = "10.0.0.255";
     submodules:
-        packetGenerator: IpvxTrafGen {
-            @display("p=437.84998,114.975");
-            packetLength = 8B;
-            sendInterval = default(1s);
-            //packetData = 0x0F0F0F0FF0F0F0F0;
-            protocol = 240;//Protocol::
+        packetGenerator: ActivePacketSource {
+            @display("p=507.15,297.675");
+            packetLength = 8b;
+            productionInterval = default(1s);
+            packetData = 0x0F0F0F0FF0F0F0F0;
+        }
+        packetNullSink: PassivePacketSink {
+            @display("p=360.675,288.22498");
         }
     connections:
-        packetGenerator.ipOut --> generic.transportIn;
-        packetGenerator.ipIn <-- generic.transportOut;
+        packetGenerator.out --> wlan[0].upperLayerIn;
+        packetNullSink.in <-- wlan[0].upperLayerOut;
 }

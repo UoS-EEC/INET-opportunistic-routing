@@ -13,15 +13,19 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef ORPLROUTINGTABLE_H_
-#define ORPLROUTINGTABLE_H_
+#ifndef NETWORKLAYER_ORPLROUTINGTABLE_H_
+#define NETWORKLAYER_ORPLROUTINGTABLE_H_
 
 #include <omnetpp.h>
 #include "inet/common/INETDefs.h"
 #include "inet/networklayer/common/L3Address.h"
 #include "inet/networklayer/contract/IArp.h"
 #include "inet/networklayer/contract/IInterfaceTable.h"
-#include "Units.h"
+
+#include "common/Units.h"
+
+namespace oppostack{
+
 
 class ORPLRoutingTable : public omnetpp::cSimpleModule, public inet::cListener
 {
@@ -37,10 +41,10 @@ protected:
 
     virtual int numInitStages() const override { return inet::NUM_INIT_STAGES; }
     virtual void receiveSignal(cComponent *source, omnetpp::simsignal_t signalID, double weight, cObject *details) override;
-    void updateEncounters(const inet::L3Address address, const orpl::EqDC cost, const double weight);
+    void updateEncounters(const inet::L3Address address, const oppostack::EqDC cost, const double weight);
     class NeighborEntry{
     public:
-        orpl::EqDC lastEqDC = orpl::EqDC(25.5);
+        oppostack::EqDC lastEqDC = oppostack::EqDC(25.5);
         double recentInteractionProb = 0;
         double interactionsTotal = 0;
     };
@@ -50,14 +54,16 @@ protected:
     int encountersCount = 0;
     int probCalcEncountersThreshold = 20;
     int interactionDenominator = 0;
-    orpl::EqDC forwardingCostW = orpl::EqDC(0.1);
+    oppostack::EqDC forwardingCostW = oppostack::EqDC(0.1);
     void calculateInteractionProbability();
     void configureInterface(inet::InterfaceEntry *ie);
     static omnetpp::simsignal_t updatedEqDCValueSignal;
 public:
-    orpl::EqDC calculateEqDC(const inet::L3Address destination, orpl::EqDC& nextHopEqDC) const;
-    orpl::EqDC calculateEqDC(const inet::L3Address destination) const;
+    oppostack::EqDC calculateEqDC(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
+    oppostack::EqDC calculateEqDC(const inet::L3Address destination) const;
     void increaseInteractionDenominator();
 };
 
-#endif /* ORPLROUTINGTABLE_H_ */
+} //namespace oppostack
+
+#endif /* NETWORKLAYER_ORPLROUTINGTABLE_H_ */
