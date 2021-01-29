@@ -13,8 +13,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef ORPLHELLO_H_
-#define ORPLHELLO_H_
+#ifndef NETWORKLAYER_ORPLHELLO_H_
+#define NETWORKLAYER_ORPLHELLO_H_
 
 #include <omnetpp.h>
 #include "inet/applications/base/ApplicationBase.h"
@@ -60,4 +60,4 @@ protected:
 
 } //namespace oppostack
 
-#endif /* ORPLHELLO_H_ */
+#endif /* NETWORKLAYER_ORPLHELLO_H_ */

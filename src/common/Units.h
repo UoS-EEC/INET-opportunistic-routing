@@ -5,8 +5,8 @@
  *      Author: Edward
  */
 
-#ifndef UNITS_H_
-#define UNITS_H_
+#ifndef COMMON_UNITS_H_
+#define COMMON_UNITS_H_
 
 #include "inet/common/Units.h"
 namespace oppostack{
@@ -33,4 +33,4 @@ namespace inet::units::internal{
         }
     };
 } // namespace inet::units::internal
-#endif /* UNITS_H_ */
+#endif /* COMMON_UNITS_H_ */

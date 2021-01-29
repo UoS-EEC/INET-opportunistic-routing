@@ -13,20 +13,22 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
+#include "WakeUpMacLayer.h"
+
 #include <omnetpp.h>
 #include <algorithm> // for min max
 #include "inet/common/ModuleAccess.h"
-#include "WakeUpMacLayer.h"
 #include "inet/common/ProtocolGroup.h"
 #include "inet/common/ProtocolTag_m.h"
 #include "inet/physicallayer/base/packetlevel/FlatTransmitterBase.h"
 #include "inet/linklayer/common/InterfaceTag_m.h"
 #include "inet/linklayer/common/MacAddressTag_m.h"
 #include "inet/common/packet/chunk/Chunk.h"
-#include "OpportunisticRpl.h"
+
+#include "networklayer/OpportunisticRpl.h"
 #include "WakeUpGram_m.h"
-#include "EqDCTag_m.h"
-#include "EncounterDetails_m.h"
+#include "common/EqDCTag_m.h"
+#include "common/EncounterDetails_m.h"
 
 using namespace inet;
 using physicallayer::IRadio;

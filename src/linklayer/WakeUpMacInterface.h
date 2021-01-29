@@ -13,8 +13,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef WAKEUPMACINTERFACE_H_
-#define WAKEUPMACINTERFACE_H_
+#ifndef LINKLAYER_WAKEUPMACINTERFACE_H_
+#define LINKLAYER_WAKEUPMACINTERFACE_H_
 
 #include "inet/networklayer/common/InterfaceEntry.h"
 namespace oppostack{
@@ -24,4 +24,4 @@ class WakeUpMacInterface : public inet::InterfaceEntry{
 };
 
 } // namespace oppostack
-#endif /* WAKEUPMACINTERFACE_H_ */
+#endif /* LINKLAYER_WAKEUPMACINTERFACE_H_ */

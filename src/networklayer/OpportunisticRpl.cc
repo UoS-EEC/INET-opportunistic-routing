@@ -13,17 +13,19 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
+#include "networklayer/OpportunisticRpl.h"
+
 #include "inet/common/INETDefs.h"
 #include "inet/common/ProtocolTag_m.h"
-#include "ORPLRoutingTable.h"
 #include "OpportunisticRoutingHeader_m.h"
 #include "inet/linklayer/common/MacAddressTag_m.h"
 #include "inet/networklayer/common/L3AddressTag_m.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
 #include "inet/common/ProtocolGroup.h"
-#include "Units.h"
-#include "OpportunisticRpl.h"
-#include "EqDCTag_m.h"
+
+#include "common/Units.h"
+#include "common/EqDCTag_m.h"
+#include "networklayer/ORPLRoutingTable.h"
 
 using namespace oppostack;
 Define_Module(OpportunisticRpl);

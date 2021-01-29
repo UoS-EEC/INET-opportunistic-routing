@@ -13,7 +13,7 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package oppostack;
+package oppostack.linklayer;
 //
 // opportunisticInterface
 // Implementation of a wake up and transmit commmunication interface 

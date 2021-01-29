@@ -13,8 +13,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef OPPORTUNISTICRPL_H_
-#define OPPORTUNISTICRPL_H_
+#ifndef NETWORKLAYER_OPPORTUNISTICRPL_H_
+#define NETWORKLAYER_OPPORTUNISTICRPL_H_
 
 #include "inet/common/ProtocolTag_m.h"
 #include "inet/networklayer/base/NetworkProtocolBase.h"
@@ -24,12 +24,13 @@
 #include "inet/networklayer/contract/INetworkProtocol.h"
 #include "inet/networklayer/contract/IRoutingTable.h"
 #include "inet/networklayer/contract/IArp.h"
-#include "Units.h"
-#include "ORPLRoutingTable.h"
-#include "EncounterDetails_m.h"
+#include "common/EncounterDetails_m.h"
 #include <set>
 #include <map>
 #include <algorithm> // For std::find
+
+#include "common/Units.h"
+#include "networklayer/ORPLRoutingTable.h"
 
 namespace oppostack{
 
@@ -116,4 +117,4 @@ protected:
 
 } // namespace oppostack
 
-#endif /* OPPORTUNISTICRPL_H_ */
+#endif /* NETWORKLAYER_OPPORTUNISTICRPL_H_ */

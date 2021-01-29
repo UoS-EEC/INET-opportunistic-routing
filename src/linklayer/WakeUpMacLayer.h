@@ -27,8 +27,9 @@
 #include "inet/common/lifecycle/LifecycleController.h"
 #include "inet/common/lifecycle/NodeStatus.h"
 #include "inet/common/Protocol.h"
-#include "OpportunisticRpl.h"
-#include "Units.h"
+
+#include "common/Units.h"
+#include "networklayer/OpportunisticRpl.h"
 
 namespace oppostack{
 

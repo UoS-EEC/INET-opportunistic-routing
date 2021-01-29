@@ -13,7 +13,7 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package oppostack;
+package oppostack.networklayer;
 
 import inet.networklayer.contract.INetworkLayer;
 import inet.networklayer.common.SimpleNetworkLayer;

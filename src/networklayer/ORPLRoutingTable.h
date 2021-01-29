@@ -13,15 +13,16 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef ORPLROUTINGTABLE_H_
-#define ORPLROUTINGTABLE_H_
+#ifndef NETWORKLAYER_ORPLROUTINGTABLE_H_
+#define NETWORKLAYER_ORPLROUTINGTABLE_H_
 
 #include <omnetpp.h>
 #include "inet/common/INETDefs.h"
 #include "inet/networklayer/common/L3Address.h"
 #include "inet/networklayer/contract/IArp.h"
 #include "inet/networklayer/contract/IInterfaceTable.h"
-#include "Units.h"
+
+#include "common/Units.h"
 
 namespace oppostack{
 
@@ -65,4 +66,4 @@ public:
 
 } //namespace oppostack
 
-#endif /* ORPLROUTINGTABLE_H_ */
+#endif /* NETWORKLAYER_ORPLROUTINGTABLE_H_ */

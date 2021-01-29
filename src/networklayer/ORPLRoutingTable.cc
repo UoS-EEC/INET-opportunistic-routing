@@ -13,11 +13,12 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#include "ORPLRoutingTable.h"
-#include "WakeUpMacLayer.h"
-#include "EncounterDetails_m.h"
+#include "networklayer/ORPLRoutingTable.h"
+
+#include "common/EncounterDetails_m.h"
 #include "inet/networklayer/nexthop/NextHopInterfaceData.h"
 #include "inet/networklayer/common/L3AddressResolver.h"
+#include "linklayer/WakeUpMacLayer.h"
 
 using namespace omnetpp;
 using namespace inet;
