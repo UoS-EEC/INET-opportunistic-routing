@@ -7,6 +7,7 @@
 import inet.common.packet.chunk.Chunk;
 import inet.linklayer.common.MacAddress;
 import Units;
+namespace oppostack;
 
 enum WakeUpGramType {
     WU_DATA = 1;

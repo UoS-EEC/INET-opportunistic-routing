@@ -86,6 +86,11 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
 
 public:
     /**
+     * Mac statistics
+     */
+    static simsignal_t transmissionTriesSignal;
+    static simsignal_t ackContentionRoundsSignal;
+    /**
      * Neighbor Update signals definitions TODO: Move elsewhere
      */
     static simsignal_t expectedEncounterSignal;
@@ -242,6 +247,18 @@ protected:
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
+
+/**
+ * Receive Signals from WakeUpMac about starting and stopping of reception or transmission
+ * Implemented using Stop and Start operation to pause monitoring when interrupted due to node shutdown
+ */
+class WuMacEnergyMonitor{ // TODO: OperationalBase
+public:
+    static simsignal_t receptionEndedSignal;
+    static simsignal_t falseWakeUpEndedSignal;
+    static simsignal_t transmissionEndedSignal;
+    static simsignal_t unknownEndedSignal;
+};
 
 } //namespace oppostack
 
