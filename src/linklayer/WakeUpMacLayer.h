@@ -174,18 +174,8 @@ protected:
     J transmissionStartMinEnergy = J(0.0);
     simtime_t replenishmentCheckRate = SimTime(1, SimTimeUnit::SIMTIME_S);
     cMessage* replenishmentTimer;
-    bool energyMonitoringInProgress = false;
-    J storedEnergyStartValue = J(0);
-    W initialEnergyGeneration = W(-DBL_MIN);
-    simtime_t storedEnergyStartTime = 0;
-    J intermediateDeltaEnergy = J(0);
-    void startEnergyConsumptionMonitoring();
-    double finishEnergyConsumptionMonitoring(const simsignal_t emitSignal);
-    double pauseEnergyConsumptionMonitoring();
-    void resumeEnergyConsumptionMonitoring();
 
     virtual void initialize(int stage) override;
-    virtual void finish() override;
     virtual void cancelAllTimers();
     virtual void deleteAllTimers();
     void changeActiveRadio(physicallayer::IRadio*);
@@ -206,7 +196,7 @@ protected:
   private:
     void handleDataReceivedInAckState(cMessage *msg);
     void completePacketReception();
-    const double calculateDeltaEnergyConsumption();
+
 
   protected:
     Packet* buildAck(const Packet* subject) const;

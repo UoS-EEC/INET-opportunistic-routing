@@ -17,12 +17,15 @@
 #define LINKLAYER_WUMACENERGYMONITOR_H_
 
 #include <omnetpp.h>
+#include <inet/power/contract/IEpEnergyStorage.h>
+#include <inet/common/Units.h>
 #include <inet/common/lifecycle/OperationalBase.h>
 #include <inet/common/lifecycle/LifecycleOperation.h>
 #include <inet/common/lifecycle/ModuleOperations.h>
 
-namespace oppostack {
 using namespace omnetpp;
+using namespace inet;
+namespace oppostack {
 
 /**
  * Receive Signals from WakeUpMac about starting and stopping of reception or transmission
@@ -31,13 +34,27 @@ using namespace omnetpp;
 class WuMacEnergyMonitor : public inet::OperationalBase, public inet::cListener
 {
 public:
-    WuMacEnergyMonitor():inet::OperationalBase() {};
+    WuMacEnergyMonitor():inet::OperationalBase(),
+    energyStorage(nullptr) {};
 
+    static simsignal_t wakeUpModeStartSignal;
     static simsignal_t receptionEndedSignal;
     static simsignal_t falseWakeUpEndedSignal;
+    static simsignal_t transmissionModeStartSignal;
     static simsignal_t transmissionEndedSignal;
-    static simsignal_t unknownEndedSignal;
 
+    static simsignal_t receptionConsumptionSignal;
+    static simsignal_t falseWakeUpConsumptionSignal;
+    static simsignal_t transmissionConsumptionSignal;
+    static simsignal_t unknownConsumptionSignal;
+  private:
+    simsignal_t inProgress = SIMSIGNAL_NULL;
+    inet::units::values::J storedEnergyStartValue = inet::units::values::J(0.0);
+    inet::units::values::J pausedIntermediateConsumption = inet::units::values::J(0.0);
+    inet::units::values::W initialEnergyGeneration;
+    simtime_t storedEnergyStartTime;
+
+    inet::power::IEpEnergyStorage* energyStorage;
   protected:
     void initialize(int stage) override;
     virtual bool isInitializeStage(int stage) override { return stage == inet::INITSTAGE_LINK_LAYER; }
@@ -51,6 +68,13 @@ public:
     virtual void handleStartOperation(inet::LifecycleOperation *operation) override;
     virtual void handleStopOperation(inet::LifecycleOperation *operation) override;
     virtual void handleCrashOperation(inet::LifecycleOperation *operation) override;
+
+    virtual void resumeMonitoring();
+    virtual void startMonitoring(simsignal_t startSignal);
+    virtual void finishMonitoring(simsignal_t stopSignal);
+    virtual void pauseMonitoring();
+
+    const inet::units::values::J calculateDeltaEnergyConsumption() const;
 };
 
 } /* namespace oppostack */

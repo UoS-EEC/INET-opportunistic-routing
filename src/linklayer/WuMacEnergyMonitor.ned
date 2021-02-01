@@ -20,8 +20,8 @@ simple WuMacEnergyMonitor
 {
     parameters:
         @class(WuMacEnergyMonitor);
-        string energyStorage = default("^.^.energyStorage");
-
+        string energyStorage = default("^.^.^.energyStorage");
+        
         // WakeUpMac energy consumption signals and statistics
         @signal[receptionConsumption](type=double);
         @signal[falseWakeUpConsumption](type=double);
