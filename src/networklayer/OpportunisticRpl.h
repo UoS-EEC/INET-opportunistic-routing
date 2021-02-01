@@ -16,14 +16,14 @@
 #ifndef NETWORKLAYER_OPPORTUNISTICRPL_H_
 #define NETWORKLAYER_OPPORTUNISTICRPL_H_
 
-#include "inet/common/ProtocolTag_m.h"
-#include "inet/networklayer/base/NetworkProtocolBase.h"
-#include "inet/common/LayeredProtocolBase.h"
-#include "inet/networklayer/common/L3Address.h"
-#include "inet/linklayer/common/MacAddress.h"
-#include "inet/networklayer/contract/INetworkProtocol.h"
-#include "inet/networklayer/contract/IRoutingTable.h"
-#include "inet/networklayer/contract/IArp.h"
+#include <inet/common/ProtocolTag_m.h>
+#include <inet/networklayer/base/NetworkProtocolBase.h>
+#include <inet/common/LayeredProtocolBase.h>
+#include <inet/networklayer/common/L3Address.h>
+#include <inet/linklayer/common/MacAddress.h>
+#include <inet/networklayer/contract/INetworkProtocol.h>
+#include <inet/networklayer/contract/IRoutingTable.h>
+#include <inet/networklayer/contract/IArp.h>
 #include "common/EncounterDetails_m.h"
 #include <set>
 #include <map>
@@ -41,7 +41,7 @@ template <class T>
 class OrderedDropHeadQueue{
 private:
     std::deque<T> q;
-    int maxSize;
+    unsigned int maxSize;
 public:
     OrderedDropHeadQueue(int _size = 64):
         q(_size), maxSize(_size){}

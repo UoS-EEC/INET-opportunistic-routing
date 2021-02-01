@@ -20,13 +20,13 @@
 #define __WAKEUPMAC_WAKEUPMACLAYER_H_
 
 #include <omnetpp.h>
-#include "inet/linklayer/base/MacProtocolBase.h"
-#include "inet/linklayer/contract/IMacProtocol.h"
-#include "inet/physicallayer/contract/packetlevel/IRadio.h"
-#include "inet/power/contract/IEpEnergyStorage.h"
-#include "inet/common/lifecycle/LifecycleController.h"
-#include "inet/common/lifecycle/NodeStatus.h"
-#include "inet/common/Protocol.h"
+#include <inet/linklayer/base/MacProtocolBase.h>
+#include <inet/linklayer/contract/IMacProtocol.h>
+#include <inet/physicallayer/contract/packetlevel/IRadio.h>
+#include <inet/power/contract/IEpEnergyStorage.h>
+#include <inet/common/lifecycle/LifecycleController.h>
+#include <inet/common/lifecycle/NodeStatus.h>
+#include <inet/common/Protocol.h>
 
 #include "common/Units.h"
 #include "networklayer/OpportunisticRpl.h"
@@ -65,8 +65,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     virtual void handleSelfMessage(cMessage *msg) override;
     virtual void receiveSignal(cComponent* source, simsignal_t signalID, intval_t value, cObject* details) override;
 
-
-
   protected:
     /** @brief User Configured parameters */
     simtime_t txWakeUpWaitDuration = 0;
@@ -91,6 +89,7 @@ public:
      */
     static simsignal_t transmissionTriesSignal;
     static simsignal_t ackContentionRoundsSignal;
+
     /**
      * Neighbor Update signals definitions TODO: Move elsewhere
      */
@@ -98,6 +97,14 @@ public:
     static simsignal_t coincidentalEncounterSignal;
     static simsignal_t listenForEncountersEndedSignal;
 
+    /**
+     * Mac monitoring signals
+     */
+    static simsignal_t wakeUpModeStartSignal;
+    static simsignal_t receptionEndedSignal;
+    static simsignal_t falseWakeUpEndedSignal;
+    static simsignal_t transmissionModeStartSignal;
+    static simsignal_t transmissionEndedSignal;
 protected:
     /** @brief MAC high level states */
     enum t_mac_state {
@@ -149,7 +156,6 @@ protected:
         EV_REPLENISH_TIMEOUT
     };
 
-
     /** @name Protocol timer messages */
     /*@{*/
     cMessage *wakeUpBackoffTimer;
@@ -174,18 +180,8 @@ protected:
     J transmissionStartMinEnergy = J(0.0);
     simtime_t replenishmentCheckRate = SimTime(1, SimTimeUnit::SIMTIME_S);
     cMessage* replenishmentTimer;
-    bool energyMonitoringInProgress = false;
-    J storedEnergyStartValue = J(0);
-    W initialEnergyGeneration = W(-DBL_MIN);
-    simtime_t storedEnergyStartTime = 0;
-    J intermediateDeltaEnergy = J(0);
-    void startEnergyConsumptionMonitoring();
-    double finishEnergyConsumptionMonitoring(const simsignal_t emitSignal);
-    double pauseEnergyConsumptionMonitoring();
-    void resumeEnergyConsumptionMonitoring();
 
     virtual void initialize(int stage) override;
-    virtual void finish() override;
     virtual void cancelAllTimers();
     virtual void deleteAllTimers();
     void changeActiveRadio(physicallayer::IRadio*);
@@ -206,7 +202,6 @@ protected:
   private:
     void handleDataReceivedInAckState(cMessage *msg);
     void completePacketReception();
-    const double calculateDeltaEnergyConsumption();
 
   protected:
     Packet* buildAck(const Packet* subject) const;
@@ -233,8 +228,6 @@ protected:
     void stepWuSM(const t_mac_event& event, cMessage *msg);
     void updateWuState(const t_wu_state& newWuState);
     /** @brief Receiving and acknowledgement **/
-    // TODO: implement
-
     cMessage *currentRxFrame;
     void dropCurrentRxFrame(PacketDropDetails& details);
     void encapsulate(Packet* msg) const;
@@ -248,18 +241,6 @@ protected:
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
-
-/**
- * Receive Signals from WakeUpMac about starting and stopping of reception or transmission
- * Implemented using Stop and Start operation to pause monitoring when interrupted due to node shutdown
- */
-class WuMacEnergyMonitor{ // TODO: OperationalBase
-public:
-    static simsignal_t receptionEndedSignal;
-    static simsignal_t falseWakeUpEndedSignal;
-    static simsignal_t transmissionEndedSignal;
-    static simsignal_t unknownEndedSignal;
-};
 
 } //namespace oppostack
 

@@ -17,9 +17,11 @@
 
 #include "OpportunisticRoutingHeader_m.h"
 #include "common/EqDCTag_m.h"
-#include "inet/networklayer/common/L3AddressTag_m.h"
-#include "inet/networklayer/contract/IL3AddressType.h"
-#include "inet/networklayer/common/L3AddressResolver.h"
+#include "common/oppDefs.h"
+#include <inet/networklayer/common/L3AddressTag_m.h>
+#include <inet/networklayer/contract/IL3AddressType.h>
+#include <inet/networklayer/common/L3AddressResolver.h>
+#include <inet/common/ModuleAccess.h>
 
 using namespace inet;
 using namespace oppostack;
@@ -34,7 +36,7 @@ void ORPLHello::initialize(int const stage)
         retransmissionTimer = new cMessage("Hello retransmission timer");
         minTransmissionProbability = par("intermittentPacketRate");
         ASSERT(minTransmissionProbability > 0 && minTransmissionProbability < 1);
-        packetSourceModule = getModuleFromPar<cModule>(par("packetSignalSourceModule"), this);
+        packetSourceModule = getCModuleFromPar(par("packetSignalSourceModule"), this);
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
         packetSourceModule->subscribe(packetSentToLowerSignal, this);

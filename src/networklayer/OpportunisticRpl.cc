@@ -15,14 +15,15 @@
 
 #include "networklayer/OpportunisticRpl.h"
 
-#include "inet/common/INETDefs.h"
-#include "inet/common/ProtocolTag_m.h"
+#include <inet/common/INETDefs.h>
+#include <inet/common/ProtocolTag_m.h>
 #include "OpportunisticRoutingHeader_m.h"
-#include "inet/linklayer/common/MacAddressTag_m.h"
-#include "inet/networklayer/common/L3AddressTag_m.h"
-#include "inet/networklayer/common/L3AddressResolver.h"
-#include "inet/common/ProtocolGroup.h"
+#include <inet/linklayer/common/MacAddressTag_m.h>
+#include <inet/networklayer/common/L3AddressTag_m.h>
+#include <inet/networklayer/common/L3AddressResolver.h>
+#include <inet/common/ProtocolGroup.h>
 
+#include "common/oppDefs.h"
 #include "common/Units.h"
 #include "common/EqDCTag_m.h"
 #include "networklayer/ORPLRoutingTable.h"
@@ -35,9 +36,9 @@ void OpportunisticRpl::initialize(int const stage) {
 
     if(stage == INITSTAGE_LOCAL){
         nextForwardTimer = new cMessage("Forwarding Backoff Timer");
-        auto const routingTableModule = getModuleFromPar<cModule>(par("routingTableModule"), this);
+        auto const routingTableModule = getCModuleFromPar(par("routingTableModule"), this);
         routingTable = check_and_cast<ORPLRoutingTable*>(routingTableModule);
-        arp = getModuleFromPar<IArp>(par("arpModule"), this);
+        arp = inet::getModuleFromPar<IArp>(par("arpModule"), this);
         initialTTL = par("initialTTL");
     }
     else if (stage == INITSTAGE_NETWORK_CONFIGURATION){
@@ -69,7 +70,7 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
     auto const payloadLength = header->getLength() - header->getChunkLength();
     const inet::L3Address destinationAddress = header->getDestAddr();
     EqDC nextHopCost = EqDC(25.5);
-    EqDC ownCost = routingTable->calculateEqDC(header->getDestAddr(), nextHopCost);
+    EqDC ownCost = routingTable->calculateEqDC(destinationAddress, nextHopCost);
     if(payloadLength<B(1)){
         // No data contained so silently accept packet
         // This only occurs when OpportunisticRpl sends hello messages
@@ -98,15 +99,15 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
         // Decrease TTL, set routing cost threshold and Forward.
         // "trim" required to remove the popped headers from lower layers
         packet->trim();
-        auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
-        auto newTtl = mutableHeader->getTtl()-1;
-        mutableHeader->setTtl(newTtl);
+        auto newTtl = header->getTtl()-1;
         auto outboundMacAddress =  MacAddress::STP_MULTICAST_ADDRESS;
         auto ie = interfaceTable->findFirstNonLoopbackInterface();
-        outboundMacAddress = arp->resolveL3Address(mutableHeader->getDestAddr(), ie);
+        outboundMacAddress = arp->resolveL3Address(destinationAddress, ie);
         if(outboundMacAddress == MacAddress::UNSPECIFIED_ADDRESS){
             EV_WARN << "Forwarding message to unknown L3Address" << endl;
         }
+        auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
+        mutableHeader->setTtl(newTtl);
         packet->insertAtFront(mutableHeader);
         setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
 
@@ -254,7 +255,6 @@ EqDC OpportunisticRpl::queryAcceptPacket(const MacAddress& destination,
 EqDC OpportunisticRpl::queryAcceptWakeUp(const MacAddress& destination,
         const EqDC& costThreshold) const{
     const L3Address l3dest = arp->getL3AddressFor(destination);
-    const L3Address modPathAddr = l3dest.toModulePath();
     if(l3dest==nodeAddress){
         // Mac layer should probably perform this check anyway
         return EqDC(0.0);
