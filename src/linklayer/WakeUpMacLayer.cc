@@ -376,7 +376,7 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
     }
     // Operate State machine based on current state and event
     const IRadio::RadioMode wuRadioMode = wakeUpRadio->getRadioMode();
-    const IRadio::RadioMode dataRadioMode = wakeUpRadio->getRadioMode();
+
     switch (macState){
     case S_REPLENISH:
         updateMacState(S_IDLE);

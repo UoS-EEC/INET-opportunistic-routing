@@ -19,6 +19,7 @@
 #include <inet/networklayer/nexthop/NextHopInterfaceData.h>
 #include <inet/networklayer/common/L3AddressResolver.h>
 #include "linklayer/WakeUpMacLayer.h"
+#include "common/oppDefs.h"
 
 using namespace omnetpp;
 using namespace inet;
@@ -29,14 +30,14 @@ simsignal_t ORPLRoutingTable::updatedEqDCValueSignal = cComponent::registerSigna
 
 void ORPLRoutingTable::initialize(int stage){
     if(stage == INITSTAGE_LOCAL){
-        cModule* encountersModule = getModuleFromPar<cModule>(par("encountersSourceModule"), this);
+        cModule* encountersModule = getCModuleFromPar(par("encountersSourceModule"), this);
         encountersModule->subscribe(WakeUpMacLayer::coincidentalEncounterSignal, this);
         encountersModule->subscribe(WakeUpMacLayer::expectedEncounterSignal, this);
         encountersModule->subscribe(WakeUpMacLayer::listenForEncountersEndedSignal, this);
 
-        interfaceTable = getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
+        interfaceTable = inet::getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
 
-        arp = getModuleFromPar<IArp>(par("arpModule"), this);
+        arp = inet::getModuleFromPar<IArp>(par("arpModule"), this);
 
         const char *addressTypeString = par("addressType");
         if (!strcmp(addressTypeString, "mac"))

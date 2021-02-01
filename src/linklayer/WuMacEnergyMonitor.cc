@@ -13,15 +13,13 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
+#include "common/oppDefs.h"
 #include <inet/power/contract/IEpEnergyStorage.h>
 #include "WuMacEnergyMonitor.h"
-#include <inet/common/ModuleAccess.h>
 #include "WakeUpMacLayer.h"
 
 using namespace oppostack;
-
 Define_Module(WuMacEnergyMonitor);
-
 /**
  * Energy consumption statistics
  */
@@ -36,7 +34,7 @@ void WuMacEnergyMonitor::initialize(int stage)
     if (stage == INITSTAGE_LOCAL) {
         cModule* macModule = getParentModule();
 
-        cModule* storageModule = getModuleFromPar<cModule>(macModule->par("energyStorage"), macModule);
+        cModule* storageModule = getCModuleFromPar(macModule->par("energyStorage"), macModule);
         energyStorage = check_and_cast<inet::power::IEpEnergyStorage*>(storageModule);
 
         macModule->subscribe(WakeUpMacLayer::wakeUpModeStartSignal, this);
@@ -136,7 +134,7 @@ void WuMacEnergyMonitor::receiveSignal(cComponent* const source, simsignal_t con
         finishMonitoring(transmissionConsumptionSignal);
     }
     else if(inProgress==SIMSIGNAL_NULL &&
-            signalID == WakeUpMacLayer::wakeUpModeStartSignal || signalID == WakeUpMacLayer::transmissionModeStartSignal){
+            (signalID == WakeUpMacLayer::wakeUpModeStartSignal || signalID == WakeUpMacLayer::transmissionModeStartSignal) ){
         startMonitoring(signalID);
     }
     else{

@@ -41,7 +41,7 @@ template <class T>
 class OrderedDropHeadQueue{
 private:
     std::deque<T> q;
-    int maxSize;
+    unsigned int maxSize;
 public:
     OrderedDropHeadQueue(int _size = 64):
         q(_size), maxSize(_size){}
