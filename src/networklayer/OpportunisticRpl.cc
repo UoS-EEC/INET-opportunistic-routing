@@ -255,7 +255,6 @@ EqDC OpportunisticRpl::queryAcceptPacket(const MacAddress& destination,
 EqDC OpportunisticRpl::queryAcceptWakeUp(const MacAddress& destination,
         const EqDC& costThreshold) const{
     const L3Address l3dest = arp->getL3AddressFor(destination);
-    const L3Address modPathAddr = l3dest.toModulePath();
     if(l3dest==nodeAddress){
         // Mac layer should probably perform this check anyway
         return EqDC(0.0);
