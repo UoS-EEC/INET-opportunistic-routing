@@ -37,12 +37,6 @@ public:
     WuMacEnergyMonitor():inet::OperationalBase(),
     energyStorage(nullptr) {};
 
-    static simsignal_t wakeUpModeStartSignal;
-    static simsignal_t receptionEndedSignal;
-    static simsignal_t falseWakeUpEndedSignal;
-    static simsignal_t transmissionModeStartSignal;
-    static simsignal_t transmissionEndedSignal;
-
     static simsignal_t receptionConsumptionSignal;
     static simsignal_t falseWakeUpConsumptionSignal;
     static simsignal_t transmissionConsumptionSignal;
@@ -64,7 +58,7 @@ public:
     virtual void receiveSignal(cComponent *source, simsignal_t signalID, bool b, cObject *details) override;
 
     // OperationalBase:
-    virtual void handleMessageWhenUp(cMessage *msg) override;
+    virtual void handleMessageWhenUp(cMessage *msg) override {};
     virtual void handleStartOperation(inet::LifecycleOperation *operation) override;
     virtual void handleStopOperation(inet::LifecycleOperation *operation) override;
     virtual void handleCrashOperation(inet::LifecycleOperation *operation) override;

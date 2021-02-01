@@ -19,7 +19,6 @@ import inet.linklayer.contract.IMacProtocol;
 import inet.queueing.contract.IPacketQueue;
 
 
-
 module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
 {
     parameters:
@@ -40,9 +39,9 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
 
         // Weighted Encounters signals and with attached L2Addr and EDC/EquivalentTx(EqTx) details
-        @signal[coincidentalEncounter](type = double);
-        @signal[expectedEncounter](type = double);
-        @signal[listenForEncountersEnded](type = double);
+        @signal[coincidentalEncounter](type=double);
+        @signal[expectedEncounter](type=double);
+        @signal[listenForEncountersEnded](type=double);
         @statistic[coincidentalEncounter](title="Weighted coincidental neighbor encounter"; record=vector);
         @statistic[expectedEncounter](title="Weighted expected neighbor encounter"; record=vector);
         @statistic[listenForEncountersEnded](title="Ended expected encounters listening period"; record=vector);

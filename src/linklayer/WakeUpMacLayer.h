@@ -65,8 +65,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
     virtual void handleSelfMessage(cMessage *msg) override;
     virtual void receiveSignal(cComponent* source, simsignal_t signalID, intval_t value, cObject* details) override;
 
-
-
   protected:
     /** @brief User Configured parameters */
     simtime_t txWakeUpWaitDuration = 0;
@@ -91,6 +89,7 @@ public:
      */
     static simsignal_t transmissionTriesSignal;
     static simsignal_t ackContentionRoundsSignal;
+
     /**
      * Neighbor Update signals definitions TODO: Move elsewhere
      */
@@ -98,6 +97,14 @@ public:
     static simsignal_t coincidentalEncounterSignal;
     static simsignal_t listenForEncountersEndedSignal;
 
+    /**
+     * Mac monitoring signals
+     */
+    static simsignal_t wakeUpModeStartSignal;
+    static simsignal_t receptionEndedSignal;
+    static simsignal_t falseWakeUpEndedSignal;
+    static simsignal_t transmissionModeStartSignal;
+    static simsignal_t transmissionEndedSignal;
 protected:
     /** @brief MAC high level states */
     enum t_mac_state {
@@ -149,7 +156,6 @@ protected:
         EV_REPLENISH_TIMEOUT
     };
 
-
     /** @name Protocol timer messages */
     /*@{*/
     cMessage *wakeUpBackoffTimer;
@@ -197,7 +203,6 @@ protected:
     void handleDataReceivedInAckState(cMessage *msg);
     void completePacketReception();
 
-
   protected:
     Packet* buildAck(const Packet* subject) const;
     void updateMacState(const t_mac_state& newMacState);
@@ -223,8 +228,6 @@ protected:
     void stepWuSM(const t_mac_event& event, cMessage *msg);
     void updateWuState(const t_wu_state& newWuState);
     /** @brief Receiving and acknowledgement **/
-    // TODO: implement
-
     cMessage *currentRxFrame;
     void dropCurrentRxFrame(PacketDropDetails& details);
     void encapsulate(Packet* msg) const;
