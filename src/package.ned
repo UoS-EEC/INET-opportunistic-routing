@@ -1,3 +1,3 @@
-package wakeupmac;
-
-@license(LGPL);
+package oppostack;
+@namespace(oppostack);
+@license(MIT);

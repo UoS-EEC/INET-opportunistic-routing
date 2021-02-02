@@ -20,8 +20,7 @@ import inet.networklayer.common.IpProtocolId;
 import inet.networklayer.contract.NetworkHeaderBase;
 import inet.common.packet.chunk.Chunk;
 cplusplus {{
-#include "inet/common/ProtocolGroup.h"
-#include "OpportunisticRpl.h"
+#include <inet/common/ProtocolGroup.h>
 }}
 namespace inet;
 

@@ -13,12 +13,12 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package wakeupmac.simulations;
+package oppostack.simulations;
 
 import inet.networklayer.common.InterfaceTable;
 import inet.node.inet.AdhocHost;
 import inet.physicallayer.ieee802154.packetlevel.Ieee802154NarrowbandScalarRadioMedium;
-import wakeupmac.ORPLLayerNode;
+import oppostack.node.ORPLLayerNode;
 import inet.visualizer.integrated.IntegratedCanvasVisualizer;
 import inet.networklayer.configurator.nexthop.NextHopNetworkConfigurator;
 
@@ -33,24 +33,24 @@ network ORPLTest
         radioMedium: Ieee802154NarrowbandScalarRadioMedium {
             @display("p=18.343197,17.751482");
         }
-        receivingWakeUpNode: ORPLLayerNode {
+        routingHub: ORPLLayerNode {
             @display("p=71.68298,45.578777");
             wlan[0].mac.address = "0000DA7ABA5E";
-            generic.np.hubAddress = "receivingWakeUpNode";
+            generic.np.hubAddress = "routingHub";
             generic.np.hubExpectedCost = 0;
         }
         transmittingWakeUpNode: ORPLLayerNode {
             @display("p=62.774406,37.4989");
-            generic.np.hubAddress = "receivingWakeUpNode";
-            generic.np.hubExpectedCost = 4;
-            packetGenerator.destAddresses = "receivingWakeUpNode(modulepath)";
+            generic.np.hubAddress = "routingHub";
+            generic.np.hubExpectedCost = 4ExpectedCost;
+            packetGenerator.destAddresses = "routingHub(modulepath)";
             packetGenerator.startTime = 0.5s;
         }
         overhearingWakeUpNode: ORPLLayerNode {
             @display("p=62.774406,50.758183");
-            generic.np.hubAddress = "receivingWakeUpNode";
-            generic.np.hubExpectedCost = 2;
-            packetGenerator.destAddresses = "receivingWakeUpNode(modulepath)";
+            generic.np.hubAddress = "routingHub";
+            generic.np.hubExpectedCost = 2ExpectedCost;
+            packetGenerator.destAddresses = "routingHub(modulepath)";
             packetGenerator.sendInterval = 5s;
         }
 //        transmittingNode: AdhocHost {

@@ -11,18 +11,22 @@
 // 
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/.
-// 
-
-#include "WakeUpMacInterface.h"
-
-Define_Module(WakeUpMacInterface);
-
-//WakeUpMacInterface::WakeUpMacInterface() {
-//    // TODO Auto-generated constructor stub
 //
-//}
-//
-//WakeUpMacInterface::~WakeUpMacInterface() {
-//    // TODO Auto-generated destructor stub
-//}
+cplusplus {{
+#include "Units.h"
+}}
 
+namespace oppostack;
+
+class ExpectedCost
+{
+    @existingClass;
+    @opaque;
+    @toString(.str());
+}
+class EqDC
+{
+    @existingClass;
+    @opaque;
+    @toString(.str());
+}

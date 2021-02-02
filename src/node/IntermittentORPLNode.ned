@@ -13,20 +13,15 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef ORPLROUTECANVASVISUALIZER_H_
-#define ORPLROUTECANVASVISUALIZER_H_
+package oppostack.node;
 
-#include "inet/visualizer/networklayer/NetworkRouteCanvasVisualizer.h"
-using namespace inet;
-
-class ORPLRouteCanvasVisualizer : public inet::visualizer::NetworkRouteCanvasVisualizer{
-public:
-    ORPLRouteCanvasVisualizer() : inet::visualizer::NetworkRouteCanvasVisualizer() {};
-protected:
-  virtual bool isPathStart(cModule *module) const override;
-  virtual bool isPathEnd(cModule *module) const override;
-  virtual bool isPathElement(cModule *module) const override;
-
-};
-
-#endif /* ORPLROUTECANVASVISUALIZER_H_ */
+//
+// TODO auto-generated type
+//
+module IntermittentORPLNode extends ORPLLayerNode
+{
+    parameters:
+        @display("i=old/x_green");
+        // Drastically reduced energy, tx rate over 0.01Hz will cause intermittency
+        energyGenerator.powerGeneration = default(14uW); 
+}
