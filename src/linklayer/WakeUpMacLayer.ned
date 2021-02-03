@@ -52,6 +52,13 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         @statistic[transmissionTries](title="Number of Tries till packet discarded or received"; record=histogram,vector);
         @statistic[ackContentionRounds](title="Number of ack contention rounds for each packet"; record=histogram,vector);
 
+		// Mac Energy Consumption Monitoring Signals
+        @signal[wakeUpModeStart](type=bool);
+        @signal[receptionEnded](type=bool);
+        @signal[falseWakeUpEnded](type=bool);
+        @signal[transmissionModeStart](type=bool);
+        @signal[transmissionEnded](type=bool);
+
         // Generic packet loss statistics
         @statistic[packetDropNoRouteFound](title="packet drop: no route found"; source=packetDropReasonIsNoRouteFound(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
         @statistic[packetDropQueueOverflow](title="packet drop: queue overflow"; source=packetDropReasonIsQueueOverflow(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
