@@ -19,6 +19,7 @@
 #include <inet/networklayer/nexthop/NextHopInterfaceData.h>
 #include <inet/networklayer/common/L3AddressResolver.h>
 #include "linklayer/WakeUpMacLayer.h"
+#include "linklayer/WakeUpGram_m.h"
 #include "common/oppDefs.h"
 
 using namespace omnetpp;
@@ -52,12 +53,20 @@ void ORPLRoutingTable::initialize(int stage){
         forwardingCostW = EqDC(par("forwardingCost"));
     }
     else if(stage == INITSTAGE_LINK_LAYER){
-        for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i)
-            configureInterface(interfaceTable->getInterface(i));
+        for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i){
+            auto interfaceI = interfaceTable->getInterface(i);
+            configureInterface(interfaceI);
+            INetfilter* wakeUpMacFilter = dynamic_cast<INetfilter*>(interfaceI->getSubmodule("mac"));
+            if(wakeUpMacFilter)wakeUpMacFilter->registerHook(0, this);
+        }
+        if(netfilters.empty()){
+            throw cRuntimeError("No suitable Wake Up Mac found under: %s.mac", this->getFullPath());
+        }
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
         const char* rootParameter = par("hubAddress");
         L3AddressResolver().tryResolve(rootParameter, rootAddress, L3AddressResolver::ADDR_MODULEPATH);
+
     }
 }
 
@@ -179,4 +188,9 @@ void ORPLRoutingTable::increaseInteractionDenominator()
         calculateInteractionProbability();
         encountersCount = 0;
     }
+}
+
+INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datagram)
+{
+    return IHook::Result::ACCEPT;
 }

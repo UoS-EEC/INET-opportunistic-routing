@@ -557,12 +557,13 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         if(newAckEqDCResponse < ackEqDCResponse){
             ackEqDCResponse = newAckEqDCResponse;
         }
+        IHook::Result preRoutingResponse = datagramPreRoutingHook(incomingFrame);
 
         // Cancel delivery timer until next round
         cancelEvent(wuTimeout);
         // Start ack backoff
         cancelEvent(ackBackoffTimer);
-        if(newAckEqDCResponse == EqDC(25.5)){
+        if(newAckEqDCResponse == EqDC(25.5) || preRoutingResponse == IHook::DROP){
             // New information in the data packet means do not accept data packet
             PacketDropDetails details;
             details.setReason(PacketDropReason::OTHER_PACKET_DROP);
@@ -978,14 +979,15 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
             emit(wakeUpModeStartSignal, true);
             updateWuState(WU_APPROVE_WAIT);
             scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
-            const Packet* wuPkt = check_and_cast<Packet*>(msg);
+            Packet* wuPkt = check_and_cast<Packet*>(msg);
             ackEqDCResponse = EqDC(25.5);
-            queryWakeupRequest(wuPkt);
             auto wakeUpHeader = wuPkt->peekAtFront<WakeUpGram>();
             EncounterDetails details;
             details.setEncountered(wakeUpHeader->getTransmitterAddress());
             details.setCurrentEqDC(wakeUpHeader->getExpectedCostInd());
             emit(coincidentalEncounterSignal, 2.0, &details);
+            queryWakeupRequest(wuPkt);
+            datagramPreRoutingHook(wuPkt);
         }
         break;
     case WU_APPROVE_WAIT:
@@ -1105,4 +1107,77 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
     updateMacState(S_IDLE);
     interfaceEntry->setCarrier(false);
     interfaceEntry->setState(InterfaceEntry::State::DOWN);
+}
+
+INetfilter::IHook::Result WakeUpMacLayer::datagramPreRoutingHook(Packet *datagram)
+{
+    auto ret = IHook::Result::DROP;
+    for (auto & elem : hooks) {
+        IHook::Result r = elem.second->datagramPreRoutingHook(datagram);
+        PacketDropDetails details;
+        switch (r) {
+            case IHook::ACCEPT:
+                ret = r;
+                break;    // continue iteration
+            case IHook::DROP:
+                return r;
+            case IHook::QUEUE:
+            case IHook::STOLEN:
+            default:
+                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
+        }
+    }
+    return ret;
+}
+
+INetfilter::IHook::Result WakeUpMacLayer::datagramPostRoutingHook(Packet *datagram)
+{
+    for (auto & elem : hooks) {
+        IHook::Result r = elem.second->datagramPostRoutingHook(datagram);
+        switch (r) {
+            case IHook::ACCEPT:
+                break;    // continue iteration
+            case IHook::DROP:
+            case IHook::QUEUE:
+            case IHook::STOLEN:
+            default:
+                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
+        }
+    }
+    return IHook::ACCEPT;
+}
+
+INetfilter::IHook::Result WakeUpMacLayer::datagramLocalInHook(Packet *datagram)
+{
+    L3Address address;
+    for (auto & elem : hooks) {
+        IHook::Result r = elem.second->datagramLocalInHook(datagram);
+        switch (r) {
+            case IHook::ACCEPT:
+                break;    // continue iteration
+            case IHook::DROP:
+            case IHook::QUEUE:
+            case IHook::STOLEN:
+            default:
+                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
+        }
+    }
+    return IHook::ACCEPT;
+}
+
+INetfilter::IHook::Result WakeUpMacLayer::datagramLocalOutHook(Packet *datagram)
+{
+    for (auto & elem : hooks) {
+        IHook::Result r = elem.second->datagramLocalOutHook(datagram);
+        switch (r) {
+            case IHook::ACCEPT:
+                break;    // continue iteration
+            case IHook::DROP:
+            case IHook::QUEUE:
+            case IHook::STOLEN:
+            default:
+                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
+        }
+    }
+    return IHook::ACCEPT;
 }
