@@ -19,7 +19,9 @@
 #include <inet/networklayer/nexthop/NextHopInterfaceData.h>
 #include <inet/networklayer/common/L3AddressResolver.h>
 #include "linklayer/WakeUpMacLayer.h"
+#include "linklayer/WakeUpGram_m.h"
 #include "common/oppDefs.h"
+#include "common/EqDCTag_m.h"
 
 using namespace omnetpp;
 using namespace inet;
@@ -52,12 +54,20 @@ void ORPLRoutingTable::initialize(int stage){
         forwardingCostW = EqDC(par("forwardingCost"));
     }
     else if(stage == INITSTAGE_LINK_LAYER){
-        for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i)
-            configureInterface(interfaceTable->getInterface(i));
+        for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i){
+            auto interfaceI = interfaceTable->getInterface(i);
+            configureInterface(interfaceI);
+            INetfilter* wakeUpMacFilter = dynamic_cast<INetfilter*>(interfaceI->getSubmodule("mac"));
+            if(wakeUpMacFilter)wakeUpMacFilter->registerHook(0, this);
+        }
+        if(netfilters.empty()){
+            throw cRuntimeError("No suitable Wake Up Mac found under: %s.mac", this->getFullPath());
+        }
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
         const char* rootParameter = par("hubAddress");
         L3AddressResolver().tryResolve(rootParameter, rootAddress, L3AddressResolver::ADDR_MODULEPATH);
+
     }
 }
 
@@ -179,4 +189,25 @@ void ORPLRoutingTable::increaseInteractionDenominator()
         calculateInteractionProbability();
         encountersCount = 0;
     }
+}
+
+INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datagram)
+{
+    auto header = datagram->peekAtFront<WakeUpGram>();
+    bool approve = false;
+    const auto receiverAddr = header->getReceiverAddress();
+    // If packet addressed directly to interface, then accept it with zero cost.
+    for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i){
+        auto interfaceEntry = interfaceTable->getInterface(i);
+        if(receiverAddr == interfaceEntry->getMacAddress()){
+            datagram->addTagIfAbsent<EqDCInd>()->setEqDC(EqDC(0.0));
+            return IHook::Result::ACCEPT;
+        }
+    }
+    const auto headerType = header->getType();
+    if(headerType==WakeUpGramType::WU_BEACON ||
+            headerType==WakeUpGramType::WU_DATA){
+        return IHook::Result::ACCEPT;
+    }
+    return IHook::Result::DROP;
 }

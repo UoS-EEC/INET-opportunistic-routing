@@ -21,13 +21,14 @@
 #include <inet/networklayer/common/L3Address.h>
 #include <inet/networklayer/contract/IArp.h>
 #include <inet/networklayer/contract/IInterfaceTable.h>
+#include <inet/networklayer/contract/INetfilter.h>
 
 #include "common/Units.h"
 
 namespace oppostack{
 
 
-class ORPLRoutingTable : public omnetpp::cSimpleModule, public inet::cListener
+class ORPLRoutingTable : public omnetpp::cSimpleModule, public inet::cListener, public inet::NetfilterBase::HookBase
 {
 public:
     ORPLRoutingTable():
@@ -62,6 +63,12 @@ public:
     oppostack::EqDC calculateEqDC(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
     oppostack::EqDC calculateEqDC(const inet::L3Address destination) const;
     void increaseInteractionDenominator();
+    // Hook to accept incoming requests
+    virtual inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram);
+    virtual inet::INetfilter::IHook::Result datagramForwardHook(inet::Packet*){return IHook::Result::ACCEPT;};
+    virtual inet::INetfilter::IHook::Result datagramPostRoutingHook(inet::Packet *datagram){return IHook::Result::ACCEPT;};
+    virtual inet::INetfilter::IHook::Result datagramLocalInHook(inet::Packet *datagram){return IHook::Result::ACCEPT;};
+    virtual inet::INetfilter::IHook::Result datagramLocalOutHook(inet::Packet *datagram){return IHook::Result::ACCEPT;};
 };
 
 } //namespace oppostack
