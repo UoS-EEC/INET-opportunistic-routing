@@ -93,9 +93,6 @@ void WakeUpMacLayer::initialize(int const stage) {
         const char* networkNodePath = par("networkNode");
         networkNode = getModuleByPath(networkNodePath);
 
-        const char* routingModulePath = par("routingModule");
-        cModule* module = getModuleByPath(routingModulePath);
-        routingModule = check_and_cast_nullable<OpportunisticRpl*>(module);
         txQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("queue"));
 
         /*
@@ -155,16 +152,6 @@ void WakeUpMacLayer::initialize(int const stage) {
 
         // Initial state handled by handleStartOperation()
 
-    }
-    else if(stage == INITSTAGE_NETWORK_LAYER){
-        // Find network layer with query wake-up request
-        if (routingModule != nullptr){
-            // Found routing module that implements T::queryAcceptWakeUp(..) and T::queryAcceptPacket(..);
-
-        }
-        else{
-            EV_WARN << "WuMac initialize(): No routing module with wake-up discernment provided" << endl;
-        }
     }
 }
 void WakeUpMacLayer::changeActiveRadio(physicallayer::IRadio* const newActiveRadio) {
@@ -333,35 +320,13 @@ void WakeUpMacLayer::configureInterfaceEntry() {
     interfaceEntry->setBroadcast(true);
     interfaceEntry->setPointToPoint(false);
 }
-void WakeUpMacLayer::queryWakeupRequest(const Packet* wakeUp) {
-    // For now just send immediate acceptance
-    // TODO: Check if receiver mac address is this node
-    auto header = wakeUp->peekAtFront<WakeUpGram>();
-    bool approve = false;
+void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
+    const auto header = wakeUp->peekAtFront<WakeUpGram>();
     if(header->getType()!=WakeUpGramType::WU_BEACON){
-        approve = false;
+        return;
     }
-    else if(header->getReceiverAddress() == interfaceEntry->getMacAddress()){
-        approve = true;
-        ackEqDCResponse = EqDC(0.0);
-    }
-    else if(header->getReceiverAddress() == MacAddress::BROADCAST_ADDRESS){
-        // Broadcast beacons accepted as they are for "Hello" messages
-        approve = true;
-        ackEqDCResponse = EqDC(25.5);
-    }
-    else if(routingModule != nullptr && header->getType()==WakeUpGramType::WU_BEACON){
-        auto costHeader = wakeUp->peekAtFront<WakeUpBeacon>();
-        // TODO: Query Opportunistic layer for permission to wake-up
-        EqDC acceptPacketThreshold = routingModule->queryAcceptWakeUp(header->getReceiverAddress(),
-                                                                        costHeader->getMinExpectedCost());
-        if(acceptPacketThreshold<EqDC(25.5)){
-            ackEqDCResponse = acceptPacketThreshold;
-            approve = true;
-        }
-    }
-
-    if(approve == true){
+    if(datagramPreRoutingHook(wakeUp)==HookBase::Result::ACCEPT){
+        ackEqDCResponse = wakeUp->getTag<EqDCInd>()->getEqDC();
         // Approve wake-up request
         cMessage* msg = new cMessage("approve");
         msg->setKind(WAKEUP_APPROVE);
@@ -551,19 +516,14 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         updateMacState(S_ACK);
         // Store the new received packet
         currentRxFrame = incomingFrame;
-        // If better EqDC improved, update
-        EqDC newAckEqDCResponse = routingModule->queryAcceptPacket(incomingMacData->getReceiverAddress(),
-                incomingFullHeader->getMinExpectedCost(), check_and_cast<Packet*>(currentRxFrame)); // TODO: Decapsulate first? (requires changing buildAck(..) and completePacketReception(..)
-        if(newAckEqDCResponse < ackEqDCResponse){
-            ackEqDCResponse = newAckEqDCResponse;
-        }
-        IHook::Result preRoutingResponse = datagramPreRoutingHook(incomingFrame);
-
         // Cancel delivery timer until next round
         cancelEvent(wuTimeout);
         // Start ack backoff
         cancelEvent(ackBackoffTimer);
-        if(newAckEqDCResponse == EqDC(25.5) || preRoutingResponse == IHook::DROP){
+
+        // Check using packet data that accepting wake-up is still correct
+        IHook::Result preRoutingResponse = datagramPreRoutingHook(incomingFrame);
+        if(preRoutingResponse != IHook::ACCEPT){
             // New information in the data packet means do not accept data packet
             PacketDropDetails details;
             details.setReason(PacketDropReason::OTHER_PACKET_DROP);
@@ -574,6 +534,12 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
             // TODO: Send "Negative Ack"?
         }
         else{
+            EqDC newAckEqDCResponse = incomingFrame->getTag<EqDCInd>()->getEqDC();
+            // If better EqDC response, update
+            if(newAckEqDCResponse < ackEqDCResponse){
+                ackEqDCResponse = newAckEqDCResponse;
+            }
+
             // Reset cumulative ack backoff
             cumulativeAckBackoff = uniform(0,initialContentionDuration);
             rxAckRound++;
@@ -987,7 +953,6 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
             details.setCurrentEqDC(wakeUpHeader->getExpectedCostInd());
             emit(coincidentalEncounterSignal, 2.0, &details);
             queryWakeupRequest(wuPkt);
-            datagramPreRoutingHook(wuPkt);
         }
         break;
     case WU_APPROVE_WAIT:

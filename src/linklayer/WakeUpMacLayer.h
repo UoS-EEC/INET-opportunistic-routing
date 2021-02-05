@@ -55,7 +55,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public Netfi
         energyStorage(nullptr),
         networkNode(nullptr),
         replenishmentTimer(nullptr),
-        routingModule(nullptr),
         currentRxFrame(nullptr)
       {}
     virtual ~WakeUpMacLayer();
@@ -188,8 +187,7 @@ protected:
     void changeActiveRadio(physicallayer::IRadio*);
     virtual bool isLowerMessage(cMessage* message) override;
     virtual void configureInterfaceEntry() override;
-    OpportunisticRpl* routingModule;
-    void queryWakeupRequest(const Packet* wakeUp);
+    void queryWakeupRequest(Packet* wakeUp);
     simtime_t setRadioToTransmitIfFreeOrDelay(cMessage* timer, const simtime_t& maxDelay);
     void setWuRadioToTransmitIfFreeOrDelay(const t_mac_event& event, cMessage* timer, const simtime_t& maxDelay);
 
@@ -208,9 +206,9 @@ protected:
     virtual IHook::Result datagramLocalOutHook(Packet *datagram);
 
     // @brief reinjecting datagram means nothing at mac layer currently
-    virtual void reinjectQueuedDatagram(const Packet *datagram){};
+    virtual void reinjectQueuedDatagram(const Packet *datagram) override{};
     // @brief dropQueuedDatagram cannot drop due to forced const argument
-    virtual void dropQueuedDatagram(const Packet* datagram){};
+    virtual void dropQueuedDatagram(const Packet* datagram) override{};
 
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */

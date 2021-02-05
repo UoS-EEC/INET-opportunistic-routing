@@ -195,11 +195,11 @@ INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datag
 {
     auto header = datagram->peekAtFront<WakeUpGram>();
     bool approve = false;
-    const auto receiverAddr = header->getReceiverAddress();
+    const auto destAddr = header->getReceiverAddress();
     // If packet addressed directly to interface, then accept it with zero cost.
     for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i){
         auto interfaceEntry = interfaceTable->getInterface(i);
-        if(receiverAddr == interfaceEntry->getMacAddress()){
+        if(destAddr == interfaceEntry->getMacAddress()){
             datagram->addTagIfAbsent<EqDCInd>()->setEqDC(EqDC(0.0));
             return IHook::Result::ACCEPT;
         }
@@ -207,7 +207,22 @@ INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datag
     const auto headerType = header->getType();
     if(headerType==WakeUpGramType::WU_BEACON ||
             headerType==WakeUpGramType::WU_DATA){
-        return IHook::Result::ACCEPT;
+        auto costHeader = datagram->peekAtFront<WakeUpBeacon>();
+        if(destAddr == MacAddress::BROADCAST_ADDRESS){
+            datagram->addTagIfAbsent<EqDCInd>()->setEqDC(EqDC(25.5));
+            //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
+            return IHook::Result::ACCEPT;
+        }
+        else{
+            const L3Address l3dest = arp->getL3AddressFor(destAddr);
+            EqDC acceptPacketThreshold = calculateEqDC(l3dest);
+            if(acceptPacketThreshold<=costHeader->getMinExpectedCost()){
+                datagram->addTagIfAbsent<EqDCInd>()->setEqDC(acceptPacketThreshold);
+                //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
+                return IHook::Result::ACCEPT;
+            }
+
+        }
     }
     return IHook::Result::DROP;
 }

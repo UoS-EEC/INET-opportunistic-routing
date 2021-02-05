@@ -64,11 +64,11 @@ public:
     oppostack::EqDC calculateEqDC(const inet::L3Address destination) const;
     void increaseInteractionDenominator();
     // Hook to accept incoming requests
-    virtual inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram);
-    virtual inet::INetfilter::IHook::Result datagramForwardHook(inet::Packet*){return IHook::Result::ACCEPT;};
-    virtual inet::INetfilter::IHook::Result datagramPostRoutingHook(inet::Packet *datagram){return IHook::Result::ACCEPT;};
-    virtual inet::INetfilter::IHook::Result datagramLocalInHook(inet::Packet *datagram){return IHook::Result::ACCEPT;};
-    virtual inet::INetfilter::IHook::Result datagramLocalOutHook(inet::Packet *datagram){return IHook::Result::ACCEPT;};
+    virtual inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram) override;
+    virtual inet::INetfilter::IHook::Result datagramForwardHook(inet::Packet*) override{return IHook::Result::ACCEPT;};
+    virtual inet::INetfilter::IHook::Result datagramPostRoutingHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};
+    virtual inet::INetfilter::IHook::Result datagramLocalInHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};
+    virtual inet::INetfilter::IHook::Result datagramLocalOutHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};
 };
 
 } //namespace oppostack
