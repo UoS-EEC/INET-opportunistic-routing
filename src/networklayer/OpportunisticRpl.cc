@@ -248,30 +248,6 @@ void OpportunisticRpl::handleCrashOperation(LifecycleOperation *op) {
     handleStopOperation(op);
 }
 
-EqDC OpportunisticRpl::queryAcceptPacket(const MacAddress& destination,
-        const EqDC& costThreshold, const Packet* data) const{
-    // TODO: Check other fields in the data packet after wake-up, before
-    return queryAcceptWakeUp(destination,
-            costThreshold);
-}
-EqDC OpportunisticRpl::queryAcceptWakeUp(const MacAddress& destination,
-        const EqDC& costThreshold) const{
-    const L3Address l3dest = arp->getL3AddressFor(destination);
-    if(l3dest==nodeAddress){
-        // Mac layer should probably perform this check anyway
-        return EqDC(0.0);
-    }
-    else{
-        const EqDC newCost = routingTable->calculateEqDC(l3dest);
-        if(newCost <= costThreshold){
-            return newCost;
-        }
-    }
-    // Insufficient progress or unknown destination so don't accept
-    return EqDC(25.5);
-
-}
-
 bool OpportunisticRpl::messageKnown(const oppostack::PacketRecord record)
 {
     return packetHistory.find(record);

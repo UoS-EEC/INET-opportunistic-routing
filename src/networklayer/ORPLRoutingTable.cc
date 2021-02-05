@@ -210,6 +210,7 @@ INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datag
         auto costHeader = datagram->peekAtFront<WakeUpBeacon>();
         if(destAddr == MacAddress::BROADCAST_ADDRESS){
             datagram->addTagIfAbsent<EqDCInd>()->setEqDC(EqDC(25.5));
+            //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
             return IHook::Result::ACCEPT;
         }
         else{
@@ -217,6 +218,7 @@ INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datag
             EqDC acceptPacketThreshold = calculateEqDC(l3dest);
             if(acceptPacketThreshold<=costHeader->getMinExpectedCost()){
                 datagram->addTagIfAbsent<EqDCInd>()->setEqDC(acceptPacketThreshold);
+                //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
                 return IHook::Result::ACCEPT;
             }
 
