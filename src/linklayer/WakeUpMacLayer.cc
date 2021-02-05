@@ -113,7 +113,7 @@ void WakeUpMacLayer::initialize(int const stage) {
         const bps bitrate = dataTransmitter->getBitrate();
         const int maxAckCount = std::floor(ackWaitDuration.dbl()*bitrate.get()/ackBits.get());
         ASSERT2(maxAckCount > requiredForwarders + 2, "Ack wait duration is too small for multiple forwarders.");
-        ASSERT(maxAckCount < 10);
+        ASSERT(maxAckCount < 20);
         const double remainingAckProportion = (double)(maxAckCount-1)/(double)(maxAckCount);
         ASSERT(remainingAckProportion < 1 && remainingAckProportion > 0);
         // 0.2*ackWaitDuration currently Hardcoded into TX_DATA state
