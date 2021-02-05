@@ -21,6 +21,7 @@
 #include "linklayer/WakeUpMacLayer.h"
 #include "linklayer/WakeUpGram_m.h"
 #include "common/oppDefs.h"
+#include "common/EqDCTag_m.h"
 
 using namespace omnetpp;
 using namespace inet;
@@ -192,5 +193,21 @@ void ORPLRoutingTable::increaseInteractionDenominator()
 
 INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datagram)
 {
-    return IHook::Result::ACCEPT;
+    auto header = datagram->peekAtFront<WakeUpGram>();
+    bool approve = false;
+    const auto receiverAddr = header->getReceiverAddress();
+    // If packet addressed directly to interface, then accept it with zero cost.
+    for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i){
+        auto interfaceEntry = interfaceTable->getInterface(i);
+        if(receiverAddr == interfaceEntry->getMacAddress()){
+            datagram->addTagIfAbsent<EqDCInd>()->setEqDC(EqDC(0.0));
+            return IHook::Result::ACCEPT;
+        }
+    }
+    const auto headerType = header->getType();
+    if(headerType==WakeUpGramType::WU_BEACON ||
+            headerType==WakeUpGramType::WU_DATA){
+        return IHook::Result::ACCEPT;
+    }
+    return IHook::Result::DROP;
 }
