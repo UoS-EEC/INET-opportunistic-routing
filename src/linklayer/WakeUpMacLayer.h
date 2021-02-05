@@ -208,9 +208,9 @@ protected:
     virtual IHook::Result datagramLocalOutHook(Packet *datagram);
 
     // @brief reinjecting datagram means nothing at mac layer currently
-    virtual void reinjectQueuedDatagram(const Packet *datagram){};
+    virtual void reinjectQueuedDatagram(const Packet *datagram) override{};
     // @brief dropQueuedDatagram cannot drop due to forced const argument
-    virtual void dropQueuedDatagram(const Packet* datagram){};
+    virtual void dropQueuedDatagram(const Packet* datagram) override{};
 
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
