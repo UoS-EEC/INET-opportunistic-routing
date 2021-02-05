@@ -189,7 +189,7 @@ protected:
     virtual bool isLowerMessage(cMessage* message) override;
     virtual void configureInterfaceEntry() override;
     OpportunisticRpl* routingModule;
-    void queryWakeupRequest(const Packet* wakeUp);
+    void queryWakeupRequest(Packet* wakeUp);
     simtime_t setRadioToTransmitIfFreeOrDelay(cMessage* timer, const simtime_t& maxDelay);
     void setWuRadioToTransmitIfFreeOrDelay(const t_mac_event& event, cMessage* timer, const simtime_t& maxDelay);
 

@@ -333,35 +333,13 @@ void WakeUpMacLayer::configureInterfaceEntry() {
     interfaceEntry->setBroadcast(true);
     interfaceEntry->setPointToPoint(false);
 }
-void WakeUpMacLayer::queryWakeupRequest(const Packet* wakeUp) {
-    // For now just send immediate acceptance
-    // TODO: Check if receiver mac address is this node
-    auto header = wakeUp->peekAtFront<WakeUpGram>();
-    bool approve = false;
+void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
+    const auto header = wakeUp->peekAtFront<WakeUpGram>();
     if(header->getType()!=WakeUpGramType::WU_BEACON){
-        approve = false;
+        return;
     }
-    else if(header->getReceiverAddress() == interfaceEntry->getMacAddress()){
-        approve = true;
-        ackEqDCResponse = EqDC(0.0);
-    }
-    else if(header->getReceiverAddress() == MacAddress::BROADCAST_ADDRESS){
-        // Broadcast beacons accepted as they are for "Hello" messages
-        approve = true;
-        ackEqDCResponse = EqDC(25.5);
-    }
-    else if(routingModule != nullptr && header->getType()==WakeUpGramType::WU_BEACON){
-        auto costHeader = wakeUp->peekAtFront<WakeUpBeacon>();
-        // TODO: Query Opportunistic layer for permission to wake-up
-        EqDC acceptPacketThreshold = routingModule->queryAcceptWakeUp(header->getReceiverAddress(),
-                                                                        costHeader->getMinExpectedCost());
-        if(acceptPacketThreshold<EqDC(25.5)){
-            ackEqDCResponse = acceptPacketThreshold;
-            approve = true;
-        }
-    }
-
-    if(approve == true){
+    if(datagramPreRoutingHook(wakeUp)==HookBase::Result::ACCEPT){
+        ackEqDCResponse = wakeUp->getTag<EqDCInd>()->getEqDC();
         // Approve wake-up request
         cMessage* msg = new cMessage("approve");
         msg->setKind(WAKEUP_APPROVE);
@@ -987,7 +965,6 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
             details.setCurrentEqDC(wakeUpHeader->getExpectedCostInd());
             emit(coincidentalEncounterSignal, 2.0, &details);
             queryWakeupRequest(wuPkt);
-            datagramPreRoutingHook(wuPkt);
         }
         break;
     case WU_APPROVE_WAIT:
