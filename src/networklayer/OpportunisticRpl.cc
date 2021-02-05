@@ -160,7 +160,9 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
 void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const EqDC& costIndicator, const EqDC& onwardCost) const
 {
     packet->addTagIfAbsent<MacAddressReq>()->setDestAddress(macMulticast);
-    packet->addTagIfAbsent<EqDCReq>()->setEqDC(onwardCost); // Set expected cost of any forwarder
+    if(packet->findTag<EqDCReq>()==nullptr){
+        packet->addTag<EqDCReq>()->setEqDC(onwardCost); // Set expected cost of any forwarder
+    }
     packet->addTagIfAbsent<EqDCInd>()->setEqDC(costIndicator); // Indicate own routingCost for updating metric
     packet->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&OpportunisticRouting);
     packet->addTagIfAbsent<DispatchProtocolInd>()->setProtocol(&OpportunisticRouting);
