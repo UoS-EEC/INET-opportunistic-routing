@@ -67,8 +67,10 @@ public:
     virtual void startMonitoring(simsignal_t startSignal);
     virtual void finishMonitoring(simsignal_t stopSignal);
     virtual void pauseMonitoring();
-
+public:
     const inet::units::values::J calculateDeltaEnergyConsumption() const;
+
+    bool isMatchingEndedSignal(const simsignal_t endedSignal);
 };
 
 } /* namespace oppostack */

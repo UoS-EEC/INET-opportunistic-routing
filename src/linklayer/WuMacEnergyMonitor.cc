@@ -120,7 +120,7 @@ void WuMacEnergyMonitor::receiveSignal(cComponent* const source, simsignal_t con
         // Ignore as monitoring this mode already
     }
     else if(inProgress == WakeUpMacLayer::wakeUpModeStartSignal &&
-            (signalID == WakeUpMacLayer::receptionEndedSignal || signalID == WakeUpMacLayer::falseWakeUpEndedSignal) ){
+            isMatchingEndedSignal(signalID) ){
         // reception and wakeUpEnded signals can only end wakeUpModeStarted signal, otherwise it goes to unknown
         if(signalID == WakeUpMacLayer::receptionEndedSignal){
             finishMonitoring(receptionConsumptionSignal);
@@ -130,7 +130,7 @@ void WuMacEnergyMonitor::receiveSignal(cComponent* const source, simsignal_t con
         }
     }
     else if(inProgress == WakeUpMacLayer::transmissionModeStartSignal &&
-            signalID == WakeUpMacLayer::transmissionEndedSignal){
+            isMatchingEndedSignal(signalID) ){
         finishMonitoring(transmissionConsumptionSignal);
     }
     else if(inProgress==SIMSIGNAL_NULL &&
@@ -154,4 +154,17 @@ const J WuMacEnergyMonitor::calculateDeltaEnergyConsumption() const
         return J(0.0);
     }
     return calculatedConsumedEnergy;
+}
+
+bool oppostack::WuMacEnergyMonitor::isMatchingEndedSignal(const simsignal_t endedSignal)
+{
+    if(inProgress == WakeUpMacLayer::wakeUpModeStartSignal &&
+                (endedSignal == WakeUpMacLayer::receptionEndedSignal || endedSignal == WakeUpMacLayer::falseWakeUpEndedSignal) ){
+        return true;
+    }
+    else if(inProgress == WakeUpMacLayer::transmissionModeStartSignal &&
+            endedSignal == WakeUpMacLayer::transmissionEndedSignal){
+        return true;
+    }
+    return false;
 }
