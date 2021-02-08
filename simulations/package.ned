@@ -1,3 +1,3 @@
-package wakeupmac.simulations;
+package oppostack.simulations;
 
-@license(LGPL);
+@license(MIT);

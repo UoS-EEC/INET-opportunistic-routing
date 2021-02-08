@@ -14,7 +14,9 @@
 // 
 
 #include "ORPLRouteCanvasVisualizer.h"
-#include "OpportunisticRpl.h"
+
+#include "networklayer/OpportunisticRpl.h"
+using namespace oppostack;
 
 Define_Module(ORPLRouteCanvasVisualizer);
 

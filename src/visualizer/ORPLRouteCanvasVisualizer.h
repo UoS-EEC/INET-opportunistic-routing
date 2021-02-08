@@ -13,14 +13,22 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package wakeupmac;
+#ifndef ORPLROUTECANVASVISUALIZER_H_
+#define ORPLROUTECANVASVISUALIZER_H_
 
-//
-// TODO auto-generated type
-//
-module IntermittentORPLNode extends ORPLLayerNode
-{
-    parameters:
-        // Drastically reduced energy, tx rate over 0.01Hz will cause intermittency
-        energyGenerator.powerGeneration = default(14uW); 
-}
+#include <inet/visualizer/networklayer/NetworkRouteCanvasVisualizer.h>
+
+namespace oppostack{
+
+class ORPLRouteCanvasVisualizer : public inet::visualizer::NetworkRouteCanvasVisualizer{
+public:
+    ORPLRouteCanvasVisualizer() : inet::visualizer::NetworkRouteCanvasVisualizer() {};
+protected:
+  virtual bool isPathStart(cModule *module) const override;
+  virtual bool isPathEnd(cModule *module) const override;
+  virtual bool isPathElement(cModule *module) const override;
+
+};
+
+} //namespace oppostack
+#endif /* ORPLROUTECANVASVISUALIZER_H_ */

@@ -13,12 +13,12 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package wakeupmac.simulations;
+package oppostack.simulations;
 
 import inet.networklayer.common.InterfaceTable;
 import inet.node.inet.AdhocHost;
 import inet.physicallayer.ieee802154.packetlevel.Ieee802154NarrowbandScalarRadioMedium;
-import wakeupmac.WakeUpLinkLayerNode;
+import oppostack.node.WakeUpLinkLayerNode;
 import inet.visualizer.integrated.IntegratedCanvasVisualizer;
 import inet.networklayer.configurator.ipv4.Ipv4NetworkConfigurator;
 

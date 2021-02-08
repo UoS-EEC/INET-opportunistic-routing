@@ -13,7 +13,7 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package wakeupmac;
+package oppostack.networklayer;
 
 import inet.networklayer.contract.INetworkLayer;
 import inet.networklayer.common.SimpleNetworkLayer;
@@ -34,8 +34,13 @@ module OpportunisticRoutingLayer extends SimpleNetworkLayer
         *.routingTableModule = default(absPath(".routingTable"));
         *.arpModule = default(absPath(".arp"));
     submodules:
-        routingTable: NextHopRoutingTable {
+        routingTable: ORPLRoutingTable {
             parameters:
-                @display("p=100,100;is=s");
+                @display("p=449.53998,299.13;is=m");
         }
+        helloManager: ORPLHello {
+            @display("p=150,100");
+        }
+    connections:
+        up.in++ <-- helloManager.lowerLayerOut;
 }

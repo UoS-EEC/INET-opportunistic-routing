@@ -13,23 +13,57 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef OPPORTUNISTICRPL_H_
-#define OPPORTUNISTICRPL_H_
+#ifndef NETWORKLAYER_OPPORTUNISTICRPL_H_
+#define NETWORKLAYER_OPPORTUNISTICRPL_H_
 
-#include "inet/common/ProtocolTag_m.h"
-#include "inet/networklayer/base/NetworkProtocolBase.h"
-#include "inet/common/LayeredProtocolBase.h"
-#include "inet/networklayer/common/L3Address.h"
-#include "inet/linklayer/common/MacAddress.h"
-#include "inet/networklayer/contract/INetworkProtocol.h"
-#include "inet/networklayer/contract/IRoutingTable.h"
-#include "inet/networklayer/contract/IArp.h"
+#include <inet/common/ProtocolTag_m.h>
+#include <inet/networklayer/base/NetworkProtocolBase.h>
+#include <inet/common/LayeredProtocolBase.h>
+#include <inet/networklayer/common/L3Address.h>
+#include <inet/linklayer/common/MacAddress.h>
+#include <inet/networklayer/contract/INetworkProtocol.h>
+#include <inet/networklayer/contract/IRoutingTable.h>
+#include <inet/networklayer/contract/IArp.h>
+#include "common/EncounterDetails_m.h"
 #include <set>
 #include <map>
+#include <algorithm> // For std::find
+
+#include "common/Units.h"
+#include "networklayer/ORPLRoutingTable.h"
+
+namespace oppostack{
 
 using namespace inet;
 
 const Protocol OpportunisticRouting("ORPL", "ORPL", Protocol::NetworkLayer);
+template <class T>
+class OrderedDropHeadQueue{
+private:
+    std::deque<T> q;
+    unsigned int maxSize;
+public:
+    OrderedDropHeadQueue(int _size = 64):
+        q(_size), maxSize(_size){}
+
+    const typename std::deque<T>::const_iterator getIndex(const T& element) const{
+        return std::find(q.begin(),q.end(),element);
+    }
+    bool find(const T& element) const{
+        return getIndex(element) != q.end();
+    }
+
+    void insert(const T& element){
+        auto duplicate = getIndex(element);
+        if(duplicate!=q.end()){
+            q.erase(duplicate);
+        }
+        while(q.size()>=maxSize){
+            q.pop_front();
+        }
+        q.push_back(element);
+    }
+};
 
 class OpportunisticRpl : public NetworkProtocolBase, public INetworkProtocol{
 public:
@@ -41,34 +75,28 @@ public:
         arp(nullptr),
         waitingPacket(nullptr){}
     virtual void initialize(int stage) override;
-    typedef uint16_t ExpectedCost;
-    bool queryAcceptPacket(const MacAddress& destination, const ExpectedCost& currentExpectedCost) const;
 protected:
     cMessage* nextForwardTimer;
     // Crude net layer backoff to reduce contention of forwarded packets with multiple forwarders
     simtime_t forwardingBackoff;
     uint8_t initialTTL = 3; // Overwritten by NED
 
-    IRoutingTable *routingTable;
+    ORPLRoutingTable *routingTable; // TODO: Make IRoutingTable if features allow
     IArp *arp;
 
     L3Address nodeAddress;
 
     Packet* waitingPacket;
     uint16_t sequenceNumber = 0;
-    // Address and Sequence number record of packet received or sent
-    typedef struct packetRecord{
-         MacAddress source;
-         unsigned int seq;
-    } packetRecord;
-    typedef std::set<packetRecord> packetHistory;
 
-    typedef std::map<L3Address, ExpectedCost> recordTable;
-    recordTable expectedCostTable;
+    // Address and Sequence number record of packet received or sent
+    OrderedDropHeadQueue<oppostack::PacketRecord> packetHistory;
+    bool messageKnown(const oppostack::PacketRecord record);
+
 
     virtual void encapsulate(Packet* packet);
-    virtual void decapsulate(Packet* packet);
-    virtual void setDownControlInfo(Packet* packet, const MacAddress& macMulticast, const ExpectedCost& expectedCost);
+    virtual void decapsulate(Packet* packet) const;
+    virtual void setDownControlInfo(Packet* packet, const MacAddress& macMulticast, const EqDC& routingCost, const EqDC& onwardCost) const;
 
     const Protocol& getProtocol() const override { return OpportunisticRouting; }
 
@@ -84,4 +112,6 @@ protected:
     virtual void handleCrashOperation(LifecycleOperation* op) override;
 };
 
-#endif /* OPPORTUNISTICRPL_H_ */
+} // namespace oppostack
+
+#endif /* NETWORKLAYER_OPPORTUNISTICRPL_H_ */
