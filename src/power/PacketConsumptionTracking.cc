@@ -16,6 +16,7 @@
 #include <inet/common/ModuleAccess.h>
 #include "PacketConsumptionTracking.h"
 #include "PacketConsumptionTag_m.h"
+#include "networklayer/OpportunisticRoutingHeader_m.h"
 
 using namespace oppostack;
 using namespace inet;
@@ -28,20 +29,26 @@ void PacketConsumptionTracking::initialize(int stage)
     }
 }
 
-INetfilter::IHook::Result oppostack::PacketConsumptionTracking::datagramPostRoutingHook(Packet* datagram)
+INetfilter::IHook::Result PacketConsumptionTracking::datagramPostRoutingHook(Packet* datagram)
 {
     // TODO: Fetch existing energy consumption, add estimated data tx and listening consump
     return IHook::Result::ACCEPT;
 }
 
-INetfilter::IHook::Result oppostack::PacketConsumptionTracking::datagramLocalInHook(Packet* datagram)
+INetfilter::IHook::Result PacketConsumptionTracking::datagramLocalInHook(Packet* datagram)
 {
     // TODO: Add energy for receiving to packet
     return IHook::Result::ACCEPT;
 }
 
-INetfilter::IHook::Result oppostack::PacketConsumptionTracking::datagramLocalOutHook(Packet* datagram)
+INetfilter::IHook::Result PacketConsumptionTracking::datagramLocalOutHook(Packet* datagram)
 {
     // TODO: Add empty tag to packet
+    auto networkHeader = datagram->removeAtFront<OpportunisticRoutingHeader>();
+    auto tag = networkHeader->addTag<HopConsumptionTag>(); // Must error if tag exists (undef. behaviour)
+    tag->setEnergyConsumed(J(0.0));
+    tag->setSource(routingTable->getRouterIdAsGeneric());
+    tag->setEstimatedCost(routingTable->calculateEqDC(networkHeader->getDestAddr()));
+    datagram->insertAtFront(networkHeader);
     return IHook::Result::ACCEPT;
 }

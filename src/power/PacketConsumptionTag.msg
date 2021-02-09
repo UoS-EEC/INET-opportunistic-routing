@@ -27,6 +27,12 @@ using namespace inet::units::values;
 // Region tag for Network layer headers to record energy consumed from each hop
 //
 class PacketConsumptionTag extends inet::TagBase {
+    inet::L3Address source[];
+    oppostack::EqDC estimatedCost[];
+    inet::J energyConsumed[];
+}
+
+class HopConsumptionTag extends inet::TagBase {
     inet::L3Address source;
     oppostack::EqDC estimatedCost;
     inet::J energyConsumed;

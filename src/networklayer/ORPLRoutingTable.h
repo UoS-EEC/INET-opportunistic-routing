@@ -63,6 +63,7 @@ public:
     oppostack::EqDC calculateEqDC(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
     oppostack::EqDC calculateEqDC(const inet::L3Address destination) const;
     void increaseInteractionDenominator();
+    inet::L3Address getRouterIdAsGeneric();
     // Hook to accept incoming requests
     virtual inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram) override;
     virtual inet::INetfilter::IHook::Result datagramForwardHook(inet::Packet*) override{return IHook::Result::ACCEPT;};
