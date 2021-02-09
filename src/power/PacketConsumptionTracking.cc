@@ -13,7 +13,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#include <inet/common/ModuleAccess.h>
+#include "common/oppDefs.h"
+#include "linklayer/WakeUpMacLayer.h"
 #include "PacketConsumptionTracking.h"
 #include "PacketConsumptionTag_m.h"
 #include "networklayer/OpportunisticRoutingHeader_m.h"
@@ -23,17 +24,29 @@ using namespace inet;
 
 Define_Module(PacketConsumptionTracking);
 
-void PacketConsumptionTracking::initialize(int stage)
+void PacketConsumptionTracking::initialize()
 {
-    if(stage == INITSTAGE_NETWORK_LAYER){
-        routingTable = getModuleFromPar<ORPLRoutingTable>(par("routingTable"), this);
-        macEnergyMonitor = getModuleFromPar<WuMacEnergyMonitor>(par("wakeUpMacMonitorModule"), this);
-    }
+    routingTable = check_and_cast<ORPLRoutingTable*>(getCModuleFromPar(par("routingTable"), this));
+    macLayer = check_and_cast<WakeUpMacLayer*>(getCModuleFromPar(par("wakeUpMacModule"),this));
+    macEnergyMonitor = check_and_cast<WuMacEnergyMonitor*>(getCModuleFromPar(par("wakeUpMacMonitorModule"), this));
+    macLayer->registerHook(0, this);
 }
 
 INetfilter::IHook::Result PacketConsumptionTracking::datagramPostRoutingHook(Packet* datagram)
 {
     // TODO: Fetch existing energy consumption, add estimated data tx and listening consump
+    // Remove per hop tag
+    auto networkHeader = datagram->removeAtFront<OpportunisticRoutingHeader>();
+    auto tag = networkHeader->findTag<HopConsumptionTag>();
+    if(tag!=nullptr){
+        // Tag must exist from sender module
+        J hopEnergy = macEnergyMonitor->calculateDeltaEnergyConsumption() + tag->getEnergyConsumed();
+        networkHeader->removeTag<HopConsumptionTag>(b(0), b(-1));
+    }
+    else{
+        EV_ERROR << "Missing Hop Consumption Tag at received node";
+    }
+    datagram->insertAtFront(networkHeader);
     return IHook::Result::ACCEPT;
 }
 

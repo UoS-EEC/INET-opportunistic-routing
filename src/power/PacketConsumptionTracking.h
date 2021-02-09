@@ -28,9 +28,10 @@ class PacketConsumptionTracking : public omnetpp::cSimpleModule, public inet::Ne
 public:
     PacketConsumptionTracking(){}
 protected:
-    virtual void initialize(int stage) override;
+    virtual void initialize() override;
     WuMacEnergyMonitor* macEnergyMonitor;
     ORPLRoutingTable* routingTable; // TODO: Replace with IRoutingTable
+    WakeUpMacLayer* macLayer;
 
 public:
     virtual inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};

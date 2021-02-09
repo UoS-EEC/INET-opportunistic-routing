@@ -23,6 +23,7 @@ package oppostack.power;
 simple PacketConsumptionTracking
 {
     @class(PacketConsumptionTracking);
-    string opportunisticLayerModule = default("^.generic");
+    string routingTable = default("^.generic.routingTable");
+    string wakeUpMacModule = default("^.wlan[0].mac");
     string wakeUpMacMonitorModule = default("^.wlan[0].mac.monitor");
 }
