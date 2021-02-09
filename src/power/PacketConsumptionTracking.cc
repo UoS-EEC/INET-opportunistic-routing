@@ -21,6 +21,8 @@
 using namespace oppostack;
 using namespace inet;
 
+Define_Module(PacketConsumptionTracking);
+
 void PacketConsumptionTracking::initialize(int stage)
 {
     if(stage == INITSTAGE_NETWORK_LAYER){

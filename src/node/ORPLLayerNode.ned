@@ -18,7 +18,7 @@ import inet.applications.generic.IpvxTrafGen;
 import inet.node.base.NetworkLayerNodeBase;
 import inet.queueing.source.ActivePacketSource;
 import inet.queueing.sink.PassivePacketSink;
-
+import oppostack.power.PacketConsumptionTracking;
 //
 // TODO auto-generated type
 //
@@ -54,6 +54,9 @@ module ORPLLayerNode extends NetworkLayerNodeBase
             sendInterval = default(1s);
             //packetData = 0x0F0F0F0FF0F0F0F0;
             protocol = 240;//Protocol::
+        }
+        packetMonitor: PacketConsumptionTracking{
+            
         }
     connections:
         packetGenerator.ipOut --> generic.transportIn;
