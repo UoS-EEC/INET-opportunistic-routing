@@ -32,19 +32,44 @@ void PacketConsumptionTracking::initialize()
     macLayer->registerHook(0, this);
 }
 
+simsignal_t PacketConsumptionTracking::packetReceivedEnergyConsumedSignal = cComponent::registerSignal("packetReceivedEnergyConsumed");
+simsignal_t PacketConsumptionTracking::packetReceivedEqDCSignal = cComponent::registerSignal("packetReceivedEqDC");
+void oppostack::PacketConsumptionTracking::reportReception(EqDC estCost, inet::J energyConsumed)
+{
+    emit(packetReceivedEqDCSignal, estCost.get());
+    emit(packetReceivedEnergyConsumedSignal, energyConsumed.get());
+}
+
+void PacketConsumptionTracking::accumulateHopTagToRoute(HopConsumptionTag* const hopTag, PacketConsumptionTag* const packetTag) const
+{
+    // Tag must exist from sender module
+    J receiverEnergy = macEnergyMonitor->calculateDeltaEnergyConsumption() + hopTag->getEnergyConsumed();
+    if(packetTag!=nullptr){
+        // Copy hop tag elements into end of tag array
+        packetTag->insertSource(hopTag->getSourceForUpdate());
+        packetTag->insertEnergyConsumed(hopTag->getEnergyConsumed());
+        packetTag->insertEstimatedCost(hopTag->getEstimatedCost());
+    }
+    else{
+        EV_ERROR << "Missing PacketConsumptionTag at received node";
+    }
+}
+
 INetfilter::IHook::Result PacketConsumptionTracking::datagramPostRoutingHook(Packet* datagram)
 {
     // TODO: Fetch existing energy consumption, add estimated data tx and listening consump
-    // Remove per hop tag
+    b packetLength = b(datagram->getBitLength());
     auto networkHeader = datagram->removeAtFront<OpportunisticRoutingHeader>();
-    auto tag = networkHeader->findTag<HopConsumptionTag>();
-    if(tag!=nullptr){
-        // Tag must exist from sender module
-        J hopEnergy = macEnergyMonitor->calculateDeltaEnergyConsumption() + tag->getEnergyConsumed();
-        networkHeader->removeTag<HopConsumptionTag>(b(0), b(-1));
+    auto hopTagCheck = networkHeader->findTag<HopConsumptionTag>();
+    if(hopTagCheck!=nullptr){
+        // Get mutable tag that already exists
+        auto hopTag = networkHeader->addTagIfAbsent<HopConsumptionTag>();
+        // TODO: Get from data radio parameters
+        J txAckEstimate = macEnergyMonitor->calcTxAndAckEstConsumption(packetLength);
+        hopTag->setEnergyConsumed(macEnergyMonitor->calculateDeltaEnergyConsumption()+txAckEstimate);
     }
     else{
-        EV_ERROR << "Missing Hop Consumption Tag at received node";
+        EV_ERROR << "Missing HopConsumptionTag at transmitting node" << endl;
     }
     datagram->insertAtFront(networkHeader);
     return IHook::Result::ACCEPT;
@@ -52,17 +77,42 @@ INetfilter::IHook::Result PacketConsumptionTracking::datagramPostRoutingHook(Pac
 
 INetfilter::IHook::Result PacketConsumptionTracking::datagramLocalInHook(Packet* datagram)
 {
-    // TODO: Add energy for receiving to packet
+    // Add energy for receiving to packet
+    auto networkHeader = datagram->removeAtFront<OpportunisticRoutingHeader>();
+    auto packetTag = networkHeader->addTagIfAbsent<PacketConsumptionTag>();
+    auto hopTagCheck = networkHeader->findTag<HopConsumptionTag>();
+    if(hopTagCheck!=nullptr){
+        // Get mutable tag that already exists
+        auto hopTag = networkHeader->addTagIfAbsent<HopConsumptionTag>();
+        accumulateHopTagToRoute(hopTag, packetTag);
+        // Remove per hop tag
+        networkHeader->removeTag<HopConsumptionTag>(b(0), b(-1));
+    }
+    else{
+        EV_ERROR << "Missing HopConsumptionTag at received node" << endl;
+    }
+    if(networkHeader->getDestAddr() == routingTable->getRouterIdAsGeneric()){
+        // Log energy consumed for packet with reportReception() at each source component
+        const size_t hops = packetTag->getSourceArraySize();
+        ASSERT(hops == packetTag->getEnergyConsumedArraySize() && hops == packetTag->getEnergyConsumedArraySize());
+        auto culmulativeEnergy = J(0.0);
+        for(int i=hops-1;i>=0;i--){
+            cComponent* source = packetTag->getSourceForUpdate(i);
+            auto estimatedCost = packetTag->getEstimatedCost(i);
+            culmulativeEnergy += packetTag->getEnergyConsumed(i);
+            check_and_cast<PacketConsumptionTracking*>(source)->reportReception(estimatedCost, culmulativeEnergy);
+        }
+    }
+    datagram->insertAtFront(networkHeader);
     return IHook::Result::ACCEPT;
 }
 
 INetfilter::IHook::Result PacketConsumptionTracking::datagramLocalOutHook(Packet* datagram)
 {
-    // TODO: Add empty tag to packet
     auto networkHeader = datagram->removeAtFront<OpportunisticRoutingHeader>();
     auto tag = networkHeader->addTag<HopConsumptionTag>(); // Must error if tag exists (undef. behaviour)
-    tag->setEnergyConsumed(J(0.0));
-    tag->setSource(routingTable->getRouterIdAsGeneric());
+    tag->setEnergyConsumed(J(0.0)); // Dummy Value, will be overwritten in postRoutingHook
+    tag->setSource(this);
     tag->setEstimatedCost(routingTable->calculateEqDC(networkHeader->getDestAddr()));
     datagram->insertAtFront(networkHeader);
     return IHook::Result::ACCEPT;

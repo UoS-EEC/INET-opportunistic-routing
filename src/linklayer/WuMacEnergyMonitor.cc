@@ -15,8 +15,11 @@
 
 #include "common/oppDefs.h"
 #include <inet/power/contract/IEpEnergyStorage.h>
+#include <inet/physicallayer/contract/packetlevel/IRadio.h>
+#include <inet/physicallayer/base/packetlevel/FlatTransmitterBase.h>
 #include "WuMacEnergyMonitor.h"
 #include "WakeUpMacLayer.h"
+#include "WakeUpGram_m.h"
 
 using namespace oppostack;
 Define_Module(WuMacEnergyMonitor);
@@ -32,7 +35,7 @@ void WuMacEnergyMonitor::initialize(int stage)
 {
     OperationalBase::initialize(stage);
     if (stage == INITSTAGE_LOCAL) {
-        cModule* macModule = getParentModule();
+        macModule = getParentModule();
 
         cModule* storageModule = getCModuleFromPar(macModule->par("energyStorage"), macModule);
         energyStorage = check_and_cast<inet::power::IEpEnergyStorage*>(storageModule);
@@ -154,6 +157,32 @@ const J WuMacEnergyMonitor::calculateDeltaEnergyConsumption() const
         return J(0.0);
     }
     return calculatedConsumedEnergy;
+}
+
+const inet::J oppostack::WuMacEnergyMonitor::calcTxAndAckEstConsumption(inet::b packetLength) const
+{// TODO: Use MacEstimateCostProcess on InterfaceEntry
+    using namespace inet;
+    const simtime_t ackWait = macModule->par("ackWaitDuration");
+    const cModule* dataRadio = macModule->getParentModule()->getSubmodule("dataRadio");
+    if(dataRadio==nullptr){
+        throw cRuntimeError("Cannot get dataRadio for energy estimation");
+        return J(0.0);
+    }
+    const auto dummyHeader = WakeUpDatagram();
+    const b headerLength = dummyHeader.getChunkLength();
+    if(dataRadio==nullptr){
+        throw cRuntimeError("Cannot get radio consumer for energy estimation");
+        return J(0.0);
+    }
+    auto dataTransmitter = check_and_cast<const physicallayer::FlatTransmitterBase*>(check_and_cast<const physicallayer::IRadio* >(dataRadio)->getTransmitter());
+    const bps bitrate = bps(dataTransmitter->getBitrate());
+    const cModule* energyConsumer = dataRadio->getSubmodule("energyConsumer");
+    const s Tau_tx = (packetLength+headerLength)/bitrate;
+    const W P_tx = W(energyConsumer->par("transmitterTransmittingPowerConsumption"));
+    const s Tau_ackLi = s(ackWait.dbl());
+    const W P_ackLi = W(energyConsumer->par("receiverIdlePowerConsumption"));
+    const J E_TxAndAckLi = P_tx*Tau_tx + Tau_ackLi*P_ackLi;
+    return E_TxAndAckLi;
 }
 
 bool oppostack::WuMacEnergyMonitor::isMatchingEndedSignal(const simsignal_t endedSignal)

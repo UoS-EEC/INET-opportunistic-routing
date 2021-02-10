@@ -19,6 +19,7 @@
 #include <inet/networklayer/contract/INetfilter.h>
 #include "linklayer/WuMacEnergyMonitor.h"
 #include "networklayer/ORPLRoutingTable.h"
+#include "PacketConsumptionTag_m.h"
 
 
 namespace oppostack {
@@ -27,6 +28,9 @@ class PacketConsumptionTracking : public omnetpp::cSimpleModule, public inet::Ne
 {
 public:
     PacketConsumptionTracking(){}
+
+    static simsignal_t packetReceivedEqDCSignal;
+    static simsignal_t packetReceivedEnergyConsumedSignal;
 protected:
     virtual void initialize() override;
     WuMacEnergyMonitor* macEnergyMonitor;
@@ -39,6 +43,9 @@ public:
     virtual inet::INetfilter::IHook::Result datagramPostRoutingHook(inet::Packet *datagram) override;
     virtual inet::INetfilter::IHook::Result datagramLocalInHook(inet::Packet *datagram) override;
     virtual inet::INetfilter::IHook::Result datagramLocalOutHook(inet::Packet *datagram) override;
+    void reportReception(EqDC estCost, inet::J energyConsumed);
+private:
+    void accumulateHopTagToRoute(HopConsumptionTag* tag, PacketConsumptionTag* packetTag) const;
 };
 
 } /* namespace oppostack */

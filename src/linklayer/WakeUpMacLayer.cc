@@ -444,6 +444,7 @@ void WakeUpMacLayer::completePacketReception()
     if (currentRxFrame != nullptr) {
         Packet* pkt = dynamic_cast<Packet*>(currentRxFrame);
         decapsulate(pkt);
+        pkt->trim();
         if(datagramLocalInHook(pkt)!=IHook::Result::ACCEPT){
             EV_ERROR << "Aborted reception of data is unimplemented" << endl;
         }
