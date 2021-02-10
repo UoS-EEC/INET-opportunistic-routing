@@ -444,7 +444,13 @@ void WakeUpMacLayer::completePacketReception()
     if (currentRxFrame != nullptr) {
         Packet* pkt = dynamic_cast<Packet*>(currentRxFrame);
         decapsulate(pkt);
-        sendUp(pkt);
+        pkt->trim();
+        if(datagramLocalInHook(pkt)!=IHook::Result::ACCEPT){
+            EV_ERROR << "Aborted reception of data is unimplemented" << endl;
+        }
+        else{
+            sendUp(pkt);
+        }
         currentRxFrame = nullptr;
         emit(receptionEndedSignal, true);
     }
@@ -677,6 +683,9 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             dropCurrentTxFrame(details);
         }
         popTxQueue();
+        if(datagramLocalOutHook(currentTxFrame)!=IHook::Result::ACCEPT){
+            updateMacState(S_IDLE);
+        }
         txInProgressTries = 0;
     }
     switch (txState){
@@ -723,6 +732,16 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         }
         else if(event == EV_TX_READY){
             Packet* dataFrame = currentTxFrame->dup();
+            if(datagramPostRoutingHook(dataFrame)!=IHook::Result::ACCEPT){
+                EV_ERROR << "Aborted transmission of data is unimplemented." << endl;
+                // Taken from TX_END
+                changeActiveRadio(wakeUpRadio);
+                wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+                scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
+                updateMacState(S_IDLE);
+                updateTxState(TX_IDLE);
+                break;
+            }
             encapsulate(dataFrame);
             sendDown(dataFrame);
             updateTxState(TX_DATA);
