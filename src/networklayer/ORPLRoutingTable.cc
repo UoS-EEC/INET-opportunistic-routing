@@ -226,3 +226,9 @@ INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datag
     }
     return IHook::Result::DROP;
 }
+
+inet::L3Address ORPLRoutingTable::getRouterIdAsGeneric()
+{
+    // TODO: Cleaner way to get L3 Address?
+    return interfaceTable->findFirstNonLoopbackInterface()->getNetworkAddress();
+}

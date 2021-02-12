@@ -19,7 +19,14 @@ Correct wrong ned class name in Ieee802154NarrowbandRadio.ned
 +       transmitter.typename = default(signalAnalogRepresentation == "scalar" ? "Ieee802154NarrowbandScalarTransmitter" : signalAnalogRepresentation == "dimensional" ? "Ieee802154NarrowbandDimensionalTransmitter" : "");
 +       receiver.typename = default(signalAnalogRepresentation == "scalar" ? "Ieee802154NarrowbandScalarReceiver" : signalAnalogRepresentation == "dimensional" ? "Ieee802154NarrowbandDimensionalReceiver" : "");
 
-    
+Add Joules to inet.Units message
+
+--- a/src/inet/common/Units.msg 
++++ b/src/inet/common/Units.msg
+@@ +27,1 
+  class W    { @existingClass; @primitive; @fromString(W(string2double($)));    @toString(unit2string($)); @defaultValue(W(NaN)); }
++ class J    { @existingClass; @primitive; @fromString(J(string2double($)));    @toString(unit2string($)); @defaultValue(J(NaN)); }
+
 Add minimum statistic size for recording BER to histogram
 diff --git a/src/inet/common/ResultFilters.cc b/src/inet/common/ResultFilters.cc
 index a667c5a..4282f06 100644
