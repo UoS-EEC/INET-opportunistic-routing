@@ -41,9 +41,9 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         @signal[coincidentalEncounter](type=double);
         @signal[expectedEncounter](type=double);
         @signal[listenForEncountersEnded](type=double);
-        @statistic[coincidentalEncounter](title="Weighted coincidental neighbor encounter"; record=vector);
-        @statistic[expectedEncounter](title="Weighted expected neighbor encounter"; record=vector);
-        @statistic[listenForEncountersEnded](title="Ended expected encounters listening period"; record=vector);
+        @statistic[coincidentalEncounter](title="Weighted coincidental neighbor encounter"; record=vector,count);
+        @statistic[expectedEncounter](title="Weighted expected neighbor encounter"; record=vector,count);
+        @statistic[listenForEncountersEnded](title="Ended expected encounters listening period"; record=vector,count);
 
         // WakeUpMac retry signals and statistics
         @signal[transmissionTries](type=long);
