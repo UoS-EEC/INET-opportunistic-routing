@@ -54,6 +54,7 @@ protected:
     NeighbourRecords encountersTable;
     int encountersCount = 0;
     int probCalcEncountersThreshold = 20;
+    int probCalcEncountersThresholdMax = 40;
     int interactionDenominator = 0;
     oppostack::EqDC forwardingCostW = oppostack::EqDC(0.1);
     void calculateInteractionProbability();

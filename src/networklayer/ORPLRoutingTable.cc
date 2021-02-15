@@ -52,6 +52,8 @@ void ORPLRoutingTable::initialize(int stage){
             throw cRuntimeError("Unknown address type");
 
         forwardingCostW = EqDC(par("forwardingCost"));
+
+        probCalcEncountersThresholdMax = par("probCalcEncountersThresholdMax");
     }
     else if(stage == INITSTAGE_LINK_LAYER){
         for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i){
@@ -186,6 +188,7 @@ void ORPLRoutingTable::increaseInteractionDenominator()
     interactionDenominator++;
     if(encountersCount > probCalcEncountersThreshold
             || interactionDenominator > 2*probCalcEncountersThreshold){// KLUDGE of interaction denominator until hello messages are implemented
+        probCalcEncountersThreshold = std::min(probCalcEncountersThreshold*2,probCalcEncountersThresholdMax);
         calculateInteractionProbability();
         encountersCount = 0;
     }
