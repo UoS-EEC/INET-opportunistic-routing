@@ -233,7 +233,7 @@ protected:
     const int maxForwarders = 4;
     int acknowledgedForwarders = 0;
     int acknowledgmentRound = 1;
-    const int maxWakeUpTries = 4;
+    int maxWakeUpTries = 1;
     int txInProgressForwarders = 0;
     int txInProgressTries = 0; //TODO: rename to tries
     simtime_t dataTransmissionDelay = 0;

@@ -80,6 +80,8 @@ void WakeUpMacLayer::initialize(int const stage) {
         candiateRelayContentionProbability = par("candiateRelayContentionProbability");
         transmissionStartMinEnergy = J(par("transmissionStartMinEnergy"));
 
+        maxWakeUpTries = par("maxWakeUpTries");
+
         const char *radioModulePath = par("dataRadioModule");
         cModule *radioModule = getModuleByPath(radioModulePath);
         dataRadio = check_and_cast<IRadio *>(radioModule);
