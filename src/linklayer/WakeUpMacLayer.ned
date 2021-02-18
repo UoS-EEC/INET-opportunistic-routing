@@ -36,6 +36,7 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         double dataListeningDuration @unit(s) = default(0.0085 s); // How long to listen after a wake-up
         double wuApproveResponseLimit @unit(s) = default(1000ns);
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
+        int maxWakeUpTries = default(4);
 
         // Weighted Encounters signals and with attached L2Addr and EDC/EquivalentTx(EqTx) details
         @signal[coincidentalEncounter](type=double);
