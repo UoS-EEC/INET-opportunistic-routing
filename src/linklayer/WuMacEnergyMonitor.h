@@ -35,7 +35,8 @@ class WuMacEnergyMonitor : public inet::OperationalBase, public inet::cListener
 {
 public:
     WuMacEnergyMonitor():inet::OperationalBase(),
-    energyStorage(nullptr) {};
+    energyStorage(nullptr),
+    macModule(nullptr){};
 
     static simsignal_t receptionConsumptionSignal;
     static simsignal_t falseWakeUpConsumptionSignal;
@@ -49,6 +50,7 @@ public:
     simtime_t storedEnergyStartTime;
 
     inet::power::IEpEnergyStorage* energyStorage;
+    cModule* macModule;
   protected:
     void initialize(int stage) override;
     virtual bool isInitializeStage(int stage) override { return stage == inet::INITSTAGE_LINK_LAYER; }
@@ -67,8 +69,10 @@ public:
     virtual void startMonitoring(simsignal_t startSignal);
     virtual void finishMonitoring(simsignal_t stopSignal);
     virtual void pauseMonitoring();
-
+public:
     const inet::units::values::J calculateDeltaEnergyConsumption() const;
+    const inet::units::values::J calcTxAndAckEstConsumption(inet::units::values::b packetLength) const;
+    bool isMatchingEndedSignal(const simsignal_t endedSignal);
 };
 
 } /* namespace oppostack */

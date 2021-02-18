@@ -30,7 +30,7 @@ parameters:
     double forwardingCost @unit(EqDC) = default(0EqDC); //TODO: Calculate based on actual effort required
     string encountersSourceModule = default("^.^");
     string arpModule = default("^.arp");
-    
+    int probCalcEncountersThresholdMax = 100;
     @signal[updatedEqDCValue](type = double);
     @statistic[updatedEqDCValue](title="Calculated value of node EqDC"; record=vector);
 }

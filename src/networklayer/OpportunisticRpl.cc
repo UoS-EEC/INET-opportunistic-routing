@@ -160,7 +160,9 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
 void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const EqDC& costIndicator, const EqDC& onwardCost) const
 {
     packet->addTagIfAbsent<MacAddressReq>()->setDestAddress(macMulticast);
-    packet->addTagIfAbsent<EqDCReq>()->setEqDC(onwardCost); // Set expected cost of any forwarder
+    if(packet->findTag<EqDCReq>()==nullptr){
+        packet->addTag<EqDCReq>()->setEqDC(onwardCost); // Set expected cost of any forwarder
+    }
     packet->addTagIfAbsent<EqDCInd>()->setEqDC(costIndicator); // Indicate own routingCost for updating metric
     packet->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&OpportunisticRouting);
     packet->addTagIfAbsent<DispatchProtocolInd>()->setProtocol(&OpportunisticRouting);
@@ -244,30 +246,6 @@ void OpportunisticRpl::handleStopOperation(LifecycleOperation *op) {
 
 void OpportunisticRpl::handleCrashOperation(LifecycleOperation *op) {
     handleStopOperation(op);
-}
-
-EqDC OpportunisticRpl::queryAcceptPacket(const MacAddress& destination,
-        const EqDC& costThreshold, const Packet* data) const{
-    // TODO: Check other fields in the data packet after wake-up, before
-    return queryAcceptWakeUp(destination,
-            costThreshold);
-}
-EqDC OpportunisticRpl::queryAcceptWakeUp(const MacAddress& destination,
-        const EqDC& costThreshold) const{
-    const L3Address l3dest = arp->getL3AddressFor(destination);
-    if(l3dest==nodeAddress){
-        // Mac layer should probably perform this check anyway
-        return EqDC(0.0);
-    }
-    else{
-        const EqDC newCost = routingTable->calculateEqDC(l3dest);
-        if(newCost <= costThreshold){
-            return newCost;
-        }
-    }
-    // Insufficient progress or unknown destination so don't accept
-    return EqDC(25.5);
-
 }
 
 bool OpportunisticRpl::messageKnown(const oppostack::PacketRecord record)

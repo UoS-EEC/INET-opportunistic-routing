@@ -1,2 +1,2 @@
 MSGC:=$(MSGC) --msg6
-CFLAGS:= -Wall
+CFLAGS:= $(CFLAGS) -Wall

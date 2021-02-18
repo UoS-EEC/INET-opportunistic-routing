@@ -80,6 +80,8 @@ void WakeUpMacLayer::initialize(int const stage) {
         candiateRelayContentionProbability = par("candiateRelayContentionProbability");
         transmissionStartMinEnergy = J(par("transmissionStartMinEnergy"));
 
+        maxWakeUpTries = par("maxWakeUpTries");
+
         const char *radioModulePath = par("dataRadioModule");
         cModule *radioModule = getModuleByPath(radioModulePath);
         dataRadio = check_and_cast<IRadio *>(radioModule);
@@ -93,9 +95,6 @@ void WakeUpMacLayer::initialize(int const stage) {
         const char* networkNodePath = par("networkNode");
         networkNode = getModuleByPath(networkNodePath);
 
-        const char* routingModulePath = par("routingModule");
-        cModule* module = getModuleByPath(routingModulePath);
-        routingModule = check_and_cast_nullable<OpportunisticRpl*>(module);
         txQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("queue"));
 
         /*
@@ -113,7 +112,7 @@ void WakeUpMacLayer::initialize(int const stage) {
         const bps bitrate = dataTransmitter->getBitrate();
         const int maxAckCount = std::floor(ackWaitDuration.dbl()*bitrate.get()/ackBits.get());
         ASSERT2(maxAckCount > requiredForwarders + 2, "Ack wait duration is too small for multiple forwarders.");
-        ASSERT(maxAckCount < 10);
+        ASSERT(maxAckCount < 20);
         const double remainingAckProportion = (double)(maxAckCount-1)/(double)(maxAckCount);
         ASSERT(remainingAckProportion < 1 && remainingAckProportion > 0);
         // 0.2*ackWaitDuration currently Hardcoded into TX_DATA state
@@ -155,16 +154,6 @@ void WakeUpMacLayer::initialize(int const stage) {
 
         // Initial state handled by handleStartOperation()
 
-    }
-    else if(stage == INITSTAGE_NETWORK_LAYER){
-        // Find network layer with query wake-up request
-        if (routingModule != nullptr){
-            // Found routing module that implements T::queryAcceptWakeUp(..) and T::queryAcceptPacket(..);
-
-        }
-        else{
-            EV_WARN << "WuMac initialize(): No routing module with wake-up discernment provided" << endl;
-        }
     }
 }
 void WakeUpMacLayer::changeActiveRadio(physicallayer::IRadio* const newActiveRadio) {
@@ -333,35 +322,13 @@ void WakeUpMacLayer::configureInterfaceEntry() {
     interfaceEntry->setBroadcast(true);
     interfaceEntry->setPointToPoint(false);
 }
-void WakeUpMacLayer::queryWakeupRequest(const Packet* wakeUp) {
-    // For now just send immediate acceptance
-    // TODO: Check if receiver mac address is this node
-    auto header = wakeUp->peekAtFront<WakeUpGram>();
-    bool approve = false;
+void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
+    const auto header = wakeUp->peekAtFront<WakeUpGram>();
     if(header->getType()!=WakeUpGramType::WU_BEACON){
-        approve = false;
+        return;
     }
-    else if(header->getReceiverAddress() == interfaceEntry->getMacAddress()){
-        approve = true;
-        ackEqDCResponse = EqDC(0.0);
-    }
-    else if(header->getReceiverAddress() == MacAddress::BROADCAST_ADDRESS){
-        // Broadcast beacons accepted as they are for "Hello" messages
-        approve = true;
-        ackEqDCResponse = EqDC(25.5);
-    }
-    else if(routingModule != nullptr && header->getType()==WakeUpGramType::WU_BEACON){
-        auto costHeader = wakeUp->peekAtFront<WakeUpBeacon>();
-        // TODO: Query Opportunistic layer for permission to wake-up
-        EqDC acceptPacketThreshold = routingModule->queryAcceptWakeUp(header->getReceiverAddress(),
-                                                                        costHeader->getMinExpectedCost());
-        if(acceptPacketThreshold<EqDC(25.5)){
-            ackEqDCResponse = acceptPacketThreshold;
-            approve = true;
-        }
-    }
-
-    if(approve == true){
+    if(datagramPreRoutingHook(wakeUp)==HookBase::Result::ACCEPT){
+        ackEqDCResponse = wakeUp->getTag<EqDCInd>()->getEqDC();
         // Approve wake-up request
         cMessage* msg = new cMessage("approve");
         msg->setKind(WAKEUP_APPROVE);
@@ -479,7 +446,13 @@ void WakeUpMacLayer::completePacketReception()
     if (currentRxFrame != nullptr) {
         Packet* pkt = dynamic_cast<Packet*>(currentRxFrame);
         decapsulate(pkt);
-        sendUp(pkt);
+        pkt->trim();
+        if(datagramLocalInHook(pkt)!=IHook::Result::ACCEPT){
+            EV_ERROR << "Aborted reception of data is unimplemented" << endl;
+        }
+        else{
+            sendUp(pkt);
+        }
         currentRxFrame = nullptr;
         emit(receptionEndedSignal, true);
     }
@@ -551,18 +524,14 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         updateMacState(S_ACK);
         // Store the new received packet
         currentRxFrame = incomingFrame;
-        // If better EqDC improved, update
-        EqDC newAckEqDCResponse = routingModule->queryAcceptPacket(incomingMacData->getReceiverAddress(),
-                incomingFullHeader->getMinExpectedCost(), check_and_cast<Packet*>(currentRxFrame)); // TODO: Decapsulate first? (requires changing buildAck(..) and completePacketReception(..)
-        if(newAckEqDCResponse < ackEqDCResponse){
-            ackEqDCResponse = newAckEqDCResponse;
-        }
-
         // Cancel delivery timer until next round
         cancelEvent(wuTimeout);
         // Start ack backoff
         cancelEvent(ackBackoffTimer);
-        if(newAckEqDCResponse == EqDC(25.5)){
+
+        // Check using packet data that accepting wake-up is still correct
+        IHook::Result preRoutingResponse = datagramPreRoutingHook(incomingFrame);
+        if(preRoutingResponse != IHook::ACCEPT){
             // New information in the data packet means do not accept data packet
             PacketDropDetails details;
             details.setReason(PacketDropReason::OTHER_PACKET_DROP);
@@ -573,6 +542,12 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
             // TODO: Send "Negative Ack"?
         }
         else{
+            EqDC newAckEqDCResponse = incomingFrame->getTag<EqDCInd>()->getEqDC();
+            // If better EqDC response, update
+            if(newAckEqDCResponse < ackEqDCResponse){
+                ackEqDCResponse = newAckEqDCResponse;
+            }
+
             // Reset cumulative ack backoff
             cumulativeAckBackoff = uniform(0,initialContentionDuration);
             rxAckRound++;
@@ -710,6 +685,9 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             dropCurrentTxFrame(details);
         }
         popTxQueue();
+        if(datagramLocalOutHook(currentTxFrame)!=IHook::Result::ACCEPT){
+            updateMacState(S_IDLE);
+        }
         txInProgressTries = 0;
     }
     switch (txState){
@@ -756,6 +734,16 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         }
         else if(event == EV_TX_READY){
             Packet* dataFrame = currentTxFrame->dup();
+            if(datagramPostRoutingHook(dataFrame)!=IHook::Result::ACCEPT){
+                EV_ERROR << "Aborted transmission of data is unimplemented." << endl;
+                // Taken from TX_END
+                changeActiveRadio(wakeUpRadio);
+                wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+                scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
+                updateMacState(S_IDLE);
+                updateTxState(TX_IDLE);
+                break;
+            }
             encapsulate(dataFrame);
             sendDown(dataFrame);
             updateTxState(TX_DATA);
@@ -978,14 +966,14 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
             emit(wakeUpModeStartSignal, true);
             updateWuState(WU_APPROVE_WAIT);
             scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
-            const Packet* wuPkt = check_and_cast<Packet*>(msg);
+            Packet* wuPkt = check_and_cast<Packet*>(msg);
             ackEqDCResponse = EqDC(25.5);
-            queryWakeupRequest(wuPkt);
             auto wakeUpHeader = wuPkt->peekAtFront<WakeUpGram>();
             EncounterDetails details;
             details.setEncountered(wakeUpHeader->getTransmitterAddress());
             details.setCurrentEqDC(wakeUpHeader->getExpectedCostInd());
             emit(coincidentalEncounterSignal, 2.0, &details);
+            queryWakeupRequest(wuPkt);
         }
         break;
     case WU_APPROVE_WAIT:
@@ -1105,4 +1093,77 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
     updateMacState(S_IDLE);
     interfaceEntry->setCarrier(false);
     interfaceEntry->setState(InterfaceEntry::State::DOWN);
+}
+
+INetfilter::IHook::Result WakeUpMacLayer::datagramPreRoutingHook(Packet *datagram)
+{
+    auto ret = IHook::Result::DROP;
+    for (auto & elem : hooks) {
+        IHook::Result r = elem.second->datagramPreRoutingHook(datagram);
+        PacketDropDetails details;
+        switch (r) {
+            case IHook::ACCEPT:
+                ret = r;
+                break;    // continue iteration
+            case IHook::DROP:
+                return r;
+            case IHook::QUEUE:
+            case IHook::STOLEN:
+            default:
+                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
+        }
+    }
+    return ret;
+}
+
+INetfilter::IHook::Result WakeUpMacLayer::datagramPostRoutingHook(Packet *datagram)
+{
+    for (auto & elem : hooks) {
+        IHook::Result r = elem.second->datagramPostRoutingHook(datagram);
+        switch (r) {
+            case IHook::ACCEPT:
+                break;    // continue iteration
+            case IHook::DROP:
+            case IHook::QUEUE:
+            case IHook::STOLEN:
+            default:
+                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
+        }
+    }
+    return IHook::ACCEPT;
+}
+
+INetfilter::IHook::Result WakeUpMacLayer::datagramLocalInHook(Packet *datagram)
+{
+    L3Address address;
+    for (auto & elem : hooks) {
+        IHook::Result r = elem.second->datagramLocalInHook(datagram);
+        switch (r) {
+            case IHook::ACCEPT:
+                break;    // continue iteration
+            case IHook::DROP:
+            case IHook::QUEUE:
+            case IHook::STOLEN:
+            default:
+                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
+        }
+    }
+    return IHook::ACCEPT;
+}
+
+INetfilter::IHook::Result WakeUpMacLayer::datagramLocalOutHook(Packet *datagram)
+{
+    for (auto & elem : hooks) {
+        IHook::Result r = elem.second->datagramLocalOutHook(datagram);
+        switch (r) {
+            case IHook::ACCEPT:
+                break;    // continue iteration
+            case IHook::DROP:
+            case IHook::QUEUE:
+            case IHook::STOLEN:
+            default:
+                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
+        }
+    }
+    return IHook::ACCEPT;
 }

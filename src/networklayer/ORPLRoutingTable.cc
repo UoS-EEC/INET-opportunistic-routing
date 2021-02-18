@@ -19,7 +19,9 @@
 #include <inet/networklayer/nexthop/NextHopInterfaceData.h>
 #include <inet/networklayer/common/L3AddressResolver.h>
 #include "linklayer/WakeUpMacLayer.h"
+#include "linklayer/WakeUpGram_m.h"
 #include "common/oppDefs.h"
+#include "common/EqDCTag_m.h"
 
 using namespace omnetpp;
 using namespace inet;
@@ -50,14 +52,24 @@ void ORPLRoutingTable::initialize(int stage){
             throw cRuntimeError("Unknown address type");
 
         forwardingCostW = EqDC(par("forwardingCost"));
+
+        probCalcEncountersThresholdMax = par("probCalcEncountersThresholdMax");
     }
     else if(stage == INITSTAGE_LINK_LAYER){
-        for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i)
-            configureInterface(interfaceTable->getInterface(i));
+        for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i){
+            auto interfaceI = interfaceTable->getInterface(i);
+            configureInterface(interfaceI);
+            INetfilter* wakeUpMacFilter = dynamic_cast<INetfilter*>(interfaceI->getSubmodule("mac"));
+            if(wakeUpMacFilter)wakeUpMacFilter->registerHook(0, this);
+        }
+        if(netfilters.empty()){
+            throw cRuntimeError("No suitable Wake Up Mac found under: %s.mac", this->getFullPath());
+        }
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
         const char* rootParameter = par("hubAddress");
         L3AddressResolver().tryResolve(rootParameter, rootAddress, L3AddressResolver::ADDR_MODULEPATH);
+
     }
 }
 
@@ -176,7 +188,50 @@ void ORPLRoutingTable::increaseInteractionDenominator()
     interactionDenominator++;
     if(encountersCount > probCalcEncountersThreshold
             || interactionDenominator > 2*probCalcEncountersThreshold){// KLUDGE of interaction denominator until hello messages are implemented
+        probCalcEncountersThreshold = std::min(probCalcEncountersThreshold*2,probCalcEncountersThresholdMax);
         calculateInteractionProbability();
         encountersCount = 0;
     }
+}
+
+INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datagram)
+{
+    auto header = datagram->peekAtFront<WakeUpGram>();
+    bool approve = false;
+    const auto destAddr = header->getReceiverAddress();
+    // If packet addressed directly to interface, then accept it with zero cost.
+    for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i){
+        auto interfaceEntry = interfaceTable->getInterface(i);
+        if(destAddr == interfaceEntry->getMacAddress()){
+            datagram->addTagIfAbsent<EqDCInd>()->setEqDC(EqDC(0.0));
+            return IHook::Result::ACCEPT;
+        }
+    }
+    const auto headerType = header->getType();
+    if(headerType==WakeUpGramType::WU_BEACON ||
+            headerType==WakeUpGramType::WU_DATA){
+        auto costHeader = datagram->peekAtFront<WakeUpBeacon>();
+        if(destAddr == MacAddress::BROADCAST_ADDRESS){
+            datagram->addTagIfAbsent<EqDCInd>()->setEqDC(EqDC(25.5));
+            //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
+            return IHook::Result::ACCEPT;
+        }
+        else{
+            const L3Address l3dest = arp->getL3AddressFor(destAddr);
+            EqDC acceptPacketThreshold = calculateEqDC(l3dest);
+            if(acceptPacketThreshold<=costHeader->getMinExpectedCost()){
+                datagram->addTagIfAbsent<EqDCInd>()->setEqDC(acceptPacketThreshold);
+                //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
+                return IHook::Result::ACCEPT;
+            }
+
+        }
+    }
+    return IHook::Result::DROP;
+}
+
+inet::L3Address ORPLRoutingTable::getRouterIdAsGeneric()
+{
+    // TODO: Cleaner way to get L3 Address?
+    return interfaceTable->findFirstNonLoopbackInterface()->getNetworkAddress();
 }

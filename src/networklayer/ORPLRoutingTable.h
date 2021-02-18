@@ -21,13 +21,14 @@
 #include <inet/networklayer/common/L3Address.h>
 #include <inet/networklayer/contract/IArp.h>
 #include <inet/networklayer/contract/IInterfaceTable.h>
+#include <inet/networklayer/contract/INetfilter.h>
 
 #include "common/Units.h"
 
 namespace oppostack{
 
 
-class ORPLRoutingTable : public omnetpp::cSimpleModule, public inet::cListener
+class ORPLRoutingTable : public omnetpp::cSimpleModule, public inet::cListener, public inet::NetfilterBase::HookBase
 {
 public:
     ORPLRoutingTable():
@@ -53,6 +54,7 @@ protected:
     NeighbourRecords encountersTable;
     int encountersCount = 0;
     int probCalcEncountersThreshold = 20;
+    int probCalcEncountersThresholdMax = 40;
     int interactionDenominator = 0;
     oppostack::EqDC forwardingCostW = oppostack::EqDC(0.1);
     void calculateInteractionProbability();
@@ -62,6 +64,13 @@ public:
     oppostack::EqDC calculateEqDC(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
     oppostack::EqDC calculateEqDC(const inet::L3Address destination) const;
     void increaseInteractionDenominator();
+    inet::L3Address getRouterIdAsGeneric();
+    // Hook to accept incoming requests
+    virtual inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram) override;
+    virtual inet::INetfilter::IHook::Result datagramForwardHook(inet::Packet*) override{return IHook::Result::ACCEPT;};
+    virtual inet::INetfilter::IHook::Result datagramPostRoutingHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};
+    virtual inet::INetfilter::IHook::Result datagramLocalInHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};
+    virtual inet::INetfilter::IHook::Result datagramLocalOutHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};
 };
 
 } //namespace oppostack

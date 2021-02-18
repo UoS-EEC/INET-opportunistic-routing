@@ -27,6 +27,7 @@
 #include <inet/common/lifecycle/LifecycleController.h>
 #include <inet/common/lifecycle/NodeStatus.h>
 #include <inet/common/Protocol.h>
+#include <inet/networklayer/contract/INetfilter.h>
 
 #include "common/Units.h"
 #include "networklayer/OpportunisticRpl.h"
@@ -40,7 +41,7 @@ using namespace inet;
  * WakeUpMacLayer - Implements two stage message transmission of
  * high power wake up followed by the data message
  */
-class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
+class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public NetfilterBase
 {
   public:
     WakeUpMacLayer()
@@ -54,7 +55,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol
         energyStorage(nullptr),
         networkNode(nullptr),
         replenishmentTimer(nullptr),
-        routingModule(nullptr),
         currentRxFrame(nullptr)
       {}
     virtual ~WakeUpMacLayer();
@@ -187,10 +187,28 @@ protected:
     void changeActiveRadio(physicallayer::IRadio*);
     virtual bool isLowerMessage(cMessage* message) override;
     virtual void configureInterfaceEntry() override;
-    OpportunisticRpl* routingModule;
-    void queryWakeupRequest(const Packet* wakeUp);
+    void queryWakeupRequest(Packet* wakeUp);
     simtime_t setRadioToTransmitIfFreeOrDelay(cMessage* timer, const simtime_t& maxDelay);
     void setWuRadioToTransmitIfFreeOrDelay(const t_mac_event& event, cMessage* timer, const simtime_t& maxDelay);
+
+
+  protected:
+    // NetFilter functions:
+    // @brief called before a packet arriving from the network is accepted/acked
+    virtual IHook::Result datagramPreRoutingHook(Packet *datagram);
+    // @brief datagramForwardHook not implemented since MAC does not forward -> see datagramLocalOutHook
+    // called before a packet arriving from the network is delivered via the network
+    // @brief called before a packet is delivered via the network
+    virtual IHook::Result datagramPostRoutingHook(Packet *datagram);
+    // @brief called before a packet arriving from the network is delivered locally
+    virtual IHook::Result datagramLocalInHook(Packet *datagram);
+    // @brief called before a packet arriving locally is delivered to the network
+    virtual IHook::Result datagramLocalOutHook(Packet *datagram);
+
+    // @brief reinjecting datagram means nothing at mac layer currently
+    virtual void reinjectQueuedDatagram(const Packet *datagram) override{};
+    // @brief dropQueuedDatagram cannot drop due to forced const argument
+    virtual void dropQueuedDatagram(const Packet* datagram) override{};
 
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
@@ -215,7 +233,7 @@ protected:
     const int maxForwarders = 4;
     int acknowledgedForwarders = 0;
     int acknowledgmentRound = 1;
-    const int maxWakeUpTries = 4;
+    int maxWakeUpTries = 1;
     int txInProgressForwarders = 0;
     int txInProgressTries = 0; //TODO: rename to tries
     simtime_t dataTransmissionDelay = 0;

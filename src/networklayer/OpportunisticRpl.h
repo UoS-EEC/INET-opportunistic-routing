@@ -75,9 +75,6 @@ public:
         arp(nullptr),
         waitingPacket(nullptr){}
     virtual void initialize(int stage) override;
-    EqDC queryAcceptPacket(const MacAddress& destination,
-            const EqDC& costThreshold, const Packet* data) const;
-    EqDC queryAcceptWakeUp(const MacAddress& destination, const EqDC& costThreshold) const;
 protected:
     cMessage* nextForwardTimer;
     // Crude net layer backoff to reduce contention of forwarded packets with multiple forwarders

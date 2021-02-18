@@ -26,7 +26,6 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         // Assumes MAC layer is within an interface
         string dataRadioModule = default("^.dataRadio");   // The path to the Radio module
         string wakeUpRadioModule = default("^.wakeUpRadio");   // The path to the Wake up radio
-        string routingModule = default("^.^.generic.np");
         string energyStorage = default("^.^.energyStorage");
         string networkNode = default("^.^");
         double transmissionStartMinEnergy @unit(J) = 0.004345J; // Don't start transmitting unless there is at least this in storage
@@ -37,20 +36,28 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         double dataListeningDuration @unit(s) = default(0.0085 s); // How long to listen after a wake-up
         double wuApproveResponseLimit @unit(s) = default(1000ns);
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
+        int maxWakeUpTries = default(4);
 
         // Weighted Encounters signals and with attached L2Addr and EDC/EquivalentTx(EqTx) details
         @signal[coincidentalEncounter](type=double);
         @signal[expectedEncounter](type=double);
         @signal[listenForEncountersEnded](type=double);
-        @statistic[coincidentalEncounter](title="Weighted coincidental neighbor encounter"; record=vector);
-        @statistic[expectedEncounter](title="Weighted expected neighbor encounter"; record=vector);
-        @statistic[listenForEncountersEnded](title="Ended expected encounters listening period"; record=vector);
+        @statistic[coincidentalEncounter](title="Weighted coincidental neighbor encounter"; record=vector,count);
+        @statistic[expectedEncounter](title="Weighted expected neighbor encounter"; record=vector,count);
+        @statistic[listenForEncountersEnded](title="Ended expected encounters listening period"; record=vector,count);
 
         // WakeUpMac retry signals and statistics
         @signal[transmissionTries](type=long);
         @signal[ackContentionRounds](type=long);
         @statistic[transmissionTries](title="Number of Tries till packet discarded or received"; record=histogram,vector);
         @statistic[ackContentionRounds](title="Number of ack contention rounds for each packet"; record=histogram,vector);
+
+		// Mac Energy Consumption Monitoring Signals
+        @signal[wakeUpModeStart](type=bool);
+        @signal[receptionEnded](type=bool);
+        @signal[falseWakeUpEnded](type=bool);
+        @signal[transmissionModeStart](type=bool);
+        @signal[transmissionEnded](type=bool);
 
         // Generic packet loss statistics
         @statistic[packetDropNoRouteFound](title="packet drop: no route found"; source=packetDropReasonIsNoRouteFound(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
