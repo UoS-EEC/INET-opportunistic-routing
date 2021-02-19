@@ -36,19 +36,19 @@ network ORPLTest
         routingHub: ORPLLayerNode {
             @display("p=71.68298,45.578777");
             wlan[0].mac.address = "0000DA7ABA5E";
-            generic.np.hubAddress = "routingHub";
+            generic.np.hubAddress = "routingHub(modulepath)";
             generic.np.hubExpectedCost = 0;
         }
         transmittingWakeUpNode: ORPLLayerNode {
             @display("p=62.774406,37.4989");
-            generic.np.hubAddress = "routingHub";
+            generic.np.hubAddress = "routingHub(modulepath)";
             generic.np.hubExpectedCost = 4ExpectedCost;
             packetGenerator.destAddresses = "routingHub(modulepath)";
             packetGenerator.startTime = 0.5s;
         }
         overhearingWakeUpNode: ORPLLayerNode {
             @display("p=62.774406,50.758183");
-            generic.np.hubAddress = "routingHub";
+            generic.np.hubAddress = "routingHub(modulepath)";
             generic.np.hubExpectedCost = 2ExpectedCost;
             packetGenerator.destAddresses = "routingHub(modulepath)";
             packetGenerator.sendInterval = 5s;

@@ -64,7 +64,6 @@ protected:
     double minTransmissionProbability = 0;
     inet::queueing::IPacketQueue* sentMessageQueue;
     omnetpp::cModule* packetSourceModule;
-    inet::L3Address helloDestination;//TODO: Make plural when relevant
     int onOffCycles = 0;
 
     virtual void initialize(int stage) override;

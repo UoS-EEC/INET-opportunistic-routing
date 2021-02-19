@@ -70,25 +70,21 @@ void ORPLHello::initialize(int const stage)
         auto packetRecord = makeShared<OpportunisticRoutingHeader>();
         packetRecord->setId(onOffCycles); // Reuse ID for what cycle packet transmitted in
         //TODO: Make plural when relevant
+        //Taken from IpvxTrafGen
         destAddresses.clear();
-        //const char *destAddrs = par("destAddresses");
-        //cStringTokenizer tokenizer(destAddrs);
-        //const char *token;
-        /*while ((token = tokenizer.nextToken()) != nullptr) {
+        const char *destAddrs = par("destAddresses");
+        cStringTokenizer tokenizer(destAddrs);
+        const char *token;
+        while ((token = tokenizer.nextToken()) != nullptr) {
             L3Address result;
             L3AddressResolver().tryResolve(token, result);
             if (result.isUnspecified())
                 EV_ERROR << "cannot resolve destination address: " << token << endl;
             else
                 destAddresses.push_back(result);
-        }*/
-        //Taken from IpvxTrafGen
-        const char *token = par("destAddresses");
-        L3AddressResolver().tryResolve(token, helloDestination, L3AddressResolver::ADDR_MODULEPATH);
-        if (helloDestination.isUnspecified())
-            EV_ERROR << "cannot resolve destination address: " << token << endl;
+        }
 
-        packetRecord->setDestAddr(helloDestination);
+        packetRecord->setDestAddr(destAddresses[0]);
         auto pkt = new Packet("PacketLog");
         pkt->insertAtFront(packetRecord);
 
@@ -125,13 +121,13 @@ void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
     for(int i=0; i<queueSize; i++){
         const Packet* recordedMessage = sentMessageQueue->getPacket(i);
         const L3Address destAddr = recordedMessage->peekAtFront<OpportunisticRoutingHeader>()->getDestAddr();
-        if(destAddr == helloDestination){
+        if(destAddr == destAddresses[0]){
             helloDestinationCount++;
         }
     }
     const double transmissionRate = (double)helloDestinationCount/(numCycles);
     if(transmissionRate<minTransmissionProbability){
-        sendHelloBroadcast(helloDestination);
+        sendHelloBroadcast(destAddresses[0]);
     }
 }
 
@@ -167,7 +163,7 @@ void ORPLHello::handleCrashOperation(inet::LifecycleOperation* op)
 void ORPLHello::handleSelfMessage(cMessage* msg)
 {
     if(msg == timer){
-        sendHelloBroadcast(helloDestination);
+        sendHelloBroadcast(destAddresses[0]);
         if(isEnabled())
             rescheduleTransmissionTimer();
     }
@@ -180,7 +176,7 @@ void ORPLHello::sendHelloBroadcast(L3Address destination)
     pkt->addTagIfAbsent<EqDCReq>()->setEqDC(EqDC(25.5)); // Set to accept any forwarder
 
     //TODO: Make plural when relevant (with chooseDestAddr() from IpvxTraffGen() )
-    const L3Address destAddr = helloDestination;
+    const L3Address destAddr = destination;
 
     const IL3AddressType *addressType = destAddr.getAddressType();
     pkt->addTag<PacketProtocolTag>()->setProtocol(protocol);

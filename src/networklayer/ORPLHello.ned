@@ -41,7 +41,7 @@ module ORPLHello
                 
         // What ORPL destinations (DAG roots/hubAddress) are relevant
         int numDestinations = 1;
-    	string hubAddress = default("routingHub");
+    	string hubAddress = default("routingHub(modulepath)");
     gates:
         output lowerLayerOut;
     submodules:
