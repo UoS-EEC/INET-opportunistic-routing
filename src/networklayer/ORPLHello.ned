@@ -32,6 +32,9 @@ module ORPLHello
         double stopTime @unit(s) = default(-1s);  // time of finishing sending, negative values mean forever
         volatile double sendInterval @unit(s) = default(200s); // may be a random value, e.g. exponential(1)
         int numPackets = default(-1); // max number of packets to generate, -1 means forever
+        int protocol = 240; // value for IPv4, IPv6 protocol field, accepts only between 143 and 254
+        volatile int packetLength @unit(B) = 0; // packet length in bytes
+        string destAddresses = this.hubAddress; // list of destination addresses, separated by spaces
         
         string packetSignalSourceModule = default("^.np");
         double intermittentPacketRate = default(0.3);// Each cycle should transmit with this avg probability
@@ -39,7 +42,6 @@ module ORPLHello
         // What ORPL destinations (DAG roots/hubAddress) are relevant
         int numDestinations = 1;
     	string hubAddress = default("routingHub");
-        string helloDestination = this.hubAddress;// TODO: Make plural when relevant
     gates:
         output lowerLayerOut;
     submodules:

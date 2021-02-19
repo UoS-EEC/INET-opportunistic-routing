@@ -27,31 +27,63 @@ using namespace inet;
 using namespace oppostack;
 Define_Module(ORPLHello);
 
+std::vector<const Protocol *> ORPLHello::allocatedProtocols;
+
 void ORPLHello::initialize(int const stage)
 {
     ApplicationBase::initialize(stage);
     if(stage == INITSTAGE_LOCAL){
+        int protocolId = par("protocol");
+        if (protocolId < 143 || protocolId > 254)
+            throw cRuntimeError("invalid protocol id %d, accepts only between 143 and 254", protocolId);
+        protocol = ProtocolGroup::ipprotocol.findProtocol(protocolId);
+        if (!protocol) {
+            std::string name = "prot_" + std::to_string(protocolId);
+            protocol = new Protocol(name.c_str(), name.c_str());
+            allocatedProtocols.push_back(protocol);
+            ProtocolGroup::ipprotocol.addProtocol(protocolId, protocol);
+        }
         numPackets = par("numPackets");
         startTime = par("startTime");
         stopTime = par("stopTime");
+        if (stopTime >= SIMTIME_ZERO && stopTime < startTime)
+            throw cRuntimeError("Invalid startTime/stopTime parameters");
 
+        packetLengthPar = &par("packetLength");
+        sendIntervalPar = &par("sendInterval");
+
+        timer = new cMessage("Hello retransmission timer");
+
+        numSent = 0;
+        numReceived = 0;
+        WATCH(numSent);
+        WATCH(numReceived);
 
         sentMessageQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("destinationRecord"));
-        retransmissionDelay = par("sendInterval");
-        retransmissionTimer = new cMessage("Hello retransmission timer");
         minTransmissionProbability = par("intermittentPacketRate");
         ASSERT(minTransmissionProbability > 0 && minTransmissionProbability < 1);
         packetSourceModule = getCModuleFromPar(par("packetSignalSourceModule"), this);
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
         packetSourceModule->subscribe(packetSentToLowerSignal, this);
-        protocol = ProtocolGroup::ipprotocol.findProtocol(240);
         // Populate the queue with dummy packets to begin with
         auto packetRecord = makeShared<OpportunisticRoutingHeader>();
         packetRecord->setId(onOffCycles); // Reuse ID for what cycle packet transmitted in
         //TODO: Make plural when relevant
+        destAddresses.clear();
+        //const char *destAddrs = par("destAddresses");
+        //cStringTokenizer tokenizer(destAddrs);
+        //const char *token;
+        /*while ((token = tokenizer.nextToken()) != nullptr) {
+            L3Address result;
+            L3AddressResolver().tryResolve(token, result);
+            if (result.isUnspecified())
+                EV_ERROR << "cannot resolve destination address: " << token << endl;
+            else
+                destAddresses.push_back(result);
+        }*/
         //Taken from IpvxTrafGen
-        const char* token = par("helloDestination");
+        const char *token = par("destAddresses");
         L3AddressResolver().tryResolve(token, helloDestination, L3AddressResolver::ADDR_MODULEPATH);
         if (helloDestination.isUnspecified())
             EV_ERROR << "cannot resolve destination address: " << token << endl;
@@ -72,12 +104,14 @@ void ORPLHello::initialize(int const stage)
 
 ORPLHello::~ORPLHello()
 {
-    cancelAndDelete(retransmissionTimer);
+    cancelAndDelete(timer);
 }
 
 void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
 {
-    rescheduleTransmissionTimer();
+
+    if(isEnabled())
+        rescheduleTransmissionTimer();
     onOffCycles++;
 
     // Fails if queue is empty, but it should never be empty
@@ -126,15 +160,16 @@ void ORPLHello::receiveSignal(cComponent* source, omnetpp::simsignal_t signalID,
 
 void ORPLHello::handleCrashOperation(inet::LifecycleOperation* op)
 {
-    cancelEvent(retransmissionTimer);
+    cancelNextPacket();
     onOffCycles++;
 }
 
 void ORPLHello::handleSelfMessage(cMessage* msg)
 {
-    if(msg == retransmissionTimer){
+    if(msg == timer){
         sendHelloBroadcast(helloDestination);
-        rescheduleTransmissionTimer();
+        if(isEnabled())
+            rescheduleTransmissionTimer();
     }
 }
 
@@ -165,8 +200,15 @@ void ORPLHello::handleMessageWhenUp(cMessage* message)
 
 void ORPLHello::rescheduleTransmissionTimer()
 {
-    if(retransmissionDelay > 0){
-        scheduleAt(simTime() + uniform(0.9,1)*retransmissionDelay, retransmissionTimer);
-    }
+    scheduleAt(simTime() + uniform(0.9,1)* ((simtime_t)*sendIntervalPar), timer);
 }
 
+void ORPLHello::cancelNextPacket()
+{
+    cancelEvent(timer);
+}
+
+bool ORPLHello::isEnabled()
+{
+    return numPackets == -1 || numSent < numPackets;
+}
