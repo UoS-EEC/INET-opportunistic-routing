@@ -26,10 +26,16 @@ module ORPLHello
     parameters:
         @class(ORPLHello);
     	@display("i=block/broadcast");
-        string packetSignalSourceModule = default("^.np");
-        double poweredPacketInterval @unit(s) = default(200s); // Depends on power generation and consumption
-        double intermittentPacketRate = default(0.3);// Each cycle should transmit with this avg probability
+    	
+    	// From IpvxTraffGen modified send interval
+        double startTime @unit(s) = default(1s); // time of sending the first packet
+        double stopTime @unit(s) = default(-1s);  // time of finishing sending, negative values mean forever
+        volatile double sendInterval @unit(s) = default(200s); // may be a random value, e.g. exponential(1)
+        int numPackets = default(-1); // max number of packets to generate, -1 means forever
         
+        string packetSignalSourceModule = default("^.np");
+        double intermittentPacketRate = default(0.3);// Each cycle should transmit with this avg probability
+                
         // What ORPL destinations (DAG roots/hubAddress) are relevant
         int numDestinations = 1;
     	string hubAddress = default("routingHub");

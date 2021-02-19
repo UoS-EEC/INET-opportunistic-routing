@@ -31,8 +31,13 @@ void ORPLHello::initialize(int const stage)
 {
     ApplicationBase::initialize(stage);
     if(stage == INITSTAGE_LOCAL){
+        numPackets = par("numPackets");
+        startTime = par("startTime");
+        stopTime = par("stopTime");
+
+
         sentMessageQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("destinationRecord"));
-        retransmissionDelay = par("poweredPacketInterval");
+        retransmissionDelay = par("sendInterval");
         retransmissionTimer = new cMessage("Hello retransmission timer");
         minTransmissionProbability = par("intermittentPacketRate");
         ASSERT(minTransmissionProbability > 0 && minTransmissionProbability < 1);

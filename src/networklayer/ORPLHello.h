@@ -35,6 +35,12 @@ public:
         packetSourceModule(nullptr){};
     ~ORPLHello();
 protected:
+    // From Ipvx Traff gen
+    omnetpp::simtime_t startTime;
+    omnetpp::simtime_t stopTime;
+    // ...
+    int numPackets = 0;
+
     inet::cMessage* retransmissionTimer;
     omnetpp::simtime_t retransmissionDelay = 0;
     double minTransmissionProbability = 0;
