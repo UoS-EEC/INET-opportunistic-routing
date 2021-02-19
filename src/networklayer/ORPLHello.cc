@@ -59,7 +59,7 @@ void ORPLHello::initialize(int const stage)
         for(int i=0; i<queueLimit; i++){
             sentMessageQueue->pushPacket(pkt->dup());
         }
-
+        delete pkt;
     }
 
 
@@ -164,3 +164,4 @@ void ORPLHello::rescheduleTransmissionTimer()
         scheduleAt(simTime() + uniform(0.9,1)*retransmissionDelay, retransmissionTimer);
     }
 }
+
