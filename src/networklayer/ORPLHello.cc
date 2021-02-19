@@ -65,7 +65,7 @@ void ORPLHello::initialize(int const stage)
 
 }
 
-void ORPLHello::finish()
+ORPLHello::~ORPLHello()
 {
     cancelAndDelete(retransmissionTimer);
 }

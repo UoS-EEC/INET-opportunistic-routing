@@ -920,8 +920,6 @@ void WakeUpMacLayer::handleStopOperation(LifecycleOperation *operation) {
 }
 
 WakeUpMacLayer::~WakeUpMacLayer() {
-    // TODO: Move this to the finish function
-    // TODO: Cleanup allocated shared packets
     cancelAllTimers();
     deleteAllTimers();
 }

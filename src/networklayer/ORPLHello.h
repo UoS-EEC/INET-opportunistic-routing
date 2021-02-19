@@ -33,7 +33,7 @@ public:
         retransmissionTimer(nullptr),
         sentMessageQueue(nullptr),
         packetSourceModule(nullptr){};
-
+    ~ORPLHello();
 protected:
     inet::cMessage* retransmissionTimer;
     omnetpp::simtime_t retransmissionDelay = 0;
@@ -46,7 +46,6 @@ protected:
 
     virtual void initialize(int stage) override;
 
-    virtual void finish() override;
     virtual void receiveSignal(cComponent *source, omnetpp::simsignal_t signalID, cObject* msg, cObject *details) override;
     virtual void handleStartOperation(inet::LifecycleOperation* op) override;
     virtual void handleStopOperation(inet::LifecycleOperation* op) override;
