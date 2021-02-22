@@ -90,6 +90,130 @@ void ORPLHello::startApp()
 }
 
 
+
+void ORPLHello::handleMessageWhenUp(cMessage* msg)
+{
+    if(msg == timer){
+        if (msg->getKind() == START) {
+            destAddresses.clear();
+            const char *destAddrs = par("destAddresses");
+            cStringTokenizer tokenizer(destAddrs);
+            const char *token;
+            while ((token = tokenizer.nextToken()) != nullptr) {
+                L3Address result;
+                L3AddressResolver().tryResolve(token, result);
+                if (result.isUnspecified())
+                    EV_ERROR << "cannot resolve destination address: " << token << endl;
+                else
+                    destAddresses.push_back(result);
+            }
+        }
+
+        if (!destAddresses.empty()) {
+            sendHelloBroadcast(destAddresses[0]);
+            if(isEnabled())
+                scheduleNextPacket(simTime());
+        }
+    }
+    else
+        processPacket(check_and_cast<Packet *>(msg));
+}
+
+void ORPLHello::scheduleNextPacket(simtime_t previous)
+{
+    simtime_t next;
+    if (previous == -1) {
+        next = simTime() <= startTime ? startTime : simTime();
+        timer->setKind(START);
+    }
+    else {
+        next = previous + *sendIntervalPar;
+        timer->setKind(NEXT);
+    }
+    if (stopTime < SIMTIME_ZERO || next < stopTime)
+        scheduleAt(next, timer);
+}
+
+void ORPLHello::cancelNextPacket()
+{
+    cancelEvent(timer);
+}
+
+bool ORPLHello::isEnabled()
+{
+    return numPackets == -1 || numSent < numPackets;
+}
+
+void ORPLHello::receiveSignal(cComponent* source, omnetpp::simsignal_t signalID, cObject* msg, cObject* details)
+{
+    if(signalID == packetSentToLowerSignal){
+        // Extract destination to new header
+        Packet* sentPacket = check_and_cast<Packet*>(msg);
+        auto sentHeader = sentPacket->peekAtFront<OpportunisticRoutingHeader>();
+
+        auto packetRecord = makeShared<OpportunisticRoutingHeader>();
+        packetRecord->setId(onOffCycles); // Reuse ID for what cycle packet transmitted in
+        //TODO: Make plural when relevant
+        packetRecord->setDestAddr(sentHeader->getDestAddr());
+        auto pkt = new Packet("PacketLog");
+        pkt->insertAtFront(packetRecord);
+
+        sentMessageQueue->pushPacket(pkt);
+    }
+}
+
+void ORPLHello::sendHelloBroadcast(L3Address destination)
+{
+
+    auto pkt = new Packet("Hello Broadcast");
+    pkt->addTagIfAbsent<EqDCReq>()->setEqDC(EqDC(25.5)); // Set to accept any forwarder
+
+    //TODO: Make plural when relevant (with chooseDestAddr() from IpvxTraffGen() )
+    const L3Address destAddr = destination;
+
+    const IL3AddressType *addressType = destAddr.getAddressType();
+    pkt->addTag<PacketProtocolTag>()->setProtocol(protocol);
+    pkt->addTag<DispatchProtocolReq>()->setProtocol(addressType->getNetworkProtocol());
+    pkt->addTag<L3AddressReq>()->setDestAddress(destAddr);
+    pkt->addTag<EqDCBroadcast>();
+
+    EV_INFO << "Sending hello broadcast";
+    emit(packetSentSignal, pkt);
+    send(pkt,"lowerLayerOut");
+}
+
+void ORPLHello::printPacket(Packet *msg)
+{
+    L3Address src, dest;
+    int protocol = -1;
+    auto *ctrl = msg->getControlInfo();
+    if (ctrl != nullptr) {
+        protocol = ProtocolGroup::ipprotocol.getProtocolNumber(msg->getTag<PacketProtocolTag>()->getProtocol());
+    }
+    L3AddressTagBase *addresses = msg->findTag<L3AddressReq>();
+    if (addresses == nullptr)
+        addresses = msg->findTag<L3AddressInd>();
+    if (addresses != nullptr) {
+        src = addresses->getSrcAddress();
+        dest = addresses->getDestAddress();
+    }
+
+    EV_INFO << msg << endl;
+    EV_INFO << "Payload length: " << msg->getByteLength() << " bytes" << endl;
+
+    if (protocol != -1)
+        EV_INFO << "src: " << src << "  dest: " << dest << "  protocol=" << protocol << "\n";
+}
+
+void ORPLHello::processPacket(Packet *msg)
+{
+    emit(packetReceivedSignal, msg);
+    EV_INFO << "Received packet: ";
+    printPacket(msg);
+    delete msg;
+    numReceived++;
+}
+
 void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
 {
 
@@ -126,104 +250,8 @@ void ORPLHello::handleStopOperation(inet::LifecycleOperation* op)
     handleCrashOperation(op);
 }
 
-void ORPLHello::receiveSignal(cComponent* source, omnetpp::simsignal_t signalID, cObject* msg, cObject* details)
-{
-    if(signalID == packetSentToLowerSignal){
-        // Extract destination to new header
-        Packet* sentPacket = check_and_cast<Packet*>(msg);
-        auto sentHeader = sentPacket->peekAtFront<OpportunisticRoutingHeader>();
-
-        auto packetRecord = makeShared<OpportunisticRoutingHeader>();
-        packetRecord->setId(onOffCycles); // Reuse ID for what cycle packet transmitted in
-        //TODO: Make plural when relevant
-        packetRecord->setDestAddr(sentHeader->getDestAddr());
-        auto pkt = new Packet("PacketLog");
-        pkt->insertAtFront(packetRecord);
-
-        sentMessageQueue->pushPacket(pkt);
-    }
-}
-
 void ORPLHello::handleCrashOperation(inet::LifecycleOperation* op)
 {
     cancelNextPacket();
     onOffCycles++;
 }
-
-void ORPLHello::handleSelfMessage(cMessage* msg)
-{
-    if(msg == timer){
-        if (msg->getKind() == START) {
-            destAddresses.clear();
-            const char *destAddrs = par("destAddresses");
-            cStringTokenizer tokenizer(destAddrs);
-            const char *token;
-            while ((token = tokenizer.nextToken()) != nullptr) {
-                L3Address result;
-                L3AddressResolver().tryResolve(token, result);
-                if (result.isUnspecified())
-                    EV_ERROR << "cannot resolve destination address: " << token << endl;
-                else
-                    destAddresses.push_back(result);
-            }
-        }
-
-        if (!destAddresses.empty()) {
-            sendHelloBroadcast(destAddresses[0]);
-            if(isEnabled())
-                scheduleNextPacket(simTime());
-        }
-    }
-}
-
-void ORPLHello::sendHelloBroadcast(L3Address destination)
-{
-
-    auto pkt = new Packet("Hello Broadcast");
-    pkt->addTagIfAbsent<EqDCReq>()->setEqDC(EqDC(25.5)); // Set to accept any forwarder
-
-    //TODO: Make plural when relevant (with chooseDestAddr() from IpvxTraffGen() )
-    const L3Address destAddr = destination;
-
-    const IL3AddressType *addressType = destAddr.getAddressType();
-    pkt->addTag<PacketProtocolTag>()->setProtocol(protocol);
-    pkt->addTag<DispatchProtocolReq>()->setProtocol(addressType->getNetworkProtocol());
-    pkt->addTag<L3AddressReq>()->setDestAddress(destAddr);
-    pkt->addTag<EqDCBroadcast>();
-
-    EV_INFO << "Sending hello broadcast";
-    emit(packetSentSignal, pkt);
-    send(pkt,"lowerLayerOut");
-}
-
-void ORPLHello::handleMessageWhenUp(cMessage* message)
-{
-    if (message->isSelfMessage())
-        handleSelfMessage(message);
-}
-
-void ORPLHello::scheduleNextPacket(simtime_t previous)
-{
-    simtime_t next;
-    if (previous == -1) {
-        next = simTime() <= startTime ? startTime : simTime();
-        timer->setKind(START);
-    }
-    else {
-        next = previous + *sendIntervalPar;
-        timer->setKind(NEXT);
-    }
-    if (stopTime < SIMTIME_ZERO || next < stopTime)
-        scheduleAt(next, timer);
-}
-
-void ORPLHello::cancelNextPacket()
-{
-    cancelEvent(timer);
-}
-
-bool ORPLHello::isEnabled()
-{
-    return numPackets == -1 || numSent < numPackets;
-}
-

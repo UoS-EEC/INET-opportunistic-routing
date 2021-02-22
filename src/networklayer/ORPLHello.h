@@ -61,6 +61,9 @@ protected:
     virtual bool isEnabled();
     //...
     virtual void startApp();
+
+    virtual void printPacket(inet::Packet *msg);
+    virtual void processPacket(inet::Packet *msg);
     // End from Ipvx Traff gen
 protected:
     double minTransmissionProbability = 0;
@@ -76,7 +79,6 @@ protected:
     virtual void handleCrashOperation(inet::LifecycleOperation* op) override;
 
     virtual void handleMessageWhenUp(omnetpp::cMessage *message); // From LayeredProtocolBase
-    virtual void handleSelfMessage(omnetpp::cMessage* msg);
     virtual void sendHelloBroadcast(inet::L3Address destination);
     void rescheduleTransmissionTimer();
 };
