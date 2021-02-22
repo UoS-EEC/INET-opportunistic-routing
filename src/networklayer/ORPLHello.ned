@@ -36,6 +36,9 @@ module ORPLHello
         volatile int packetLength @unit(B) = 0; // packet length in bytes
         string destAddresses = this.hubAddress; // list of destination addresses, separated by spaces
         
+        @signal[packetSent](type=inet::Packet);
+        @statistic[packetSent](title="packets sent"; source=packetSent; record=count,"sum(packetBytes)","vector(packetBytes)"; interpolationmode=none);
+        
         string packetSignalSourceModule = default("^.np");
         double intermittentPacketRate = default(0.3);// Each cycle should transmit with this avg probability
                 
