@@ -15,6 +15,7 @@
 
 #include "networklayer/ORPLHello.h"
 
+#include "inet/common/IProtocolRegistrationListener.h"
 #include "OpportunisticRoutingHeader_m.h"
 #include "common/EqDCTag_m.h"
 #include "common/oppDefs.h"
@@ -28,6 +29,11 @@ using namespace oppostack;
 Define_Module(ORPLHello);
 
 std::vector<const Protocol *> ORPLHello::allocatedProtocols;
+
+ORPLHello::~ORPLHello()
+{
+    cancelAndDelete(timer);
+}
 
 void ORPLHello::initialize(int const stage)
 {
@@ -67,14 +73,22 @@ void ORPLHello::initialize(int const stage)
     else if(stage == INITSTAGE_NETWORK_LAYER){
         packetSourceModule->subscribe(packetSentToLowerSignal, this);
     }
+    else if (stage == INITSTAGE_APPLICATION_LAYER) {
+        registerService(*protocol, nullptr, gate("lowerLayerIn"));
+        registerProtocol(*protocol, gate("lowerLayerOut"), nullptr);
+    }
 
 
 }
 
-ORPLHello::~ORPLHello()
+void ORPLHello::startApp()
 {
-    cancelAndDelete(timer);
+    if (isEnabled() && onOffCycles == 0)
+        scheduleNextPacket(-1);
+    else if (isEnabled())
+        scheduleNextPacket(simTime());
 }
+
 
 void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
 {
@@ -180,14 +194,6 @@ void ORPLHello::sendHelloBroadcast(L3Address destination)
     EV_INFO << "Sending hello broadcast";
     emit(packetSentSignal, pkt);
     send(pkt,"lowerLayerOut");
-}
-
-void ORPLHello::startApp()
-{
-    if (isEnabled() && onOffCycles == 0)
-        scheduleNextPacket(-1);
-    else if (isEnabled())
-        scheduleNextPacket(simTime());
 }
 
 void ORPLHello::handleMessageWhenUp(cMessage* message)
