@@ -106,14 +106,9 @@ ORPLHello::~ORPLHello()
 void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
 {
 
-    if(isEnabled())
-        rescheduleTransmissionTimer();
+    startApp();
     onOffCycles++;
 
-    // Fails if queue is empty, but it should never be empty
-    const int firstRecordedCycle = sentMessageQueue->getPacket(0)->peekAtFront<OpportunisticRoutingHeader>()->getId();
-    const int numCycles = onOffCycles - firstRecordedCycle;
-    ASSERT(numCycles>0);
     //TODO: Make plural when relevant
     // by looping through helloDestinations
     int helloDestinationCount =0;
@@ -125,6 +120,11 @@ void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
             helloDestinationCount++;
         }
     }
+
+    // Fails if queue is empty, but it should never be empty
+    const int firstRecordedCycle = sentMessageQueue->getPacket(0)->peekAtFront<OpportunisticRoutingHeader>()->getId();
+    const int numCycles = onOffCycles - firstRecordedCycle;
+    ASSERT(numCycles>0);
     const double transmissionRate = (double)helloDestinationCount/(numCycles);
     if(transmissionRate<minTransmissionProbability){
         sendHelloBroadcast(destAddresses[0]);
@@ -163,9 +163,26 @@ void ORPLHello::handleCrashOperation(inet::LifecycleOperation* op)
 void ORPLHello::handleSelfMessage(cMessage* msg)
 {
     if(msg == timer){
-        sendHelloBroadcast(destAddresses[0]);
-        if(isEnabled())
-            rescheduleTransmissionTimer();
+        if (msg->getKind() == START) {
+            destAddresses.clear();
+            const char *destAddrs = par("destAddresses");
+            cStringTokenizer tokenizer(destAddrs);
+            const char *token;
+            while ((token = tokenizer.nextToken()) != nullptr) {
+                L3Address result;
+                L3AddressResolver().tryResolve(token, result);
+                if (result.isUnspecified())
+                    EV_ERROR << "cannot resolve destination address: " << token << endl;
+                else
+                    destAddresses.push_back(result);
+            }
+        }
+
+        if (!destAddresses.empty()) {
+            sendHelloBroadcast(destAddresses[0]);
+            if(isEnabled())
+                scheduleNextPacket(simTime());
+        }
     }
 }
 
@@ -188,15 +205,33 @@ void ORPLHello::sendHelloBroadcast(L3Address destination)
     send(pkt,"lowerLayerOut");
 }
 
+void ORPLHello::startApp()
+{
+    if (isEnabled() && onOffCycles == 0)
+        scheduleNextPacket(-1);
+    else if (isEnabled())
+        scheduleNextPacket(simTime());
+}
+
 void ORPLHello::handleMessageWhenUp(cMessage* message)
 {
     if (message->isSelfMessage())
         handleSelfMessage(message);
 }
 
-void ORPLHello::rescheduleTransmissionTimer()
+void ORPLHello::scheduleNextPacket(simtime_t previous)
 {
-    scheduleAt(simTime() + uniform(0.9,1)* ((simtime_t)*sendIntervalPar), timer);
+    simtime_t next;
+    if (previous == -1) {
+        next = uniform(0.9,1)* ((simtime_t)*sendIntervalPar);
+        timer->setKind(START);
+    }
+    else {
+        next = previous + uniform(0.9,1)* ((simtime_t)*sendIntervalPar);
+        //timer->setKind(NEXT);
+    }
+    if (stopTime < SIMTIME_ZERO || next < stopTime)
+        scheduleAt(next, timer);
 }
 
 void ORPLHello::cancelNextPacket()
@@ -208,3 +243,4 @@ bool ORPLHello::isEnabled()
 {
     return numPackets == -1 || numSent < numPackets;
 }
+

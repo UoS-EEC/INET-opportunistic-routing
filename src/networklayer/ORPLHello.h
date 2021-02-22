@@ -56,9 +56,11 @@ protected:
     static std::vector<const inet::Protocol *> allocatedProtocols;
     // ...
 protected:
+    virtual void scheduleNextPacket(omnetpp::simtime_t previous);
     virtual void cancelNextPacket();
     virtual bool isEnabled();
-
+    //...
+    virtual void startApp();
     // End from Ipvx Traff gen
 protected:
     double minTransmissionProbability = 0;
