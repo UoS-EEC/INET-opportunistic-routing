@@ -223,12 +223,12 @@ void ORPLHello::scheduleNextPacket(simtime_t previous)
 {
     simtime_t next;
     if (previous == -1) {
-        next = uniform(0.9,1)* ((simtime_t)*sendIntervalPar);
+        next = simTime() <= startTime ? startTime : simTime();
         timer->setKind(START);
     }
     else {
-        next = previous + uniform(0.9,1)* ((simtime_t)*sendIntervalPar);
-        //timer->setKind(NEXT);
+        next = previous + *sendIntervalPar;
+        timer->setKind(NEXT);
     }
     if (stopTime < SIMTIME_ZERO || next < stopTime)
         scheduleAt(next, timer);

@@ -28,7 +28,7 @@ module ORPLHello
     	@display("i=block/broadcast");
     	
     	// From IpvxTraffGen modified send interval
-        double startTime @unit(s) = default(1s); // time of sending the first packet
+        double startTime @unit(s) = default(uniform(0s,200s)); // time of sending the first packet
         double stopTime @unit(s) = default(-1s);  // time of finishing sending, negative values mean forever
         volatile double sendInterval @unit(s) = default(200s); // may be a random value, e.g. exponential(1)
         int numPackets = default(-1); // max number of packets to generate, -1 means forever
