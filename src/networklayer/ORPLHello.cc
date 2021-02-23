@@ -83,10 +83,8 @@ void ORPLHello::initialize(int const stage)
 
 void ORPLHello::startApp()
 {
-    if (isEnabled() && numSent == 0)
+    if (isEnabled())
         scheduleNextPacket(-1);
-    else if (isEnabled())
-        scheduleNextPacket(simTime());
 }
 
 
@@ -153,24 +151,6 @@ bool ORPLHello::isEnabled()
     return numPackets == -1 || numSent < numPackets;
 }
 
-void ORPLHello::receiveSignal(cComponent* source, omnetpp::simsignal_t signalID, cObject* msg, cObject* details)
-{
-    if(signalID == packetSentToLowerSignal){
-        // Extract destination to new header
-        Packet* sentPacket = check_and_cast<Packet*>(msg);
-        auto sentHeader = sentPacket->peekAtFront<OpportunisticRoutingHeader>();
-
-        auto packetRecord = makeShared<OpportunisticRoutingHeader>();
-        packetRecord->setId(onOffCycles); // Reuse ID for what cycle packet transmitted in
-        //TODO: Make plural when relevant
-        packetRecord->setDestAddr(sentHeader->getDestAddr());
-        auto pkt = new Packet("PacketLog");
-        pkt->insertAtFront(packetRecord);
-
-        sentMessageQueue->pushPacket(pkt);
-    }
-}
-
 L3Address ORPLHello::chooseDestAddr()
 {
     return quietestDestination().second;
@@ -232,9 +212,15 @@ void ORPLHello::processPacket(Packet *msg)
 
 void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
 {
-
-    startApp();
     onOffCycles++;
+
+    if(numSent == 0){
+        startApp();
+    }
+    else{
+        scheduleNextPacket(simTime());
+    }
+
 
     const int queueSize = sentMessageQueue->getNumPackets();
     int numCycles = 0;
@@ -282,3 +268,22 @@ std::pair<int, inet::L3Address> ORPLHello::quietestDestination() const
     }
     return std::pair<int, inet::L3Address>(quietestCount, quietestAddress);
 }
+
+void ORPLHello::receiveSignal(cComponent* source, omnetpp::simsignal_t signalID, cObject* msg, cObject* details)
+{
+    if(signalID == packetSentToLowerSignal){
+        // Extract destination to new header
+        Packet* sentPacket = check_and_cast<Packet*>(msg);
+        auto sentHeader = sentPacket->peekAtFront<OpportunisticRoutingHeader>();
+
+        auto packetRecord = makeShared<OpportunisticRoutingHeader>();
+        packetRecord->setId(onOffCycles); // Reuse ID for what cycle packet transmitted in
+        //TODO: Make plural when relevant
+        packetRecord->setDestAddr(sentHeader->getDestAddr());
+        auto pkt = new Packet("PacketLog");
+        pkt->insertAtFront(packetRecord);
+
+        sentMessageQueue->pushPacket(pkt);
+    }
+}
+
