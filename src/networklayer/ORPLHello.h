@@ -64,6 +64,7 @@ protected:
 
     virtual void printPacket(inet::Packet *msg);
     virtual void processPacket(inet::Packet *msg);
+    virtual void refreshDisplay() const override;
     // End from Ipvx Traff gen
 protected:
     double minTransmissionProbability = 0;

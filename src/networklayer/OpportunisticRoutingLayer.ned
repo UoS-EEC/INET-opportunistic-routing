@@ -42,6 +42,6 @@ module OpportunisticRoutingLayer extends SimpleNetworkLayer
             @display("p=150,100");
         }
     connections:
-        up.in++ <-- helloManager.lowerLayerOut;
-        up.out++ --> helloManager.lowerLayerIn;
+        up.in++ <-- helloManager.ipOut;
+        up.out++ --> helloManager.ipIn;
 }

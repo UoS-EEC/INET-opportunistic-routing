@@ -46,8 +46,8 @@ module ORPLHello
         int numDestinations = 1;
     	string hubAddress = default("routingHub(modulepath)");
     gates:
-        output lowerLayerOut;
-        input lowerLayerIn;
+        output ipOut;
+        input ipIn;
     submodules:
         destinationRecord: <default("DropHeadQueue")> like IPacketQueue {
             parameters:

@@ -58,7 +58,7 @@ void ORPLHello::initialize(int const stage)
         packetLengthPar = &par("packetLength");
         sendIntervalPar = &par("sendInterval");
 
-        timer = new cMessage("Hello retransmission timer");
+        timer = new cMessage("sendTimer");
 
         numSent = 0;
         numReceived = 0;
@@ -74,8 +74,8 @@ void ORPLHello::initialize(int const stage)
         packetSourceModule->subscribe(packetSentToLowerSignal, this);
     }
     else if (stage == INITSTAGE_APPLICATION_LAYER) {
-        registerService(*protocol, nullptr, gate("lowerLayerIn"));
-        registerProtocol(*protocol, gate("lowerLayerOut"), nullptr);
+        registerService(*protocol, nullptr, gate("ipIn"));
+        registerProtocol(*protocol, gate("ipOut"), nullptr);
     }
 
 
@@ -117,6 +117,15 @@ void ORPLHello::handleMessageWhenUp(cMessage* msg)
     }
     else
         processPacket(check_and_cast<Packet *>(msg));
+}
+
+void ORPLHello::refreshDisplay() const
+{
+    ApplicationBase::refreshDisplay();
+
+    char buf[40];
+    sprintf(buf, "rcvd: %d pks\nsent: %d pks", numReceived, numSent);
+    getDisplayString().setTagArg("t", 0, buf);
 }
 
 void ORPLHello::scheduleNextPacket(simtime_t previous)
@@ -179,7 +188,7 @@ void ORPLHello::sendHelloBroadcast(L3Address destination)
 
     EV_INFO << "Sending hello broadcast";
     emit(packetSentSignal, pkt);
-    send(pkt,"lowerLayerOut");
+    send(pkt,"ipOut");
 }
 
 void ORPLHello::printPacket(Packet *msg)
