@@ -251,15 +251,13 @@ void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
 
 void ORPLHello::handleStopOperation(inet::LifecycleOperation* op)
 {
-    handleCrashOperation(op);
+    cancelNextPacket();
 }
 
 void ORPLHello::handleCrashOperation(inet::LifecycleOperation* op)
 {
     cancelNextPacket();
-    onOffCycles++;
 }
-
 std::pair<int, inet::L3Address> ORPLHello::quietestDestination() const
 {
     const int k = 0;
