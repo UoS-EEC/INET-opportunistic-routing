@@ -110,7 +110,7 @@ void ORPLHello::handleMessageWhenUp(cMessage* msg)
         }
 
         if (!destAddresses.empty()) {
-            sendHelloBroadcast(destAddresses[0]);
+            sendPacket();
             if(isEnabled())
                 scheduleNextPacket(simTime());
         }
@@ -171,15 +171,21 @@ void ORPLHello::receiveSignal(cComponent* source, omnetpp::simsignal_t signalID,
     }
 }
 
-void ORPLHello::sendHelloBroadcast(L3Address destination)
+L3Address ORPLHello::chooseDestAddr()
 {
+    return quietestDestination().second;
+}
+
+
+void ORPLHello::sendPacket()
+{
+    char msgName[] = "Hello Broadcast";
 
     auto pkt = new Packet("Hello Broadcast");
     pkt->addTagIfAbsent<EqDCReq>()->setEqDC(EqDC(25.5)); // Set to accept any forwarder
 
-    //TODO: Make plural when relevant (with chooseDestAddr() from IpvxTraffGen() )
-    const L3Address destAddr = destination;
-
+    const L3Address destAddr = chooseDestAddr();
+    ASSERT(destAddr == destAddresses[0]);
     const IL3AddressType *addressType = destAddr.getAddressType();
     pkt->addTag<PacketProtocolTag>()->setProtocol(protocol);
     pkt->addTag<DispatchProtocolReq>()->setProtocol(addressType->getNetworkProtocol());
@@ -228,28 +234,14 @@ void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
 
     startApp();
     onOffCycles++;
-
-    for(auto &helloDest : destAddresses){
-        // by looping through helloDestinations
-        int helloDestinationCount =0;
-        const int queueSize = sentMessageQueue->getNumPackets();
-        for(int i=0; i<queueSize; i++){
-            const Packet* recordedMessage = sentMessageQueue->getPacket(i);
-            const L3Address destAddr = recordedMessage->peekAtFront<OpportunisticRoutingHeader>()->getDestAddr();
-            if(destAddr == helloDest){
-                helloDestinationCount++;
-            }
-        }
-        auto res = quietestDestination();
-        if(res.second!=helloDest || res.first!=helloDestinationCount){
-            throw cRuntimeError("Unsuitable replacement function");
-        }
+    const int queueSize = sentMessageQueue->getNumPackets();
+    if(queueSize>0){
         const int firstRecordedCycle = sentMessageQueue->getPacket(0)->peekAtFront<OpportunisticRoutingHeader>()->getId();
         const int numCycles = onOffCycles - firstRecordedCycle;
 
         const int transmissionsExpected = minTransmissionProbability*(numCycles);
-        if(helloDestinationCount<=transmissionsExpected){
-            sendHelloBroadcast(helloDest);
+        if(quietestDestination().first<=transmissionsExpected){
+            sendPacket();
         }
     }
 }

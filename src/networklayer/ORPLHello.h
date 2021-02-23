@@ -59,12 +59,22 @@ protected:
     virtual void scheduleNextPacket(omnetpp::simtime_t previous);
     virtual void cancelNextPacket();
     virtual bool isEnabled();
-    //...
+
+    virtual inet::L3Address chooseDestAddr();
+    virtual void sendPacket();
+
+    virtual int numInitStages() const override { return NUM_INIT_STAGES; }
+    virtual void initialize(int stage) override;
+    virtual void handleMessageWhenUp(omnetpp::cMessage *message); // From LayeredProtocolBase
+    virtual void refreshDisplay() const override;
     virtual void startApp();
 
     virtual void printPacket(inet::Packet *msg);
     virtual void processPacket(inet::Packet *msg);
-    virtual void refreshDisplay() const override;
+
+    virtual void handleStartOperation(inet::LifecycleOperation* op) override;
+    virtual void handleStopOperation(inet::LifecycleOperation* op) override;
+    virtual void handleCrashOperation(inet::LifecycleOperation* op) override;
     // End from Ipvx Traff gen
 protected:
     double minTransmissionProbability = 0;
@@ -72,15 +82,8 @@ protected:
     omnetpp::cModule* packetSourceModule;
     int onOffCycles = 0;
 
-    virtual void initialize(int stage) override;
-
     virtual void receiveSignal(cComponent *source, omnetpp::simsignal_t signalID, cObject* msg, cObject *details) override;
-    virtual void handleStartOperation(inet::LifecycleOperation* op) override;
-    virtual void handleStopOperation(inet::LifecycleOperation* op) override;
-    virtual void handleCrashOperation(inet::LifecycleOperation* op) override;
 
-    virtual void handleMessageWhenUp(omnetpp::cMessage *message); // From LayeredProtocolBase
-    virtual void sendHelloBroadcast(inet::L3Address destination);
     void rescheduleTransmissionTimer();
     std::pair<int, inet::L3Address> quietestDestination() const;
 };
