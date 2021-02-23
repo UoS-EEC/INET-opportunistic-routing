@@ -63,7 +63,7 @@ protected:
     virtual inet::L3Address chooseDestAddr();
     virtual void sendPacket();
 
-    virtual int numInitStages() const override { return NUM_INIT_STAGES; }
+    virtual int numInitStages() const override { return inet::NUM_INIT_STAGES; }
     virtual void initialize(int stage) override;
     virtual void handleMessageWhenUp(omnetpp::cMessage *message); // From LayeredProtocolBase
     virtual void refreshDisplay() const override;

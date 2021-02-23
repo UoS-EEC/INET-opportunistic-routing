@@ -83,7 +83,7 @@ void ORPLHello::initialize(int const stage)
 
 void ORPLHello::startApp()
 {
-    if (isEnabled() && onOffCycles == 0)
+    if (isEnabled() && numSent == 0)
         scheduleNextPacket(-1);
     else if (isEnabled())
         scheduleNextPacket(simTime());
@@ -181,7 +181,7 @@ void ORPLHello::sendPacket()
 {
     char msgName[] = "Hello Broadcast";
 
-    auto pkt = new Packet("Hello Broadcast");
+    auto pkt = new Packet(msgName);
     pkt->addTagIfAbsent<EqDCReq>()->setEqDC(EqDC(25.5)); // Set to accept any forwarder
 
     const L3Address destAddr = chooseDestAddr();
@@ -195,6 +195,7 @@ void ORPLHello::sendPacket()
     EV_INFO << "Sending hello broadcast";
     emit(packetSentSignal, pkt);
     send(pkt,"ipOut");
+    numSent++;
 }
 
 void ORPLHello::printPacket(Packet *msg)
@@ -234,16 +235,18 @@ void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
 
     startApp();
     onOffCycles++;
+
     const int queueSize = sentMessageQueue->getNumPackets();
+    int numCycles = 0;
     if(queueSize>0){
         const int firstRecordedCycle = sentMessageQueue->getPacket(0)->peekAtFront<OpportunisticRoutingHeader>()->getId();
-        const int numCycles = onOffCycles - firstRecordedCycle;
-
+        numCycles = onOffCycles - firstRecordedCycle;
         const int transmissionsExpected = minTransmissionProbability*(numCycles);
         if(quietestDestination().first<=transmissionsExpected){
             sendPacket();
         }
     }
+
 }
 
 void ORPLHello::handleStopOperation(inet::LifecycleOperation* op)
