@@ -241,15 +241,12 @@ void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
             }
         }
 
-        if(queueSize>0){
-            const int firstRecordedCycle = sentMessageQueue->getPacket(0)->peekAtFront<OpportunisticRoutingHeader>()->getId();
-            const int numCycles = onOffCycles - firstRecordedCycle;
+        const int firstRecordedCycle = sentMessageQueue->getPacket(0)->peekAtFront<OpportunisticRoutingHeader>()->getId();
+        const int numCycles = onOffCycles - firstRecordedCycle;
 
-            ASSERT(numCycles>0);
-            const double transmissionRate = (double)helloDestinationCount/(numCycles);
-            if(transmissionRate<minTransmissionProbability){
-                sendHelloBroadcast(helloDest);
-            }
+        const int transmissionsExpected = minTransmissionProbability*(numCycles);
+        if(helloDestinationCount<=transmissionsExpected){
+            sendHelloBroadcast(helloDest);
         }
     }
 }
