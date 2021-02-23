@@ -82,6 +82,7 @@ protected:
     virtual void handleMessageWhenUp(omnetpp::cMessage *message); // From LayeredProtocolBase
     virtual void sendHelloBroadcast(inet::L3Address destination);
     void rescheduleTransmissionTimer();
+    std::pair<int, inet::L3Address> quietestDestination() const;
 };
 
 } //namespace oppostack

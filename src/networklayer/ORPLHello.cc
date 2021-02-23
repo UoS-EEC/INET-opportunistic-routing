@@ -240,7 +240,10 @@ void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
                 helloDestinationCount++;
             }
         }
-
+        auto res = quietestDestination();
+        if(res.second!=helloDest || res.first!=helloDestinationCount){
+            throw cRuntimeError("Unsuitable replacement function");
+        }
         const int firstRecordedCycle = sentMessageQueue->getPacket(0)->peekAtFront<OpportunisticRoutingHeader>()->getId();
         const int numCycles = onOffCycles - firstRecordedCycle;
 
@@ -260,4 +263,29 @@ void ORPLHello::handleCrashOperation(inet::LifecycleOperation* op)
 {
     cancelNextPacket();
     onOffCycles++;
+}
+
+std::pair<int, inet::L3Address> ORPLHello::quietestDestination() const
+{
+    const int k = 0;
+    inet::L3Address quietestAddress = destAddresses[k];
+
+    const int queueSize = sentMessageQueue->getNumPackets();
+    int quietestCount = queueSize;
+    // Not efficient with large numbers of destinations but there should be <=3 anyway!
+    for(auto &helloDest : destAddresses){
+        int destinationCount =0;
+        for(int i=0; i<queueSize; i++){
+            const Packet* recordedMessage = sentMessageQueue->getPacket(i);
+            const L3Address destAddr = recordedMessage->peekAtFront<OpportunisticRoutingHeader>()->getDestAddr();
+            if(destAddr == helloDest){
+                destinationCount++;
+            }
+        }
+        if(destinationCount<quietestCount){
+            quietestCount = destinationCount;
+            quietestAddress = helloDest;
+        }
+    }
+    return std::pair<int, inet::L3Address>(quietestCount, quietestAddress);
 }
