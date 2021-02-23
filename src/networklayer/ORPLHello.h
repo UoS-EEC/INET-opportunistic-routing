@@ -17,7 +17,7 @@
 #define NETWORKLAYER_ORPLHELLO_H_
 
 #include <omnetpp.h>
-#include <inet/applications/base/ApplicationBase.h>
+#include <inet/applications/generic/IpvxTrafGen.h>
 #include <inet/queueing/contract/IPacketQueue.h>
 #include "OpportunisticRoutingHeader_m.h"
 
@@ -26,56 +26,19 @@ namespace oppostack{
 /**
  * Simple module to send hello messages if messages are infrequent
  */
-class ORPLHello : public inet::ApplicationBase, public inet::cListener
+class ORPLHello : public inet::IpvxTrafGen, public inet::cListener
 {
 public:
-    ORPLHello() : inet::ApplicationBase(),
-        timer(nullptr),
+    ORPLHello() : inet::IpvxTrafGen(),
         sentMessageQueue(nullptr),
         packetSourceModule(nullptr){};
-    ~ORPLHello();
 protected:
-    // From Ipvx Traf gen
-    enum Kinds { START = 100, NEXT };
-
-    // parameters: see the NED files for more info
-    omnetpp::simtime_t startTime;
-    omnetpp::simtime_t stopTime;
-    omnetpp::cPar *sendIntervalPar = nullptr;
-    omnetpp::cPar *packetLengthPar = nullptr;
-    const inet::Protocol *protocol = nullptr;
-    std::vector<inet::L3Address> destAddresses;
-    int numPackets = 0;
-
-    // state
-    inet::cMessage* timer;
-
-    // statistic
-    int numSent = 0;
-    int numReceived = 0;
-    static std::vector<const inet::Protocol *> allocatedProtocols;
-    // ...
-protected:
-    virtual void scheduleNextPacket(omnetpp::simtime_t previous);
-    virtual void cancelNextPacket();
-    virtual bool isEnabled();
+    virtual void initialize(int stage) override;
 
     virtual inet::L3Address chooseDestAddr();
     virtual void sendPacket();
 
-    virtual int numInitStages() const override { return inet::NUM_INIT_STAGES; }
-    virtual void initialize(int stage) override;
-    virtual void handleMessageWhenUp(omnetpp::cMessage *message); // From LayeredProtocolBase
-    virtual void refreshDisplay() const override;
-    virtual void startApp();
-
-    virtual void printPacket(inet::Packet *msg);
-    virtual void processPacket(inet::Packet *msg);
-
     virtual void handleStartOperation(inet::LifecycleOperation* op) override;
-    virtual void handleStopOperation(inet::LifecycleOperation* op) override;
-    virtual void handleCrashOperation(inet::LifecycleOperation* op) override;
-    // End from Ipvx Traff gen
 protected:
     double minTransmissionProbability = 0;
     inet::queueing::IPacketQueue* sentMessageQueue;
@@ -84,7 +47,6 @@ protected:
 
     virtual void receiveSignal(cComponent *source, omnetpp::simsignal_t signalID, cObject* msg, cObject *details) override;
 
-    void rescheduleTransmissionTimer();
     std::pair<int, inet::L3Address> quietestDestination() const;
 };
 
