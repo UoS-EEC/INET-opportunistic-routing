@@ -20,7 +20,6 @@
 #include "common/oppDefs.h"
 #include <inet/networklayer/common/L3AddressTag_m.h>
 #include <inet/networklayer/contract/IL3AddressType.h>
-#include <inet/networklayer/common/L3AddressResolver.h>
 #include <inet/common/ModuleAccess.h>
 
 using namespace inet;
@@ -29,76 +28,101 @@ Define_Module(ORPLHello);
 
 void ORPLHello::initialize(int const stage)
 {
-    ApplicationBase::initialize(stage);
+    IpvxTrafGen::initialize(stage);
+
     if(stage == INITSTAGE_LOCAL){
         sentMessageQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("destinationRecord"));
-        retransmissionDelay = par("poweredPacketInterval");
-        retransmissionTimer = new cMessage("Hello retransmission timer");
         minTransmissionProbability = par("intermittentPacketRate");
         ASSERT(minTransmissionProbability > 0 && minTransmissionProbability < 1);
         packetSourceModule = getCModuleFromPar(par("packetSignalSourceModule"), this);
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
         packetSourceModule->subscribe(packetSentToLowerSignal, this);
-        protocol = ProtocolGroup::ipprotocol.findProtocol(240);
-        // Populate the queue with dummy packets to begin with
-        auto packetRecord = makeShared<OpportunisticRoutingHeader>();
-        packetRecord->setId(onOffCycles); // Reuse ID for what cycle packet transmitted in
-        //TODO: Make plural when relevant
-        //Taken from IpvxTrafGen
-        const char* token = par("helloDestination");
-        L3AddressResolver().tryResolve(token, helloDestination, L3AddressResolver::ADDR_MODULEPATH);
-        if (helloDestination.isUnspecified())
-            EV_ERROR << "cannot resolve destination address: " << token << endl;
-
-        packetRecord->setDestAddr(helloDestination);
-        auto pkt = new Packet("PacketLog");
-        pkt->insertAtFront(packetRecord);
-
-        const int queueLimit = sentMessageQueue->getMaxNumPackets();
-        for(int i=0; i<queueLimit; i++){
-            sentMessageQueue->pushPacket(pkt->dup());
-        }
-
     }
 
 
 }
 
-void ORPLHello::finish()
+L3Address ORPLHello::chooseDestAddr()
 {
-    cancelAndDelete(retransmissionTimer);
+    return quietestDestination().second;
+}
+
+
+void ORPLHello::sendPacket()
+{
+    char msgName[] = "Hello Broadcast";
+
+    auto pkt = new Packet(msgName);
+    pkt->addTagIfAbsent<EqDCReq>()->setEqDC(EqDC(25.5)); // Set to accept any forwarder
+
+    if(destAddresses.size()>5)
+        EV_ERROR << "ORPLHello is not designed to handle large numbers of destinations";
+    else if(destAddresses.size()>3)
+        EV_ERROR << "ORPLHello may not behave properly with more than 3 destinations";
+
+    const L3Address destAddr = chooseDestAddr();
+    ASSERT(destAddr == destAddresses[0]);
+    const IL3AddressType *addressType = destAddr.getAddressType();
+    pkt->addTag<PacketProtocolTag>()->setProtocol(protocol);
+    pkt->addTag<DispatchProtocolReq>()->setProtocol(addressType->getNetworkProtocol());
+    pkt->addTag<L3AddressReq>()->setDestAddress(destAddr);
+    pkt->addTag<EqDCBroadcast>();
+
+    EV_INFO << "Sending hello broadcast";
+    emit(packetSentSignal, pkt);
+    send(pkt,"ipOut");
+    numSent++;
 }
 
 void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
 {
-    rescheduleTransmissionTimer();
     onOffCycles++;
 
-    // Fails if queue is empty, but it should never be empty
-    const int firstRecordedCycle = sentMessageQueue->getPacket(0)->peekAtFront<OpportunisticRoutingHeader>()->getId();
-    const int numCycles = onOffCycles - firstRecordedCycle;
-    ASSERT(numCycles>0);
-    //TODO: Make plural when relevant
-    // by looping through helloDestinations
-    int helloDestinationCount =0;
+    if(numSent == 0){
+        startApp();
+    }
+    else{
+        scheduleNextPacket(simTime());
+    }
+
+
     const int queueSize = sentMessageQueue->getNumPackets();
-    for(int i=0; i<queueSize; i++){
-        const Packet* recordedMessage = sentMessageQueue->getPacket(i);
-        const L3Address destAddr = recordedMessage->peekAtFront<OpportunisticRoutingHeader>()->getDestAddr();
-        if(destAddr == helloDestination){
-            helloDestinationCount++;
+    int numCycles = 0;
+    if(queueSize>0){
+        const int firstRecordedCycle = sentMessageQueue->getPacket(0)->peekAtFront<OpportunisticRoutingHeader>()->getId();
+        numCycles = onOffCycles - firstRecordedCycle;
+        const int transmissionsExpected = minTransmissionProbability*(numCycles);
+        if(quietestDestination().first<=transmissionsExpected){
+            sendPacket();
         }
     }
-    const double transmissionRate = (double)helloDestinationCount/(numCycles);
-    if(transmissionRate<minTransmissionProbability){
-        sendHelloBroadcast(helloDestination);
-    }
+
 }
 
-void ORPLHello::handleStopOperation(inet::LifecycleOperation* op)
+std::pair<int, inet::L3Address> ORPLHello::quietestDestination() const
 {
-    handleCrashOperation(op);
+    const int k = 0;
+    inet::L3Address quietestAddress = destAddresses[k];
+
+    const int queueSize = sentMessageQueue->getNumPackets();
+    int quietestCount = queueSize;
+    // Not efficient with large numbers of destinations but there should be <=3 anyway!
+    for(auto &helloDest : destAddresses){
+        int destinationCount =0;
+        for(int i=0; i<queueSize; i++){
+            const Packet* recordedMessage = sentMessageQueue->getPacket(i);
+            const L3Address destAddr = recordedMessage->peekAtFront<OpportunisticRoutingHeader>()->getDestAddr();
+            if(destAddr == helloDest){
+                destinationCount++;
+            }
+        }
+        if(destinationCount<quietestCount){
+            quietestCount = destinationCount;
+            quietestAddress = helloDest;
+        }
+    }
+    return std::pair<int, inet::L3Address>(quietestCount, quietestAddress);
 }
 
 void ORPLHello::receiveSignal(cComponent* source, omnetpp::simsignal_t signalID, cObject* msg, cObject* details)
@@ -119,48 +143,3 @@ void ORPLHello::receiveSignal(cComponent* source, omnetpp::simsignal_t signalID,
     }
 }
 
-void ORPLHello::handleCrashOperation(inet::LifecycleOperation* op)
-{
-    cancelEvent(retransmissionTimer);
-    onOffCycles++;
-}
-
-void ORPLHello::handleSelfMessage(cMessage* msg)
-{
-    if(msg == retransmissionTimer){
-        sendHelloBroadcast(helloDestination);
-        rescheduleTransmissionTimer();
-    }
-}
-
-void ORPLHello::sendHelloBroadcast(L3Address destination)
-{
-
-    auto pkt = new Packet("Hello Broadcast");
-    pkt->addTagIfAbsent<EqDCReq>()->setEqDC(EqDC(25.5)); // Set to accept any forwarder
-
-    //TODO: Make plural when relevant (with chooseDestAddr() from IpvxTraffGen() )
-    const L3Address destAddr = helloDestination;
-
-    const IL3AddressType *addressType = destAddr.getAddressType();
-    pkt->addTag<PacketProtocolTag>()->setProtocol(protocol);
-    pkt->addTag<DispatchProtocolReq>()->setProtocol(addressType->getNetworkProtocol());
-    pkt->addTag<L3AddressReq>()->setDestAddress(destAddr);
-    pkt->addTag<EqDCBroadcast>();
-
-    EV_INFO << "Sending hello broadcast";
-    send(pkt,"lowerLayerOut");
-}
-
-void ORPLHello::handleMessageWhenUp(cMessage* message)
-{
-    if (message->isSelfMessage())
-        handleSelfMessage(message);
-}
-
-void ORPLHello::rescheduleTransmissionTimer()
-{
-    if(retransmissionDelay > 0){
-        scheduleAt(simTime() + uniform(0.9,1)*retransmissionDelay, retransmissionTimer);
-    }
-}

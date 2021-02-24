@@ -229,10 +229,6 @@ void OpportunisticRpl::handleSelfMessage(cMessage* const msg) {
     }
 }
 
-void OpportunisticRpl::finish() {
-    cancelAndDelete(nextForwardTimer);
-}
-
 void OpportunisticRpl::handleStartOperation(LifecycleOperation *op) {
     if(waitingPacket!=nullptr){
         // send packet after scheduled timer
@@ -251,4 +247,13 @@ void OpportunisticRpl::handleCrashOperation(LifecycleOperation *op) {
 bool OpportunisticRpl::messageKnown(const oppostack::PacketRecord record)
 {
     return packetHistory.find(record);
+}
+
+oppostack::OpportunisticRpl::~OpportunisticRpl()
+{
+    cancelAndDelete(nextForwardTimer);
+    if(waitingPacket != nullptr){
+        delete waitingPacket;
+        waitingPacket = nullptr;
+    }
 }

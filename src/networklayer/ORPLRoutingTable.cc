@@ -102,6 +102,7 @@ void ORPLRoutingTable::updateEncounters(const L3Address address, const oppostack
 
 EqDC ORPLRoutingTable::calculateEqDC(const L3Address destination, EqDC& nextHopEqDC) const
 {
+    Enter_Method("ORPLRoutingTable::calculateEqDC(address, ..)");
     const InterfaceEntry* interface = interfaceTable->findFirstNonLoopbackInterface();
     if(interface->getNetworkAddress() == destination){
         return EqDC(0.0);
@@ -153,6 +154,7 @@ EqDC ORPLRoutingTable::calculateEqDC(const L3Address destination, EqDC& nextHopE
 }
 EqDC ORPLRoutingTable::calculateEqDC(const inet::L3Address destination) const
 {
+    Enter_Method("ORPLRoutingTable::calculateEqDC(address)");
     EqDC nextHopDummyVar = EqDC(0.0);
     return calculateEqDC(destination, nextHopDummyVar);
 }
@@ -232,6 +234,7 @@ INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datag
 
 inet::L3Address ORPLRoutingTable::getRouterIdAsGeneric()
 {
+    Enter_Method_Silent("ORPLRoutingTable::getRouterIdAsGeneric()");
     // TODO: Cleaner way to get L3 Address?
     return interfaceTable->findFirstNonLoopbackInterface()->getNetworkAddress();
 }
