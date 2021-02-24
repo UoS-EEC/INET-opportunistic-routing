@@ -15,43 +15,33 @@
 
 package oppostack.networklayer;
 
+import inet.applications.generic.IpvxTrafGen;
 import inet.queueing.contract.IPacketQueue;
 //
 // Simple manager of hello messages broadcast to neighbor nodes
 // Determines rate of sending hello messages
-// TODO: Inherit from IpvxTrafGen or include that as submodule 
 //
-module ORPLHello 
+module ORPLHello extends IpvxTrafGen
 {
     parameters:
-        @class(ORPLHello);
     	@display("i=block/broadcast");
-    	
-    	// From IpvxTraffGen modified send interval
-        double startTime @unit(s) = default(uniform(0s,200s)); // time of sending the first packet
-        double stopTime @unit(s) = default(-1s);  // time of finishing sending, negative values mean forever
-        volatile double sendInterval @unit(s) = default(200s); // may be a random value, e.g. exponential(1)
-        int numPackets = default(-1); // max number of packets to generate, -1 means forever
-        int protocol = 241; // value for IPv4, IPv6 protocol field, accepts only between 143 and 254
-        volatile int packetLength @unit(B) = 0; // packet length in bytes
-        string destAddresses = this.hubAddress; // list of destination addresses, separated by spaces
-        
-        @signal[packetSent](type=inet::Packet);
-        @statistic[packetSent](title="packets sent"; source=packetSent; record=count,"sum(packetBytes)","vector(packetBytes)"; interpolationmode=none);
+    	@class(ORPLHello);
+    	// Override sending characteristics for IpvxTrafGen
+        startTime @unit(s) = default(uniform(0s,200s)); // time of sending the first hello
+        sendInterval @unit(s) = default(200s); // set minimum frequency to send packets (including from other layers
+        protocol = 241; // value for IPv4, IPv6 protocol field, accepts only between 143 and 254
+        packetLength @unit(B) = 0; // packet length in bytes
+        destAddresses = this.hubAddress; // list of destination addresses, separated by spaces
         
         string packetSignalSourceModule = default("^.np");
         double intermittentPacketRate = default(0.3);// Each cycle should transmit with this avg probability
                 
         // What ORPL destinations (DAG roots/hubAddress) are relevant
-        int numDestinations = 1;
     	string hubAddress = default("routingHub(modulepath)");
-    gates:
-        output ipOut;
-        input ipIn;
     submodules:
         destinationRecord: <default("DropHeadQueue")> like IPacketQueue {
             parameters:
-                packetCapacity = default(numDestinations*10);
+                packetCapacity = default(10);
                 @display("p=100,100;q=l2queue");
         }
 }

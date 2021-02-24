@@ -56,6 +56,11 @@ void ORPLHello::sendPacket()
     auto pkt = new Packet(msgName);
     pkt->addTagIfAbsent<EqDCReq>()->setEqDC(EqDC(25.5)); // Set to accept any forwarder
 
+    if(destAddresses.size()>5)
+        EV_ERROR << "ORPLHello is not designed to handle large numbers of destinations";
+    else if(destAddresses.size()>3)
+        EV_ERROR << "ORPLHello may not behave properly with more than 3 destinations";
+
     const L3Address destAddr = chooseDestAddr();
     ASSERT(destAddr == destAddresses[0]);
     const IL3AddressType *addressType = destAddr.getAddressType();
