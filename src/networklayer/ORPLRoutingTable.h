@@ -60,10 +60,10 @@ protected:
     void calculateInteractionProbability();
     void configureInterface(inet::InterfaceEntry *ie);
     static omnetpp::simsignal_t updatedEqDCValueSignal;
+    void increaseInteractionDenominator();
 public:
     oppostack::EqDC calculateEqDC(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
     oppostack::EqDC calculateEqDC(const inet::L3Address destination) const;
-    void increaseInteractionDenominator();
     inet::L3Address getRouterIdAsGeneric();
     // Hook to accept incoming requests
     virtual inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram) override;

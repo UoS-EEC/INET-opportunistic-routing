@@ -74,6 +74,7 @@ public:
         routingTable(nullptr),
         arp(nullptr),
         waitingPacket(nullptr){}
+    ~OpportunisticRpl();
     virtual void initialize(int stage) override;
 protected:
     cMessage* nextForwardTimer;
@@ -106,7 +107,6 @@ protected:
     virtual void dropPacket(Packet* packet, PacketDropDetails& details);
     virtual void handleLowerPacket(Packet* packet) override;
 
-    virtual void finish() override;
     virtual void handleStartOperation(LifecycleOperation* op) override;
     virtual void handleStopOperation(LifecycleOperation* op) override;
     virtual void handleCrashOperation(LifecycleOperation* op) override;

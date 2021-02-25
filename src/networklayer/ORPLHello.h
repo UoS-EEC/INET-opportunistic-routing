@@ -17,7 +17,7 @@
 #define NETWORKLAYER_ORPLHELLO_H_
 
 #include <omnetpp.h>
-#include <inet/applications/base/ApplicationBase.h>
+#include <inet/applications/generic/IpvxTrafGen.h>
 #include <inet/queueing/contract/IPacketQueue.h>
 #include "OpportunisticRoutingHeader_m.h"
 
@@ -26,36 +26,28 @@ namespace oppostack{
 /**
  * Simple module to send hello messages if messages are infrequent
  */
-class ORPLHello : public inet::ApplicationBase, public inet::cListener
+class ORPLHello : public inet::IpvxTrafGen, public inet::cListener
 {
 public:
-    ORPLHello() : inet::ApplicationBase(),
-        retransmissionTimer(nullptr),
+    ORPLHello() : inet::IpvxTrafGen(),
         sentMessageQueue(nullptr),
         packetSourceModule(nullptr){};
-
 protected:
-    inet::cMessage* retransmissionTimer;
-    omnetpp::simtime_t retransmissionDelay = 0;
+    virtual void initialize(int stage) override;
+
+    virtual inet::L3Address chooseDestAddr();
+    virtual void sendPacket();
+
+    virtual void handleStartOperation(inet::LifecycleOperation* op) override;
+protected:
     double minTransmissionProbability = 0;
     inet::queueing::IPacketQueue* sentMessageQueue;
     omnetpp::cModule* packetSourceModule;
-    inet::L3Address helloDestination;//TODO: Make plural when relevant
     int onOffCycles = 0;
-    const inet::Protocol* protocol;
 
-    virtual void initialize(int stage) override;
-
-    virtual void finish() override;
     virtual void receiveSignal(cComponent *source, omnetpp::simsignal_t signalID, cObject* msg, cObject *details) override;
-    virtual void handleStartOperation(inet::LifecycleOperation* op) override;
-    virtual void handleStopOperation(inet::LifecycleOperation* op) override;
-    virtual void handleCrashOperation(inet::LifecycleOperation* op) override;
 
-    virtual void handleMessageWhenUp(omnetpp::cMessage *message); // From LayeredProtocolBase
-    virtual void handleSelfMessage(omnetpp::cMessage* msg);
-    virtual void sendHelloBroadcast(inet::L3Address destination);
-    void rescheduleTransmissionTimer();
+    std::pair<int, inet::L3Address> quietestDestination() const;
 };
 
 } //namespace oppostack
