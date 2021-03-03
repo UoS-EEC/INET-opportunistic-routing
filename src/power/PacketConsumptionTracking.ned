@@ -29,6 +29,6 @@ simple PacketConsumptionTracking
     
     @signal[packetReceivedEqDC](type=double);
     @signal[packetReceivedEnergyConsumed](type=double);
-    @statistic[packetReceivedEqDC](title="EqDC value used for packet when sent"; record=vector);
-    @statistic[packetReceivedEnergyConsumed](title="Energy used by packet for transmission to destination"; record=vector);
+    @statistic[packetReceivedEqDC](title="EqDC value used for packet when sent"; record=vector,histogram);
+    @statistic[packetReceivedEnergyConsumed](title="Energy used by packet for transmission to destination"; record=vector,histogram);
 }
