@@ -29,6 +29,8 @@ using namespace oppostack;
 
 Define_Module(ORPLRoutingTable);
 simsignal_t ORPLRoutingTable::updatedEqDCValueSignal = cComponent::registerSignal("updatedEqDCValue");
+simsignal_t ORPLRoutingTable::vagueNeighborsSignal = cComponent::registerSignal("vagueNeighbors");
+simsignal_t ORPLRoutingTable::sureNeighborsSignal = cComponent::registerSignal("sureNeighbors");
 
 void ORPLRoutingTable::initialize(int stage){
     if(stage == INITSTAGE_LOCAL){
@@ -161,13 +163,23 @@ EqDC ORPLRoutingTable::calculateEqDC(const inet::L3Address destination) const
 
 void ORPLRoutingTable::calculateInteractionProbability()
 {
+    int sureNeighbors = 0;
+    int vagueNeighbors = 0;
     for(auto & entry : encountersTable){
         const double new_prob = entry.second.interactionsTotal/interactionDenominator;
         entry.second.recentInteractionProb = new_prob;
+        switch((int) std::floor(entry.second.interactionsTotal)){
+            case 0: break;
+            case 1:
+            case 2: vagueNeighbors++; break;
+            default: sureNeighbors++;
+        }
         entry.second.interactionsTotal = 0;
 
     }
     emit(updatedEqDCValueSignal, calculateEqDC(rootAddress).get());
+    emit(vagueNeighborsSignal, vagueNeighbors);
+    emit(sureNeighborsSignal, sureNeighbors);
     interactionDenominator = 0;
 }
 
