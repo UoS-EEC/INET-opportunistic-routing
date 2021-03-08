@@ -81,12 +81,10 @@ void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
 
     if(numSent == 0){
         startApp();
-    }
-    else{
-        scheduleNextPacket(simTime());
+        return;
     }
 
-
+    scheduleNextPacket(simTime());
     const int queueSize = sentMessageQueue->getNumPackets();
     int numCycles = 0;
     if(queueSize>0){
@@ -97,12 +95,12 @@ void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
             sendPacket();
         }
     }
-
 }
 
 std::pair<int, inet::L3Address> ORPLHello::quietestDestination() const
 {
     const int k = 0;
+    ASSERT(!destAddresses.empty());
     inet::L3Address quietestAddress = destAddresses[k];
 
     const int queueSize = sentMessageQueue->getNumPackets();
