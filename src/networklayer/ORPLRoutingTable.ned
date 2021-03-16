@@ -32,5 +32,9 @@ parameters:
     string arpModule = default("^.arp");
     int probCalcEncountersThresholdMax = 100;
     @signal[updatedEqDCValue](type = double);
-    @statistic[updatedEqDCValue](title="Calculated value of node EqDC"; record=vector);
+    @signal[vagueNeighbors](type = long);
+    @signal[sureNeighbors](type = long);
+    @statistic[updatedEqDCValue](title="Calculated value of node EqDC"; record=vector,histogram);
+    @statistic[vagueNeighbors](title="Downward neighbors only encountered once in the last sampling period"; record=vector,histogram);
+    @statistic[sureNeighbors](title="Downward neighbors encountered more than once in the last neighbor sampling period"; record=vector,histogram);
 }
