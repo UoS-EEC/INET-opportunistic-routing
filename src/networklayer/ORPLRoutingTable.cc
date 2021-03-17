@@ -29,6 +29,8 @@ using namespace oppostack;
 
 Define_Module(ORPLRoutingTable);
 simsignal_t ORPLRoutingTable::updatedEqDCValueSignal = cComponent::registerSignal("updatedEqDCValue");
+simsignal_t ORPLRoutingTable::vagueNeighborsSignal = cComponent::registerSignal("vagueNeighbors");
+simsignal_t ORPLRoutingTable::sureNeighborsSignal = cComponent::registerSignal("sureNeighbors");
 
 void ORPLRoutingTable::initialize(int stage){
     if(stage == INITSTAGE_LOCAL){
@@ -102,6 +104,7 @@ void ORPLRoutingTable::updateEncounters(const L3Address address, const oppostack
 
 EqDC ORPLRoutingTable::calculateEqDC(const L3Address destination, EqDC& nextHopEqDC) const
 {
+    Enter_Method("ORPLRoutingTable::calculateEqDC(address, ..)");
     const InterfaceEntry* interface = interfaceTable->findFirstNonLoopbackInterface();
     if(interface->getNetworkAddress() == destination){
         return EqDC(0.0);
@@ -153,19 +156,30 @@ EqDC ORPLRoutingTable::calculateEqDC(const L3Address destination, EqDC& nextHopE
 }
 EqDC ORPLRoutingTable::calculateEqDC(const inet::L3Address destination) const
 {
+    Enter_Method("ORPLRoutingTable::calculateEqDC(address)");
     EqDC nextHopDummyVar = EqDC(0.0);
     return calculateEqDC(destination, nextHopDummyVar);
 }
 
 void ORPLRoutingTable::calculateInteractionProbability()
 {
+    int sureNeighbors = 0;
+    int vagueNeighbors = 0;
     for(auto & entry : encountersTable){
         const double new_prob = entry.second.interactionsTotal/interactionDenominator;
         entry.second.recentInteractionProb = new_prob;
+        switch((int) std::floor(entry.second.interactionsTotal)){
+            case 0: break;
+            case 1:
+            case 2: vagueNeighbors++; break;
+            default: sureNeighbors++;
+        }
         entry.second.interactionsTotal = 0;
 
     }
     emit(updatedEqDCValueSignal, calculateEqDC(rootAddress).get());
+    emit(vagueNeighborsSignal, vagueNeighbors);
+    emit(sureNeighborsSignal, sureNeighbors);
     interactionDenominator = 0;
 }
 
@@ -232,6 +246,7 @@ INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datag
 
 inet::L3Address ORPLRoutingTable::getRouterIdAsGeneric()
 {
+    Enter_Method_Silent("ORPLRoutingTable::getRouterIdAsGeneric()");
     // TODO: Cleaner way to get L3 Address?
     return interfaceTable->findFirstNonLoopbackInterface()->getNetworkAddress();
 }

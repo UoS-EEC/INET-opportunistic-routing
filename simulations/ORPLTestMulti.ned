@@ -36,26 +36,26 @@ network ORPLTestMulti
         receivingWakeUpNode: ORPLLayerNode {
             @display("p=71.68298,45.578777");
             wlan[0].mac.address = "0000DA7ABA5E";
-            generic.np.hubAddress = "receivingWakeUpNode";
+            generic.np.hubAddress = "receivingWakeUpNode(modulepath)";
             generic.np.hubExpectedCost = 0;
         }
         transmittingWakeUpNode: ORPLLayerNode {
             @display("p=57.884617,61.92308");
-            generic.np.hubAddress = "receivingWakeUpNode";
+            generic.np.hubAddress = "receivingWakeUpNode(modulepath)";
             generic.np.hubExpectedCost = 6;
             packetGenerator.destAddresses = "receivingWakeUpNode(modulepath)";
             packetGenerator.startTime = 0.5s;
         }
         node1: ORPLLayerNode {
             @display("p=70.19231,59.42308");
-            generic.np.hubAddress = "receivingWakeUpNode";
+            generic.np.hubAddress = "receivingWakeUpNode(modulepath)";
             generic.np.hubExpectedCost = 4;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         overhearingWakeUpNode: ORPLLayerNode {
             @display("p=62.774406,50.758183");
-            generic.np.hubAddress = "receivingWakeUpNode";
+            generic.np.hubAddress = "receivingWakeUpNode(modulepath)";
             generic.np.hubExpectedCost = 2;
             packetGenerator.destAddresses = "receivingWakeUpNode(modulepath)";
             packetGenerator.sendInterval = 5s;

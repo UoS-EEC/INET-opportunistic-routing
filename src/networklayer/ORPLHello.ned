@@ -15,31 +15,33 @@
 
 package oppostack.networklayer;
 
+import inet.applications.generic.IpvxTrafGen;
 import inet.queueing.contract.IPacketQueue;
 //
 // Simple manager of hello messages broadcast to neighbor nodes
 // Determines rate of sending hello messages
-// TODO: Inherit from IpvxTrafGen or include that as submodule 
 //
-module ORPLHello 
+module ORPLHello extends IpvxTrafGen
 {
     parameters:
-        @class(ORPLHello);
     	@display("i=block/broadcast");
-        string packetSignalSourceModule = default("^.np");
-        double poweredPacketInterval @unit(s) = default(200s); // Depends on power generation and consumption
-        double intermittentPacketRate = default(0.3);// Each cycle should transmit with this avg probability
+    	@class(ORPLHello);
+    	// Override sending characteristics for IpvxTrafGen
+        startTime @unit(s) = default(uniform(0s,200s)); // time of sending the first hello
+        sendInterval @unit(s) = default(200s); // set minimum frequency to send packets (including from other layers
+        protocol = 241; // value for IPv4, IPv6 protocol field, accepts only between 143 and 254
+        packetLength @unit(B) = 0; // packet length in bytes
+        destAddresses = this.hubAddress; // list of destination addresses, separated by spaces
         
+        string packetSignalSourceModule = default("^.np");
+        double intermittentPacketRate = default(0.3);// Each cycle should transmit with this avg probability
+                
         // What ORPL destinations (DAG roots/hubAddress) are relevant
-        int numDestinations = 1;
-    	string hubAddress = default("routingHub");
-        string helloDestination = this.hubAddress;// TODO: Make plural when relevant
-    gates:
-        output lowerLayerOut;
+    	string hubAddress = default("routingHub(modulepath)");
     submodules:
         destinationRecord: <default("DropHeadQueue")> like IPacketQueue {
             parameters:
-                packetCapacity = default(numDestinations*10);
+                packetCapacity = default(10);
                 @display("p=100,100;q=l2queue");
         }
 }
