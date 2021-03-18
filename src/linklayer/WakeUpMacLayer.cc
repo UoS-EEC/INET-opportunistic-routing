@@ -562,6 +562,7 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         if(storedMacData->getTransmitterAddress() == incomingMacData->getTransmitterAddress()){
             // Enough to say packet matches, meaning retransmission due to forwarder contention
             // TODO: Cancel own ack if new data has expected cost of zero
+            // along with stepTxAckProcess this can improve the chances that only the dataDestination responds.
             // Begin random relay contention
 
             // Cancel delivery timer until next round
@@ -757,6 +758,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         break;
     case TX_END:
         // End transmission by turning the radio off and start listening on wake-up radio
+        dataMinExpectedCost = EqDC(25.5);
         changeActiveRadio(wakeUpRadio);
         wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
         scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
@@ -832,6 +834,16 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             else{
                 updateTxState(TX_ACK_WAIT);
             }
+            // If acknowledging node is packet destination
+            // Set MinExpectedCost to 0 for the next data packet
+            // This stops nodes other than the destination participating
+            // if recheckDataPacketEqDC is enabled
+            const inet::MacAddress ackSender = receivedAck->getTransmitterAddress();
+            const inet::MacAddress packetDestination = currentTxFrame->getTag<MacAddressReq>()->getDestAddress();
+            if (ackSender == packetDestination) {
+                // Update value of EqDC on Tag
+                dataMinExpectedCost = EqDC(0.0);
+            }
             delete receivedData;
         }
         else{
@@ -875,6 +887,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
                 // Try transmitting wake-up again after standard ack backoff
                 scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
                 // Break into "transitionToIdle()" (see TX_END)
+                dataMinExpectedCost = EqDC(25.5);
                 changeActiveRadio(wakeUpRadio);
                 wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
                 scheduleAt(simTime(), replenishmentTimer);
@@ -927,8 +940,9 @@ WakeUpMacLayer::~WakeUpMacLayer() {
 void WakeUpMacLayer::encapsulate(Packet* const pkt) const{ // From CsmaCaMac
     const auto equivalentDCTag = pkt->findTag<EqDCReq>();
     const auto equivalentDCInd = pkt->findTag<EqDCInd>();
-    ExpectedCost minExpectedCost = ExpectedCost(255);
-    if(equivalentDCTag != nullptr){
+    // Default min is 255, can be updated when ack received from dest
+    ExpectedCost minExpectedCost = dataMinExpectedCost;
+    if(equivalentDCTag != nullptr && equivalentDCTag->getEqDC() < minExpectedCost){
         minExpectedCost = equivalentDCTag->getEqDC();
         ASSERT(minExpectedCost >= ExpectedCost(0));
     }
