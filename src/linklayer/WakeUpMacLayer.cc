@@ -97,7 +97,9 @@ void WakeUpMacLayer::initialize(int const stage) {
 
         txQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("queue"));
 
+        // Retransmission reduction through data packet updating
         recheckDataPacketEqDC = par("recheckDataPacketEqDC");
+        stopDirectTxExtraAck = recheckDataPacketEqDC && par("stopDirectTxExtraAck");
 
         /*
          * Calculation of invalid parameter combinations at the receiver
@@ -579,7 +581,6 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
                 dropCurrentRxFrame(details);
                 // Wait to overhear Acks before EV_WU_TIMEOUT
                 scheduleAt(simTime() + initialContentionDuration, wuTimeout);
-
             }
             else{
                 // Begin random relay contention
@@ -591,7 +592,12 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
                 // Start CCA Timer to send Ack
                 double relayDiceRoll = uniform(0,1);
                 bool destinationAckPersistance = recheckDataPacketEqDC && (ackEqDCResponse == EqDC(0.0) );
-                if(destinationAckPersistance ||
+                if(destinationAckPersistance && stopDirectTxExtraAck){
+                    // Received Direct Tx and so stop extra ack
+                    // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
+                    scheduleAt(simTime(), wuTimeout);
+                }
+                else if(destinationAckPersistance ||
                         relayDiceRoll<candiateRelayContentionProbability){
                     rxAckRound++;
                     scheduleAt(simTime() + cumulativeAckBackoff, ackBackoffTimer);
@@ -830,6 +836,19 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         updateMacState(S_TRANSMIT);
         updateTxState(TX_ACK_WAIT);
         dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+
+
+        if (stopDirectTxExtraAck && dataMinExpectedCost == EqDC(0)) {
+            // Only the final dest will Ack when expectedCost=0 (A DirectTx)
+            // therefore do not retransmit dataPacketAgain
+            // Even if destination does not Ack again.
+            // This is the same as a broadcast transmission, so tag it as such
+            currentTxFrame->addTagIfAbsent<EqDCBroadcast>();
+
+            //Reduce time spent waiting for ack
+            cancelEvent(ackBackoffTimer);
+            scheduleAt(simTime() + initialContentionDuration, ackBackoffTimer);
+        }
     }
     else if(event == EV_DATA_RECEIVED){
         EV_DEBUG << "Data Ack Received";

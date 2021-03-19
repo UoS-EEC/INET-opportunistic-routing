@@ -39,6 +39,7 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         int maxWakeUpTries = default(4);
 		
 		bool recheckDataPacketEqDC = default(true);
+		bool stopDirectTxExtraAck = default(false);
 		
         // Weighted Encounters signals and with attached L2Addr and EDC/EquivalentTx(EqTx) details
         @signal[coincidentalEncounter](type=double);

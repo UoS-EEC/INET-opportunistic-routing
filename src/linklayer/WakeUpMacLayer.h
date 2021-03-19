@@ -84,6 +84,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public Netfi
     simtime_t minimumContentionWindow = 0;
 
     bool recheckDataPacketEqDC;
+    bool stopDirectTxExtraAck = false;
 public:
     /**
      * Mac statistics
