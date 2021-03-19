@@ -235,7 +235,8 @@ protected:
     int acknowledgmentRound = 1;
     int maxWakeUpTries = 1;
     int txInProgressForwarders = 0;
-    int txInProgressTries = 0; //TODO: rename to tries
+    int txInProgressTries = 0;
+    ExpectedCost dataMinExpectedCost = EqDC(25.5);
     simtime_t dataTransmissionDelay = 0;
     virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);
     void updateTxState(const t_tx_state& newTxState);
