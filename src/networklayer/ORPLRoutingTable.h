@@ -60,6 +60,8 @@ protected:
     void calculateInteractionProbability();
     void configureInterface(inet::InterfaceEntry *ie);
     static omnetpp::simsignal_t updatedEqDCValueSignal;
+    static omnetpp::simsignal_t vagueNeighborsSignal;
+    static omnetpp::simsignal_t sureNeighborsSignal;
     void increaseInteractionDenominator();
 public:
     oppostack::EqDC calculateEqDC(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
