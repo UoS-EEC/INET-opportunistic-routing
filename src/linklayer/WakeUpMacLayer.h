@@ -29,8 +29,8 @@
 #include <inet/common/Protocol.h>
 #include <inet/networklayer/contract/INetfilter.h>
 
+#include "../networklayer/ORWRouting.h"
 #include "common/Units.h"
-#include "networklayer/OpportunisticRpl.h"
 
 namespace oppostack{
 

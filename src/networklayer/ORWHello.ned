@@ -21,11 +21,11 @@ import inet.queueing.contract.IPacketQueue;
 // Simple manager of hello messages broadcast to neighbor nodes
 // Determines rate of sending hello messages
 //
-module ORPLHello extends IpvxTrafGen
+module ORWHello extends IpvxTrafGen
 {
     parameters:
     	@display("i=block/broadcast");
-    	@class(ORPLHello);
+    	@class(ORWHello);
     	// Override sending characteristics for IpvxTrafGen
         startTime @unit(s) = default(uniform(0s,200s)); // time of sending the first hello
         sendInterval @unit(s) = default(200s); // set minimum frequency to send packets (including from other layers

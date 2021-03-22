@@ -21,7 +21,7 @@ import inet.networklayer.nexthop.NextHopRoutingTable;
 
 
 //
-// OpportunisiticRoutingWSN
+// OpportunisticRoutingLayer
 // Selection of modules forming network layer
 //
 module OpportunisticRoutingLayer extends SimpleNetworkLayer
@@ -29,7 +29,7 @@ module OpportunisticRoutingLayer extends SimpleNetworkLayer
     parameters:
         arp.typename = "GlobalArp";
         arp.addressType = "modulepath";
-        np.typename = "OpportunisticRpl";
+        np.typename = "ORWRouting";
         interfaceTableModule = "^.interfaceTable";
         *.routingTableModule = default(absPath(".routingTable"));
         *.arpModule = default(absPath(".arp"));
@@ -38,7 +38,7 @@ module OpportunisticRoutingLayer extends SimpleNetworkLayer
             parameters:
                 @display("p=449.53998,299.13;is=m");
         }
-        helloManager: ORPLHello {
+        helloManager: ORWHello {
             @display("p=150,100");
         }
     connections:

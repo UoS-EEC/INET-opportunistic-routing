@@ -13,7 +13,7 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#include "networklayer/OpportunisticRpl.h"
+#include "ORWRouting.h"
 
 #include <inet/common/INETDefs.h>
 #include <inet/common/ProtocolTag_m.h>
@@ -29,9 +29,9 @@
 #include "networklayer/ORPLRoutingTable.h"
 
 using namespace oppostack;
-Define_Module(OpportunisticRpl);
+Define_Module(ORWRouting);
 
-void OpportunisticRpl::initialize(int const stage) {
+void ORWRouting::initialize(int const stage) {
     NetworkProtocolBase::initialize(stage);
 
     if(stage == INITSTAGE_LOCAL){
@@ -54,7 +54,7 @@ void OpportunisticRpl::initialize(int const stage) {
     }
 }
 
-void OpportunisticRpl::handleUpperPacket(Packet* const packet) {
+void ORWRouting::handleUpperPacket(Packet* const packet) {
     auto addressReq = packet->addTagIfAbsent<L3AddressReq>();
     //TODO: check tags assigned by higher layer
     if(addressReq->getDestAddress().getType() == L3Address::NONE){
@@ -65,7 +65,7 @@ void OpportunisticRpl::handleUpperPacket(Packet* const packet) {
     sendDown(packet);
 }
 
-void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
+void ORWRouting::handleLowerPacket(Packet* const packet) {
     auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
     auto const payloadLength = header->getLength() - header->getChunkLength();
     const inet::L3Address destinationAddress = header->getDestAddr();
@@ -121,7 +121,7 @@ void OpportunisticRpl::handleLowerPacket(Packet* const packet) {
     }
 }
 
-void OpportunisticRpl::encapsulate(Packet* const packet) {
+void ORWRouting::encapsulate(Packet* const packet) {
     auto header = makeShared<OpportunisticRoutingHeader>();
     auto outboundMacAddress =  MacAddress::STP_MULTICAST_ADDRESS;
     if(packet->findTag<L3AddressReq>()!=nullptr){
@@ -157,7 +157,7 @@ void OpportunisticRpl::encapsulate(Packet* const packet) {
     setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
 }
 
-void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const EqDC& costIndicator, const EqDC& onwardCost) const
+void ORWRouting::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const EqDC& costIndicator, const EqDC& onwardCost) const
 {
     packet->addTagIfAbsent<MacAddressReq>()->setDestAddress(macMulticast);
     if(packet->findTag<EqDCReq>()==nullptr){
@@ -168,7 +168,7 @@ void OpportunisticRpl::setDownControlInfo(Packet* const packet, const MacAddress
     packet->addTagIfAbsent<DispatchProtocolInd>()->setProtocol(&OpportunisticRouting);
 }
 
-void OpportunisticRpl::decapsulate(Packet* const packet) const
+void ORWRouting::decapsulate(Packet* const packet) const
 {
     auto networkHeader = packet->popAtFront<OpportunisticRoutingHeader>();
     auto payloadLength = networkHeader->getLength() - networkHeader->getChunkLength();
@@ -186,7 +186,7 @@ void OpportunisticRpl::decapsulate(Packet* const packet) const
     packet->addTagIfAbsent<L3AddressInd>()->setSrcAddress(networkHeader->getSrcAddr());
 }
 
-void OpportunisticRpl::queueDelayed(Packet* const packet, const simtime_t delay) {
+void ORWRouting::queueDelayed(Packet* const packet, const simtime_t delay) {
     auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
     // If packet lifetime not expired and there is space in queue
     if(waitingPacket == nullptr && header->getTtl()>0){
@@ -211,14 +211,14 @@ void OpportunisticRpl::queueDelayed(Packet* const packet, const simtime_t delay)
     }
 }
 
-void OpportunisticRpl::dropPacket(Packet* const packet, PacketDropDetails& details)
+void ORWRouting::dropPacket(Packet* const packet, PacketDropDetails& details)
 {
     emit(packetDroppedSignal, packet, &details);
     delete packet;
 }
 
 
-void OpportunisticRpl::handleSelfMessage(cMessage* const msg) {
+void ORWRouting::handleSelfMessage(cMessage* const msg) {
     if(msg == nextForwardTimer){
         //Resend the message in the queue
         if(waitingPacket != nullptr){
@@ -229,27 +229,27 @@ void OpportunisticRpl::handleSelfMessage(cMessage* const msg) {
     }
 }
 
-void OpportunisticRpl::handleStartOperation(LifecycleOperation *op) {
+void ORWRouting::handleStartOperation(LifecycleOperation *op) {
     if(waitingPacket!=nullptr){
         // send packet after scheduled timer
         scheduleAt(simTime()+forwardingBackoff, nextForwardTimer);
     }
 }
 
-void OpportunisticRpl::handleStopOperation(LifecycleOperation *op) {
+void ORWRouting::handleStopOperation(LifecycleOperation *op) {
     cancelEvent(nextForwardTimer);
 }
 
-void OpportunisticRpl::handleCrashOperation(LifecycleOperation *op) {
+void ORWRouting::handleCrashOperation(LifecycleOperation *op) {
     handleStopOperation(op);
 }
 
-bool OpportunisticRpl::messageKnown(const oppostack::PacketRecord record)
+bool ORWRouting::messageKnown(const oppostack::PacketRecord record)
 {
     return packetHistory.find(record);
 }
 
-oppostack::OpportunisticRpl::~OpportunisticRpl()
+oppostack::ORWRouting::~ORWRouting()
 {
     cancelAndDelete(nextForwardTimer);
     if(waitingPacket != nullptr){
