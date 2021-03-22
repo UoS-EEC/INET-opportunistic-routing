@@ -18,7 +18,7 @@ package oppostack.node;
 //
 // TODO auto-generated type
 //
-module IntermittentORPLNode extends ORPLLayerNode
+module IntermittentORWNode extends ORWLayerNode
 {
     parameters:
         @display("i=old/x_green");

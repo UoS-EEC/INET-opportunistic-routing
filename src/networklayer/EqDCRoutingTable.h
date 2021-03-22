@@ -13,8 +13,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef NETWORKLAYER_ORPLROUTINGTABLE_H_
-#define NETWORKLAYER_ORPLROUTINGTABLE_H_
+#ifndef NETWORKLAYER_EQDCROUTINGTABLE_H_
+#define NETWORKLAYER_EQDCROUTINGTABLE_H_
 
 #include <omnetpp.h>
 #include <inet/common/INETDefs.h>
@@ -77,4 +77,4 @@ public:
 
 } //namespace oppostack
 
-#endif /* NETWORKLAYER_ORPLROUTINGTABLE_H_ */
+#endif /* NETWORKLAYER_EQDCROUTINGTABLE_H_ */

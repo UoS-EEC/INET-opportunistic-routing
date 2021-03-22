@@ -17,6 +17,7 @@ package oppostack.networklayer;
 
 import inet.applications.generic.IpvxTrafGen;
 import inet.queueing.contract.IPacketQueue;
+
 //
 // Simple manager of hello messages broadcast to neighbor nodes
 // Determines rate of sending hello messages

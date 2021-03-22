@@ -17,8 +17,9 @@
 #define POWER_PACKETCONSUMPTIONTRACKING_H_
 
 #include <inet/networklayer/contract/INetfilter.h>
+
+#include "../networklayer/EqDCRoutingTable.h"
 #include "linklayer/WuMacEnergyMonitor.h"
-#include "networklayer/ORPLRoutingTable.h"
 #include "PacketConsumptionTag_m.h"
 
 

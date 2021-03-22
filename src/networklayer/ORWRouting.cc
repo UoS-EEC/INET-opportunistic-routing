@@ -26,7 +26,7 @@
 #include "common/oppDefs.h"
 #include "common/Units.h"
 #include "common/EqDCTag_m.h"
-#include "networklayer/ORPLRoutingTable.h"
+#include "EqDCRoutingTable.h"
 
 using namespace oppostack;
 Define_Module(ORWRouting);

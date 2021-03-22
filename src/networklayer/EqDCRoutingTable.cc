@@ -13,7 +13,7 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#include "networklayer/ORPLRoutingTable.h"
+#include "EqDCRoutingTable.h"
 
 #include "common/EncounterDetails_m.h"
 #include <inet/networklayer/nexthop/NextHopInterfaceData.h>

@@ -30,7 +30,7 @@
 #include <algorithm> // For std::find
 
 #include "common/Units.h"
-#include "networklayer/ORPLRoutingTable.h"
+#include "EqDCRoutingTable.h"
 
 namespace oppostack{
 
