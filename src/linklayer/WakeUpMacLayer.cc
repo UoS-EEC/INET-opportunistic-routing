@@ -97,6 +97,10 @@ void WakeUpMacLayer::initialize(int const stage) {
 
         txQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("queue"));
 
+        // Retransmission reduction through data packet updating
+        recheckDataPacketEqDC = par("recheckDataPacketEqDC");
+        stopDirectTxExtraAck = recheckDataPacketEqDC && par("stopDirectTxExtraAck");
+
         /*
          * Calculation of invalid parameter combinations at the receiver
          * - MAC Layer requires tight timing during a communication negotiation
@@ -559,8 +563,11 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         // Compare the received data to stored data
         Packet* storedFrame = check_and_cast<Packet*>(currentRxFrame);
         auto storedMacData = storedFrame->peekAtFront<WakeUpGram>();
+        // Intentionally promote variable to extended WakeUpDatagram
+        auto incomingMacData = incomingFrame->peekAtFront<WakeUpDatagram>();
         if(storedMacData->getTransmitterAddress() == incomingMacData->getTransmitterAddress()){
             // Enough to say packet matches, meaning retransmission due to forwarder contention
+
             // Replace the currentRxFrame
             delete currentRxFrame;
             currentRxFrame = check_and_cast<Packet*>(incomingFrame);
@@ -570,24 +577,46 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
 
             // Cancel delivery timer until next round
             cancelEvent(wuTimeout);
-            // Cancel queued ack if existing
-            cancelEvent(ackBackoffTimer);
-            // Reset cumulative ack backoff
-            cumulativeAckBackoff = uniform(0,ackWaitDuration);
 
-            // Start CCA Timer to send Ack
-            double relayDiceRoll = uniform(0,1);
-            if(relayDiceRoll<candiateRelayContentionProbability){
-                rxAckRound++;
-                scheduleAt(simTime() + cumulativeAckBackoff, ackBackoffTimer);
+            // Check if the retransmited packet still accepted
+            // Packet will change if transmitter receives ack from the final destination
+            // to improve the chances that only the data destination responds.
+            if(recheckDataPacketEqDC && datagramPreRoutingHook(incomingFrame) != IHook::ACCEPT){
+                // New information in the data packet means do not accept data packet
+                PacketDropDetails details;
+                details.setReason(PacketDropReason::OTHER_PACKET_DROP);
+                dropCurrentRxFrame(details);
+                // Wait to overhear Acks before EV_WU_TIMEOUT
+                scheduleAt(simTime() + initialContentionDuration, wuTimeout);
             }
             else{
-                PacketDropDetails details;
-                details.setReason(PacketDropReason::DUPLICATE_DETECTED);
-                dropCurrentRxFrame(details);
-                // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
-                scheduleAt(simTime(), wuTimeout);
-                EV_DEBUG  << "Detected other relay so discarding packet" << endl;
+                // Begin random relay contention
+                // Cancel queued ack if existing
+                cancelEvent(ackBackoffTimer);
+                // Reset cumulative ack backoff
+                cumulativeAckBackoff = uniform(0,ackWaitDuration);
+
+                // Start CCA Timer to send Ack
+                double relayDiceRoll = uniform(0,1);
+                bool destinationAckPersistance = recheckDataPacketEqDC && (ackEqDCResponse == EqDC(0.0) );
+                if(destinationAckPersistance && stopDirectTxExtraAck){
+                    // Received Direct Tx and so stop extra ack
+                    // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
+                    scheduleAt(simTime(), wuTimeout);
+                }
+                else if(destinationAckPersistance ||
+                        relayDiceRoll<candiateRelayContentionProbability){
+                    rxAckRound++;
+                    scheduleAt(simTime() + cumulativeAckBackoff, ackBackoffTimer);
+                }
+                else{
+                    PacketDropDetails details;
+                    details.setReason(PacketDropReason::DUPLICATE_DETECTED);
+                    dropCurrentRxFrame(details);
+                    // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
+                    scheduleAt(simTime(), wuTimeout);
+                    EV_DEBUG  << "Detected other relay so discarding packet" << endl;
+                }
             }
         }
         else{
@@ -812,6 +841,19 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         updateMacState(S_TRANSMIT);
         updateTxState(TX_ACK_WAIT);
         dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+
+
+        if (stopDirectTxExtraAck && dataMinExpectedCost == EqDC(0)) {
+            // Only the final dest will Ack when expectedCost=0 (A DirectTx)
+            // therefore do not retransmit dataPacketAgain
+            // Even if destination does not Ack again.
+            // This is the same as a broadcast transmission, so tag it as such
+            currentTxFrame->addTagIfAbsent<EqDCBroadcast>();
+
+            //Reduce time spent waiting for ack
+            cancelEvent(ackBackoffTimer);
+            scheduleAt(simTime() + initialContentionDuration, ackBackoffTimer);
+        }
     }
     else if(event == EV_DATA_RECEIVED){
         EV_DEBUG << "Data Ack Received";
