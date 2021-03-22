@@ -568,6 +568,13 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         if(storedMacData->getTransmitterAddress() == incomingMacData->getTransmitterAddress()){
             // Enough to say packet matches, meaning retransmission due to forwarder contention
 
+            // Replace the currentRxFrame
+            delete currentRxFrame;
+            currentRxFrame = check_and_cast<Packet*>(incomingFrame);
+            // TODO: Cancel own ack if new data has expected cost of zero
+            // along with stepTxAckProcess this can improve the chances that only the dataDestination responds.
+            // Begin random relay contention
+
             // Cancel delivery timer until next round
             cancelEvent(wuTimeout);
 
@@ -611,8 +618,6 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
                     EV_DEBUG  << "Detected other relay so discarding packet" << endl;
                 }
             }
-            // Delete retransmitted message
-            delete incomingFrame;
         }
         else{
             EV_DEBUG << "Discard interfering data transmission" << endl;
