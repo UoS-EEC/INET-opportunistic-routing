@@ -23,10 +23,10 @@ moduleinterface IOpportunisticRoutingTable
 //
 // TODO auto-generated type
 //
-simple EqDCRoutingTable like IOpportunisticRoutingTable
+simple ORWRoutingTable like IOpportunisticRoutingTable
 {
 parameters:
-    @class(ORPLRoutingTable);
+    @class(ORWRoutingTable);
     string interfaceTableModule;   // The path to the InterfaceTable module
     string addressType @enum("mac","modulepath","moduleid") = default("modulepath");
     string hubAddress = default("routingHub");

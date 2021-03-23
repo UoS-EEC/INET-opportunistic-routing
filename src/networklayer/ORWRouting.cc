@@ -26,7 +26,7 @@
 #include "common/oppDefs.h"
 #include "common/Units.h"
 #include "common/EqDCTag_m.h"
-#include "EqDCRoutingTable.h"
+#include "ORWRoutingTable.h"
 
 using namespace oppostack;
 Define_Module(ORWRouting);
@@ -37,7 +37,7 @@ void ORWRouting::initialize(int const stage) {
     if(stage == INITSTAGE_LOCAL){
         nextForwardTimer = new cMessage("Forwarding Backoff Timer");
         auto const routingTableModule = getCModuleFromPar(par("routingTableModule"), this);
-        routingTable = check_and_cast<ORPLRoutingTable*>(routingTableModule);
+        routingTable = check_and_cast<ORWRoutingTable*>(routingTableModule);
         arp = inet::getModuleFromPar<IArp>(par("arpModule"), this);
         initialTTL = par("initialTTL");
     }

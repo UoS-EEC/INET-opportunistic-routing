@@ -33,12 +33,12 @@ module OpportunisticRoutingLayer extends SimpleNetworkLayer
         arp.typename = "GlobalArp";
         arp.addressType = "modulepath";
         np.typename = "ORWRouting";
-        routingTable.typename = "EqDCRoutingTable";
+        routingTable.typename = "ORWRoutingTable";
         interfaceTableModule = "^.interfaceTable";
         *.routingTableModule = default(absPath(".routingTable"));
         *.arpModule = default(absPath(".arp"));
     submodules:
-        routingTable: <default("EqDCRoutingTable")> like IOpportunisticRoutingTable if typename != "" {
+        routingTable: <default("ORWRoutingTable")> like IOpportunisticRoutingTable if typename != "" {
             parameters:
                 @display("p=449.53998,299.13;is=m");
         }

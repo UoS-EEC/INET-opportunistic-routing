@@ -13,8 +13,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef NETWORKLAYER_EQDCROUTINGTABLE_H_
-#define NETWORKLAYER_EQDCROUTINGTABLE_H_
+#ifndef NETWORKLAYER_ORWROUTINGTABLE_H_
+#define NETWORKLAYER_ORWROUTINGTABLE_H_
 
 #include <omnetpp.h>
 #include <inet/common/INETDefs.h>
@@ -28,10 +28,10 @@
 namespace oppostack{
 
 
-class ORPLRoutingTable : public omnetpp::cSimpleModule, public inet::cListener, public inet::NetfilterBase::HookBase
+class ORWRoutingTable : public omnetpp::cSimpleModule, public inet::cListener, public inet::NetfilterBase::HookBase
 {
 public:
-    ORPLRoutingTable():
+    ORWRoutingTable():
         arp(nullptr){};
     virtual void initialize(int stage) override;
 protected:
@@ -77,4 +77,4 @@ public:
 
 } //namespace oppostack
 
-#endif /* NETWORKLAYER_EQDCROUTINGTABLE_H_ */
+#endif /* NETWORKLAYER_ORWROUTINGTABLE_H_ */

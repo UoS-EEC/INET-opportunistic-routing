@@ -30,7 +30,7 @@
 #include <algorithm> // For std::find
 
 #include "common/Units.h"
-#include "EqDCRoutingTable.h"
+#include "ORWRoutingTable.h"
 
 namespace oppostack{
 
@@ -82,7 +82,7 @@ protected:
     simtime_t forwardingBackoff;
     uint8_t initialTTL = 3; // Overwritten by NED
 
-    ORPLRoutingTable *routingTable; // TODO: Make IRoutingTable if features allow
+    ORWRoutingTable *routingTable; // TODO: Make IRoutingTable if features allow
     IArp *arp;
 
     L3Address nodeAddress;

@@ -18,7 +18,7 @@
 
 #include <inet/networklayer/contract/INetfilter.h>
 
-#include "../networklayer/EqDCRoutingTable.h"
+#include "../networklayer/ORWRoutingTable.h"
 #include "linklayer/WuMacEnergyMonitor.h"
 #include "PacketConsumptionTag_m.h"
 
@@ -35,7 +35,7 @@ public:
 protected:
     virtual void initialize() override;
     WuMacEnergyMonitor* macEnergyMonitor;
-    ORPLRoutingTable* routingTable; // TODO: Replace with IRoutingTable
+    ORWRoutingTable* routingTable; // TODO: Replace with IRoutingTable
     WakeUpMacLayer* macLayer;
 
 public:

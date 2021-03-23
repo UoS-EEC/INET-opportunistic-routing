@@ -13,7 +13,7 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#include "EqDCRoutingTable.h"
+#include "ORWRoutingTable.h"
 
 #include "common/EncounterDetails_m.h"
 #include <inet/networklayer/nexthop/NextHopInterfaceData.h>
@@ -27,12 +27,12 @@ using namespace omnetpp;
 using namespace inet;
 using namespace oppostack;
 
-Define_Module(ORPLRoutingTable);
-simsignal_t ORPLRoutingTable::updatedEqDCValueSignal = cComponent::registerSignal("updatedEqDCValue");
-simsignal_t ORPLRoutingTable::vagueNeighborsSignal = cComponent::registerSignal("vagueNeighbors");
-simsignal_t ORPLRoutingTable::sureNeighborsSignal = cComponent::registerSignal("sureNeighbors");
+Define_Module(ORWRoutingTable);
+simsignal_t ORWRoutingTable::updatedEqDCValueSignal = cComponent::registerSignal("updatedEqDCValue");
+simsignal_t ORWRoutingTable::vagueNeighborsSignal = cComponent::registerSignal("vagueNeighbors");
+simsignal_t ORWRoutingTable::sureNeighborsSignal = cComponent::registerSignal("sureNeighbors");
 
-void ORPLRoutingTable::initialize(int stage){
+void ORWRoutingTable::initialize(int stage){
     if(stage == INITSTAGE_LOCAL){
         cModule* encountersModule = getCModuleFromPar(par("encountersSourceModule"), this);
         encountersModule->subscribe(WakeUpMacLayer::coincidentalEncounterSignal, this);
@@ -75,7 +75,7 @@ void ORPLRoutingTable::initialize(int stage){
     }
 }
 
-void ORPLRoutingTable::receiveSignal(cComponent* source, simsignal_t signalID, double weight, cObject* details)
+void ORWRoutingTable::receiveSignal(cComponent* source, simsignal_t signalID, double weight, cObject* details)
 {
     if(signalID == WakeUpMacLayer::coincidentalEncounterSignal || signalID == WakeUpMacLayer::expectedEncounterSignal){
         oppostack::EncounterDetails* encounterMacDetails = check_and_cast<oppostack::EncounterDetails*>(details);
@@ -87,7 +87,7 @@ void ORPLRoutingTable::receiveSignal(cComponent* source, simsignal_t signalID, d
     }
 }
 
-void ORPLRoutingTable::updateEncounters(const L3Address address, const oppostack::EqDC cost, const double weight)
+void ORWRoutingTable::updateEncounters(const L3Address address, const oppostack::EqDC cost, const double weight)
 {
     // Update encounters table entry. Optionally adding if it doesn't exist
     const EqDC oldEqDC = calculateEqDC(rootAddress);
@@ -102,9 +102,9 @@ void ORPLRoutingTable::updateEncounters(const L3Address address, const oppostack
     encountersCount++;
 }
 
-EqDC ORPLRoutingTable::calculateEqDC(const L3Address destination, EqDC& nextHopEqDC) const
+EqDC ORWRoutingTable::calculateEqDC(const L3Address destination, EqDC& nextHopEqDC) const
 {
-    Enter_Method("ORPLRoutingTable::calculateEqDC(address, ..)");
+    Enter_Method("ORWRoutingTable::calculateEqDC(address, ..)");
     const InterfaceEntry* interface = interfaceTable->findFirstNonLoopbackInterface();
     if(interface->getNetworkAddress() == destination){
         return EqDC(0.0);
@@ -154,14 +154,14 @@ EqDC ORPLRoutingTable::calculateEqDC(const L3Address destination, EqDC& nextHopE
     const EqDC estimatedCost = ExpectedCost(estimatedCostLessW + forwardingCostW);
     return estimatedCost;
 }
-EqDC ORPLRoutingTable::calculateEqDC(const inet::L3Address destination) const
+EqDC ORWRoutingTable::calculateEqDC(const inet::L3Address destination) const
 {
-    Enter_Method("ORPLRoutingTable::calculateEqDC(address)");
+    Enter_Method("ORWRoutingTable::calculateEqDC(address)");
     EqDC nextHopDummyVar = EqDC(0.0);
     return calculateEqDC(destination, nextHopDummyVar);
 }
 
-void ORPLRoutingTable::calculateInteractionProbability()
+void ORWRoutingTable::calculateInteractionProbability()
 {
     int sureNeighbors = 0;
     int vagueNeighbors = 0;
@@ -183,7 +183,7 @@ void ORPLRoutingTable::calculateInteractionProbability()
     interactionDenominator = 0;
 }
 
-void ORPLRoutingTable::configureInterface(inet::InterfaceEntry* ie)
+void ORWRoutingTable::configureInterface(inet::InterfaceEntry* ie)
 {
     int interfaceModuleId = ie->getId();
     // mac
@@ -197,7 +197,7 @@ void ORPLRoutingTable::configureInterface(inet::InterfaceEntry* ie)
         d->setAddress(ModuleIdAddress(interfaceModuleId));
 }
 
-void ORPLRoutingTable::increaseInteractionDenominator()
+void ORWRoutingTable::increaseInteractionDenominator()
 {
     interactionDenominator++;
     if(encountersCount > probCalcEncountersThreshold
@@ -208,7 +208,7 @@ void ORPLRoutingTable::increaseInteractionDenominator()
     }
 }
 
-INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datagram)
+INetfilter::IHook::Result ORWRoutingTable::datagramPreRoutingHook(Packet* datagram)
 {
     auto header = datagram->peekAtFront<WakeUpGram>();
     bool approve = false;
@@ -244,9 +244,9 @@ INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datag
     return IHook::Result::DROP;
 }
 
-inet::L3Address ORPLRoutingTable::getRouterIdAsGeneric()
+inet::L3Address ORWRoutingTable::getRouterIdAsGeneric()
 {
-    Enter_Method_Silent("ORPLRoutingTable::getRouterIdAsGeneric()");
+    Enter_Method_Silent("ORWRoutingTable::getRouterIdAsGeneric()");
     // TODO: Cleaner way to get L3 Address?
     return interfaceTable->findFirstNonLoopbackInterface()->getNetworkAddress();
 }
