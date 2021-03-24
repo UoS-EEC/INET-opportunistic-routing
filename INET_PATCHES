@@ -8,6 +8,25 @@ void Radio::updateTransceiverState()
 -     if (radioMode == RADIO_MODE_OFF || radioMode == RADIO_MODE_SLEEP || radioMode == RADIO_MODE_RECEIVER)
 +     if (radioMode == RADIO_MODE_OFF || radioMode == RADIO_MODE_SWITCHING || radioMode == RADIO_MODE_SLEEP || radioMode == RADIO_MODE_RECEIVER)
     
+    
+Correct wrong ned class name in Ieee802154NarrowbandRadio.ned
+
+--- a/src/inet/physicallayer/ieee802154/packetlevel/Ieee802154NarrowbandRadio.ned
++++ b/src/inet/physicallayer/ieee802154/packetlevel/Ieee802154NarrowbandRadio.ned
+@@ -25,2 +25,2 @@ module Ieee802154NarrowbandRadio extends FlatRadioBase
+-       transmitter.typename = default(signalAnalogRepresentation == "scalar" ? "Ieee802154ScalarTransmitter" : signalAnalogRepresentation == "dimensional" ? "Ieee802154DimensionalTransmitter" : "");
+-       receiver.typename = default(signalAnalogRepresentation == "scalar" ? "Ieee802154ScalarReceiver" : signalAnalogRepresentation == "dimensional" ? "Ieee802154DimensionalReceiver" : "");
++       transmitter.typename = default(signalAnalogRepresentation == "scalar" ? "Ieee802154NarrowbandScalarTransmitter" : signalAnalogRepresentation == "dimensional" ? "Ieee802154NarrowbandDimensionalTransmitter" : "");
++       receiver.typename = default(signalAnalogRepresentation == "scalar" ? "Ieee802154NarrowbandScalarReceiver" : signalAnalogRepresentation == "dimensional" ? "Ieee802154NarrowbandDimensionalReceiver" : "");
+
+Add Joules to inet.Units message
+
+--- a/src/inet/common/Units.msg 
++++ b/src/inet/common/Units.msg
+@@ +27,1 
+  class W    { @existingClass; @primitive; @fromString(W(string2double($)));    @toString(unit2string($)); @defaultValue(W(NaN)); }
++ class J    { @existingClass; @primitive; @fromString(J(string2double($)));    @toString(unit2string($)); @defaultValue(J(NaN)); }
+
 Add minimum statistic size for recording BER to histogram
 diff --git a/src/inet/common/ResultFilters.cc b/src/inet/common/ResultFilters.cc
 index a667c5a..4282f06 100644
