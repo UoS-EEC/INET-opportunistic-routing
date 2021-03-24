@@ -51,6 +51,9 @@ void ORWRouting::initialize(int const stage) {
             nodeAddress = ie->getNetworkAddress();
         else
             throw cRuntimeError("No non-loopback interface found!");
+
+        const char* rootParameter = par("hubAddress");
+        L3AddressResolver().tryResolve(rootParameter, rootAddress, L3AddressResolver::ADDR_MODULEPATH);
     }
 }
 
@@ -58,7 +61,7 @@ void ORWRouting::handleUpperPacket(Packet* const packet) {
     auto addressReq = packet->addTagIfAbsent<L3AddressReq>();
     //TODO: check tags assigned by higher layer
     if(addressReq->getDestAddress().getType() == L3Address::NONE){
-        addressReq->setDestAddress(L3Address(par("hubAddress")));
+        addressReq->setDestAddress(rootAddress);
         EV_WARN << "ORPL, setting received packet address to default hub address" << endl;
     }
     encapsulate(packet);
@@ -68,7 +71,11 @@ void ORWRouting::handleUpperPacket(Packet* const packet) {
 void ORWRouting::handleLowerPacket(Packet* const packet) {
     auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
     auto const payloadLength = header->getLength() - header->getChunkLength();
-    const inet::L3Address destinationAddress = header->getDestAddr();
+    inet::L3Address destinationAddress = header->getDestAddr();
+    auto upwardsDestTag = packet->findTag<L3AddressReq>();
+    if(upwardsDestTag){
+        destinationAddress = upwardsDestTag->getDestAddress();
+    }
     EqDC nextHopCost = EqDC(25.5);
     EqDC ownCost = routingTable->calculateUpwardsCost(destinationAddress, nextHopCost);
     if(payloadLength<B(1)){
@@ -153,7 +160,7 @@ void ORWRouting::encapsulate(Packet* const packet) {
     header->setVersion(IpProtocolId::IP_PROT_MANET);
     packet->insertAtFront(header);
     EqDC nextHopCost = EqDC(25.5);
-    EqDC ownCost = routingTable->calculateUpwardsCost(header->getDestAddr(), nextHopCost);
+    EqDC ownCost = routingTable->calculateUpwardsCost(rootAddress, nextHopCost);
     setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
 }
 
