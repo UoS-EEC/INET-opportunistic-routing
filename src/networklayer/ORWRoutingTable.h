@@ -63,6 +63,8 @@ protected:
     static omnetpp::simsignal_t vagueNeighborsSignal;
     static omnetpp::simsignal_t sureNeighborsSignal;
     void increaseInteractionDenominator();
+    EqDC calculateCostToRoot() const;
+
 public:
     oppostack::EqDC calculateEqDC(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
     oppostack::EqDC calculateEqDC(const inet::L3Address destination) const;

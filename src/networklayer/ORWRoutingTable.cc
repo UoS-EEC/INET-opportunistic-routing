@@ -102,6 +102,46 @@ void ORWRoutingTable::updateEncounters(const L3Address address, const oppostack:
     encountersCount++;
 }
 
+EqDC ORWRoutingTable::calculateCostToRoot() const
+{
+    typedef std::pair<EqDC, double> EncPair;
+    std::vector<EncPair> neighborEncounterPairs;
+    for (const auto& entry : encountersTable) {
+        // Copy pairs to sortable vector
+        const EncPair encounterPair(entry.second.lastEqDC, entry.second.recentInteractionProb);
+        neighborEncounterPairs.push_back(encounterPair);
+    }
+    // Sort neighborEncounterPairs increasing on EqDC
+    std::sort(neighborEncounterPairs.begin(), neighborEncounterPairs.end(), [](const EncPair &left, const EncPair &right) {
+        return left.first < right.first;
+        });
+    double probSum = 0.0;
+    EqDC probProductSum = EqDC(0.0);
+    EqDC estimatedCostLessW = EqDC(25.5);
+    for (const auto& entry : neighborEncounterPairs) {
+        // Check if in forwarding set
+        if (entry.first <= estimatedCostLessW) {
+            probSum += entry.second;
+            probProductSum += entry.second * entry.first;
+            if (probSum > 0) {
+                estimatedCostLessW = (EqDC(1.0) + probProductSum) / probSum;
+            }
+            else {
+                estimatedCostLessW = EqDC(25.5);
+            }
+        }
+        else {
+            break;
+        }
+    }
+    // Set initial values of EqDC to aid startup
+    if (probSum == 0) {
+        estimatedCostLessW = ExpectedCost(par("hubExpectedCost"));
+    }
+    return estimatedCostLessW;
+}
+
+
 EqDC ORWRoutingTable::calculateEqDC(const L3Address destination, EqDC& nextHopEqDC) const
 {
     Enter_Method("ORWRoutingTable::calculateEqDC(address, ..)");
@@ -113,45 +153,9 @@ EqDC ORWRoutingTable::calculateEqDC(const L3Address destination, EqDC& nextHopEq
         throw cRuntimeError("Routing error, unknown graph root");
     }
 
-    typedef std::pair<EqDC, double> EncPair;
-    std::vector<EncPair> neighborEncounterPairs;
-    for(auto const& entry : encountersTable){
-        // Copy pairs to sortable vector
-        const EncPair
-            encounterPair(entry.second.lastEqDC, entry.second.recentInteractionProb);
-        neighborEncounterPairs.push_back(encounterPair);
-    }
-    // Sort neighborEncounterPairs increasing on EqDC
-    std::sort(neighborEncounterPairs.begin(), neighborEncounterPairs.end(), [](const EncPair &left, const EncPair &right) {
-        return left.first < right.first;
-    });
-
-    double probSum = 0.0;
-    EqDC probProductSum = EqDC(0.0);
-    EqDC estimatedCostLessW = EqDC(25.5);
-    for(auto const& entry : neighborEncounterPairs){
-        // Check if in forwarding set
-        if(entry.first <= estimatedCostLessW){
-            probSum += entry.second;
-            probProductSum += entry.second * entry.first;
-            if(probSum > 0){
-                estimatedCostLessW = (EqDC(1.0) + probProductSum)/probSum;
-            }
-            else{
-                estimatedCostLessW = EqDC(25.5);
-            }
-        }
-        else{
-            break;
-        }
-    }
-    // Set initial values of EqDC to aid startup
-    if(probSum == 0){
-        estimatedCostLessW = ExpectedCost(par("hubExpectedCost"));
-    }
-    nextHopEqDC = ExpectedCost(estimatedCostLessW);
+    nextHopEqDC = ExpectedCost(calculateCostToRoot());
     // Limit resolution and add own routing cost before reporting.
-    const EqDC estimatedCost = ExpectedCost(estimatedCostLessW + forwardingCostW);
+    const EqDC estimatedCost = ExpectedCost(nextHopEqDC + forwardingCostW);
     return estimatedCost;
 }
 EqDC ORWRoutingTable::calculateEqDC(const inet::L3Address destination) const
