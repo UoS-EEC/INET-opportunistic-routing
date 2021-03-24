@@ -66,8 +66,8 @@ protected:
     EqDC calculateCostToRoot() const;
 
 public:
-    oppostack::EqDC calculateEqDC(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
-    oppostack::EqDC calculateEqDC(const inet::L3Address destination) const;
+    virtual oppostack::EqDC calculateUpwardsCost(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
+    virtual oppostack::EqDC calculateUpwardsCost(const inet::L3Address destination) const;
     inet::L3Address getRouterIdAsGeneric();
     // Hook to accept incoming requests
     virtual inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram) override;

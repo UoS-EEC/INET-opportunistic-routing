@@ -70,7 +70,7 @@ void ORWRouting::handleLowerPacket(Packet* const packet) {
     auto const payloadLength = header->getLength() - header->getChunkLength();
     const inet::L3Address destinationAddress = header->getDestAddr();
     EqDC nextHopCost = EqDC(25.5);
-    EqDC ownCost = routingTable->calculateEqDC(destinationAddress, nextHopCost);
+    EqDC ownCost = routingTable->calculateUpwardsCost(destinationAddress, nextHopCost);
     if(payloadLength<B(1)){
         // No data contained so silently accept packet
         // This only occurs when OpportunisticRpl sends hello messages
@@ -153,7 +153,7 @@ void ORWRouting::encapsulate(Packet* const packet) {
     header->setVersion(IpProtocolId::IP_PROT_MANET);
     packet->insertAtFront(header);
     EqDC nextHopCost = EqDC(25.5);
-    EqDC ownCost = routingTable->calculateEqDC(header->getDestAddr(), nextHopCost);
+    EqDC ownCost = routingTable->calculateUpwardsCost(header->getDestAddr(), nextHopCost);
     setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
 }
 

@@ -90,12 +90,12 @@ void ORWRoutingTable::receiveSignal(cComponent* source, simsignal_t signalID, do
 void ORWRoutingTable::updateEncounters(const L3Address address, const oppostack::EqDC cost, const double weight)
 {
     // Update encounters table entry. Optionally adding if it doesn't exist
-    const EqDC oldEqDC = calculateEqDC(rootAddress);
+    const EqDC oldEqDC = calculateUpwardsCost(rootAddress);
     if(cost!=encountersTable[address].lastEqDC){
         encountersTable[address].lastEqDC = cost;
         if(cost<oldEqDC){
             emit(updatedEqDCValueSignal, oldEqDC.get());
-            emit(updatedEqDCValueSignal, calculateEqDC(rootAddress).get());
+            emit(updatedEqDCValueSignal, calculateUpwardsCost(rootAddress).get());
         }
     }
     encountersTable[address].interactionsTotal += weight;
@@ -142,9 +142,18 @@ EqDC ORWRoutingTable::calculateCostToRoot() const
 }
 
 
-EqDC ORWRoutingTable::calculateEqDC(const L3Address destination, EqDC& nextHopEqDC) const
+EqDC ORWRoutingTable::calculateUpwardsCost(const L3Address destination, EqDC& nextHopEqDC) const
 {
-    Enter_Method("ORWRoutingTable::calculateEqDC(address, ..)");
+    Enter_Method("ORWRoutingTable::calculateUpwardsCost(address, ..)");
+
+    const EqDC estimatedCost = ExpectedCost(calculateUpwardsCost(destination));
+    // Limit resolution and add own routing cost before reporting.
+    nextHopEqDC = ExpectedCost(estimatedCost - forwardingCostW);
+    return estimatedCost;
+}
+EqDC ORWRoutingTable::calculateUpwardsCost(const inet::L3Address destination) const
+{
+    Enter_Method("ORWRoutingTable::calculateUpwardsCost(address)");
     const InterfaceEntry* interface = interfaceTable->findFirstNonLoopbackInterface();
     if(interface->getNetworkAddress() == destination){
         return EqDC(0.0);
@@ -152,17 +161,7 @@ EqDC ORWRoutingTable::calculateEqDC(const L3Address destination, EqDC& nextHopEq
     else if(destination != rootAddress){
         throw cRuntimeError("Routing error, unknown graph root");
     }
-
-    nextHopEqDC = ExpectedCost(calculateCostToRoot());
-    // Limit resolution and add own routing cost before reporting.
-    const EqDC estimatedCost = ExpectedCost(nextHopEqDC + forwardingCostW);
-    return estimatedCost;
-}
-EqDC ORWRoutingTable::calculateEqDC(const inet::L3Address destination) const
-{
-    Enter_Method("ORWRoutingTable::calculateEqDC(address)");
-    EqDC nextHopDummyVar = EqDC(0.0);
-    return calculateEqDC(destination, nextHopDummyVar);
+    return ExpectedCost(calculateCostToRoot() + forwardingCostW);
 }
 
 void ORWRoutingTable::calculateInteractionProbability()
@@ -181,7 +180,7 @@ void ORWRoutingTable::calculateInteractionProbability()
         entry.second.interactionsTotal = 0;
 
     }
-    emit(updatedEqDCValueSignal, calculateEqDC(rootAddress).get());
+    emit(updatedEqDCValueSignal, calculateUpwardsCost(rootAddress).get());
     emit(vagueNeighborsSignal, vagueNeighbors);
     emit(sureNeighborsSignal, sureNeighbors);
     interactionDenominator = 0;
@@ -236,7 +235,7 @@ INetfilter::IHook::Result ORWRoutingTable::datagramPreRoutingHook(Packet* datagr
         }
         else{
             const L3Address l3dest = arp->getL3AddressFor(destAddr);
-            EqDC acceptPacketThreshold = calculateEqDC(l3dest);
+            EqDC acceptPacketThreshold = calculateUpwardsCost(l3dest);
             if(acceptPacketThreshold<=costHeader->getMinExpectedCost()){
                 datagram->addTagIfAbsent<EqDCInd>()->setEqDC(acceptPacketThreshold);
                 //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation

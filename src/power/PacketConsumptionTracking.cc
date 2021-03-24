@@ -113,7 +113,7 @@ INetfilter::IHook::Result PacketConsumptionTracking::datagramLocalOutHook(Packet
     auto tag = networkHeader->addTag<HopConsumptionTag>(); // Must error if tag exists (undef. behaviour)
     tag->setEnergyConsumed(J(0.0)); // Dummy Value, will be overwritten in postRoutingHook
     tag->setSource(this);
-    tag->setEstimatedCost(routingTable->calculateEqDC(networkHeader->getDestAddr()));
+    tag->setEstimatedCost(routingTable->calculateUpwardsCost(networkHeader->getDestAddr()));
     datagram->insertAtFront(networkHeader);
     return IHook::Result::ACCEPT;
 }
