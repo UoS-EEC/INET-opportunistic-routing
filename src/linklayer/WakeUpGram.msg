@@ -20,6 +20,7 @@ enum WakeUpGramType {
 class WakeUpGram extends inet::FieldsChunk
 {
     WakeUpGramType type;    // header type (1 byte)
+    bool upwards = true; // Upwards routing flag, implemented as part of type byte
     inet::MacAddress transmitterAddress;    // (2 byte) but inet represents as 6
     inet::MacAddress receiverAddress;    // (2 byte) but inet represents as 6
     oppostack::ExpectedCost expectedCostInd = oppostack::ExpectedCost(255); // (1 byte)
