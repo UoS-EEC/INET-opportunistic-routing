@@ -15,15 +15,19 @@
 
 package oppostack.networklayer;
 
+moduleinterface IOpportunisticRoutingTable
+{
+    @display("i=block/table");
+}
+
 //
 // TODO auto-generated type
 //
-simple ORPLRoutingTable
+simple ORWRoutingTable like IOpportunisticRoutingTable
 {
 parameters:
-    @class(ORPLRoutingTable);
+    @class(ORWRoutingTable);
     string interfaceTableModule;   // The path to the InterfaceTable module
-    @display("i=block/table");
     string addressType @enum("mac","modulepath","moduleid") = default("modulepath");
     string hubAddress = default("routingHub");
     int hubExpectedCost @unit(ExpectedCost) = default(255ExpectedCost);

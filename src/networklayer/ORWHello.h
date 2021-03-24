@@ -13,8 +13,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef NETWORKLAYER_ORPLHELLO_H_
-#define NETWORKLAYER_ORPLHELLO_H_
+#ifndef NETWORKLAYER_ORWHELLO_H_
+#define NETWORKLAYER_ORWHELLO_H_
 
 #include <omnetpp.h>
 #include <inet/applications/generic/IpvxTrafGen.h>
@@ -26,10 +26,10 @@ namespace oppostack{
 /**
  * Simple module to send hello messages if messages are infrequent
  */
-class ORPLHello : public inet::IpvxTrafGen, public inet::cListener
+class ORWHello : public inet::IpvxTrafGen, public inet::cListener
 {
 public:
-    ORPLHello() : inet::IpvxTrafGen(),
+    ORWHello() : inet::IpvxTrafGen(),
         sentMessageQueue(nullptr),
         packetSourceModule(nullptr){};
 protected:
@@ -52,4 +52,4 @@ protected:
 
 } //namespace oppostack
 
-#endif /* NETWORKLAYER_ORPLHELLO_H_ */
+#endif /* NETWORKLAYER_ORWHELLO_H_ */

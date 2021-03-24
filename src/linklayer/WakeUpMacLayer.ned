@@ -18,6 +18,25 @@ import inet.linklayer.base.MacProtocolBase;
 import inet.linklayer.contract.IMacProtocol;
 import inet.queueing.contract.IPacketQueue;
 
+// Communicates using two radios (IRadio), one for wake-up one for data. 
+// Two radio model is an abstraction of using wake-up receiver and data radio to 
+// send the wake-up. 
+//
+// Also monitors the energyStorage to ensure there is enough energy to send message
+//
+// Implements negotiation of packet acceptance when multiple nodes competing to forward.
+// If transmitter: after sending wake-up and data, if multiple acks received, the
+// data (and not wake-up) is resent, until there is only 1 ack received.
+// If receiver: after wake-up and data reception ack is sent, if no more data received
+// then the data is sent up, if data re-received, then candiateRelayContentionProbability 
+// decides if it will send ack to receive data again else it gives up.
+// 
+// Encounter signals emitted to build a model of the probability of encountering 
+// neighboring nodes.
+// 
+// ExpectedCost is a 8bit measurement of effort required to get packet to sink
+// ExpectedCost = EqDC/10. If ack received from destination (ExpectedCost=0) then 
+// the data packet has it's cost field updated.
 
 module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
 {
@@ -38,7 +57,10 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
         int maxWakeUpTries = default(4);
 		
+		// After receiving wake-up, recheck the data before sending ack and accepting
 		bool recheckDataPacketEqDC = default(true);
+		// If transmitter receives ack from the final dest, and recheckDataPacketEqDC is
+		// performed then don't resend data, as only the final dest will accept EqDC=0
 		bool stopDirectTxExtraAck = default(false);
 		
         // Weighted Encounters signals and with attached L2Addr and EDC/EquivalentTx(EqTx) details

@@ -26,7 +26,7 @@
 #include <inet/linklayer/common/MacAddressTag_m.h>
 #include <inet/common/packet/chunk/Chunk.h>
 
-#include "networklayer/OpportunisticRpl.h"
+#include "../networklayer/ORWRouting.h"
 #include "WakeUpGram_m.h"
 #include "common/EqDCTag_m.h"
 #include "common/EncounterDetails_m.h"

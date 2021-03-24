@@ -13,8 +13,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef NETWORKLAYER_ORPLROUTINGTABLE_H_
-#define NETWORKLAYER_ORPLROUTINGTABLE_H_
+#ifndef NETWORKLAYER_ORWROUTINGTABLE_H_
+#define NETWORKLAYER_ORWROUTINGTABLE_H_
 
 #include <omnetpp.h>
 #include <inet/common/INETDefs.h>
@@ -28,10 +28,10 @@
 namespace oppostack{
 
 
-class ORPLRoutingTable : public omnetpp::cSimpleModule, public inet::cListener, public inet::NetfilterBase::HookBase
+class ORWRoutingTable : public omnetpp::cSimpleModule, public inet::cListener, public inet::NetfilterBase::HookBase
 {
 public:
-    ORPLRoutingTable():
+    ORWRoutingTable():
         arp(nullptr){};
     virtual void initialize(int stage) override;
 protected:
@@ -63,9 +63,11 @@ protected:
     static omnetpp::simsignal_t vagueNeighborsSignal;
     static omnetpp::simsignal_t sureNeighborsSignal;
     void increaseInteractionDenominator();
+    EqDC calculateCostToRoot() const;
+
 public:
-    oppostack::EqDC calculateEqDC(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
-    oppostack::EqDC calculateEqDC(const inet::L3Address destination) const;
+    virtual oppostack::EqDC calculateUpwardsCost(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
+    virtual oppostack::EqDC calculateUpwardsCost(const inet::L3Address destination) const;
     inet::L3Address getRouterIdAsGeneric();
     // Hook to accept incoming requests
     virtual inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram) override;
@@ -77,4 +79,4 @@ public:
 
 } //namespace oppostack
 
-#endif /* NETWORKLAYER_ORPLROUTINGTABLE_H_ */
+#endif /* NETWORKLAYER_ORWROUTINGTABLE_H_ */

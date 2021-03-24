@@ -26,7 +26,7 @@ Define_Module(PacketConsumptionTracking);
 
 void PacketConsumptionTracking::initialize()
 {
-    routingTable = check_and_cast<ORPLRoutingTable*>(getCModuleFromPar(par("routingTable"), this));
+    routingTable = check_and_cast<ORWRoutingTable*>(getCModuleFromPar(par("routingTable"), this));
     macLayer = check_and_cast<WakeUpMacLayer*>(getCModuleFromPar(par("wakeUpMacModule"),this));
     macEnergyMonitor = check_and_cast<WuMacEnergyMonitor*>(getCModuleFromPar(par("wakeUpMacMonitorModule"), this));
     macLayer->registerHook(0, this);
@@ -113,7 +113,7 @@ INetfilter::IHook::Result PacketConsumptionTracking::datagramLocalOutHook(Packet
     auto tag = networkHeader->addTag<HopConsumptionTag>(); // Must error if tag exists (undef. behaviour)
     tag->setEnergyConsumed(J(0.0)); // Dummy Value, will be overwritten in postRoutingHook
     tag->setSource(this);
-    tag->setEstimatedCost(routingTable->calculateEqDC(networkHeader->getDestAddr()));
+    tag->setEstimatedCost(routingTable->calculateUpwardsCost(networkHeader->getDestAddr()));
     datagram->insertAtFront(networkHeader);
     return IHook::Result::ACCEPT;
 }

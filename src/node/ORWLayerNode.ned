@@ -22,7 +22,7 @@ import oppostack.power.PacketConsumptionTracking;
 //
 // TODO auto-generated type
 //
-module ORPLLayerNode extends NetworkLayerNodeBase
+module ORWLayerNode extends NetworkLayerNodeBase
 {
     parameters:
         @display("i=misc/receiving");

@@ -18,7 +18,7 @@ package oppostack.simulations;
 import inet.networklayer.common.InterfaceTable;
 import inet.node.inet.AdhocHost;
 import inet.physicallayer.ieee802154.packetlevel.Ieee802154NarrowbandScalarRadioMedium;
-import oppostack.node.ORPLLayerNode;
+import oppostack.node.ORWLayerNode;
 import inet.visualizer.integrated.IntegratedCanvasVisualizer;
 import inet.networklayer.configurator.nexthop.NextHopNetworkConfigurator;
 
@@ -33,27 +33,27 @@ network ORPLTestMulti
         radioMedium: Ieee802154NarrowbandScalarRadioMedium {
             @display("p=18.343197,17.751482");
         }
-        receivingWakeUpNode: ORPLLayerNode {
+        receivingWakeUpNode: ORWLayerNode {
             @display("p=71.68298,45.578777");
             wlan[0].mac.address = "0000DA7ABA5E";
             generic.np.hubAddress = "receivingWakeUpNode(modulepath)";
             generic.np.hubExpectedCost = 0;
         }
-        transmittingWakeUpNode: ORPLLayerNode {
+        transmittingWakeUpNode: ORWLayerNode {
             @display("p=57.884617,61.92308");
             generic.np.hubAddress = "receivingWakeUpNode(modulepath)";
             generic.np.hubExpectedCost = 6;
             packetGenerator.destAddresses = "receivingWakeUpNode(modulepath)";
             packetGenerator.startTime = 0.5s;
         }
-        node1: ORPLLayerNode {
+        node1: ORWLayerNode {
             @display("p=70.19231,59.42308");
             generic.np.hubAddress = "receivingWakeUpNode(modulepath)";
             generic.np.hubExpectedCost = 4;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
-        overhearingWakeUpNode: ORPLLayerNode {
+        overhearingWakeUpNode: ORWLayerNode {
             @display("p=62.774406,50.758183");
             generic.np.hubAddress = "receivingWakeUpNode(modulepath)";
             generic.np.hubExpectedCost = 2;

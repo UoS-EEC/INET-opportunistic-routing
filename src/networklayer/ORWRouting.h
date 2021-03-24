@@ -13,8 +13,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#ifndef NETWORKLAYER_OPPORTUNISTICRPL_H_
-#define NETWORKLAYER_OPPORTUNISTICRPL_H_
+#ifndef NETWORKLAYER_ORWROUTING_H_
+#define NETWORKLAYER_ORWROUTING_H_
 
 #include <inet/common/ProtocolTag_m.h>
 #include <inet/networklayer/base/NetworkProtocolBase.h>
@@ -30,7 +30,7 @@
 #include <algorithm> // For std::find
 
 #include "common/Units.h"
-#include "networklayer/ORPLRoutingTable.h"
+#include "ORWRoutingTable.h"
 
 namespace oppostack{
 
@@ -65,16 +65,16 @@ public:
     }
 };
 
-class OpportunisticRpl : public NetworkProtocolBase, public INetworkProtocol{
+class ORWRouting : public NetworkProtocolBase, public INetworkProtocol{
 public:
-    OpportunisticRpl()
+    ORWRouting()
         : NetworkProtocolBase(),
         nextForwardTimer(nullptr),
         forwardingBackoff(2, SIMTIME_MS),
         routingTable(nullptr),
         arp(nullptr),
         waitingPacket(nullptr){}
-    ~OpportunisticRpl();
+    ~ORWRouting();
     virtual void initialize(int stage) override;
 protected:
     cMessage* nextForwardTimer;
@@ -82,7 +82,7 @@ protected:
     simtime_t forwardingBackoff;
     uint8_t initialTTL = 3; // Overwritten by NED
 
-    ORPLRoutingTable *routingTable; // TODO: Make IRoutingTable if features allow
+    ORWRoutingTable *routingTable; // TODO: Make IRoutingTable if features allow
     IArp *arp;
 
     L3Address nodeAddress;
@@ -114,4 +114,4 @@ protected:
 
 } // namespace oppostack
 
-#endif /* NETWORKLAYER_OPPORTUNISTICRPL_H_ */
+#endif /* NETWORKLAYER_ORWROUTING_H_ */

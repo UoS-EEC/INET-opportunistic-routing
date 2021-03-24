@@ -13,20 +13,19 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-#include "networklayer/ORPLHello.h"
-
 #include "OpportunisticRoutingHeader_m.h"
 #include "common/EqDCTag_m.h"
 #include "common/oppDefs.h"
 #include <inet/networklayer/common/L3AddressTag_m.h>
 #include <inet/networklayer/contract/IL3AddressType.h>
 #include <inet/common/ModuleAccess.h>
+#include "ORWHello.h"
 
 using namespace inet;
 using namespace oppostack;
-Define_Module(ORPLHello);
+Define_Module(ORWHello);
 
-void ORPLHello::initialize(int const stage)
+void ORWHello::initialize(int const stage)
 {
     IpvxTrafGen::initialize(stage);
 
@@ -43,13 +42,13 @@ void ORPLHello::initialize(int const stage)
 
 }
 
-L3Address ORPLHello::chooseDestAddr()
+L3Address ORWHello::chooseDestAddr()
 {
     return quietestDestination().second;
 }
 
 
-void ORPLHello::sendPacket()
+void ORWHello::sendPacket()
 {
     char msgName[] = "Hello Broadcast";
 
@@ -75,7 +74,7 @@ void ORPLHello::sendPacket()
     numSent++;
 }
 
-void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
+void ORWHello::handleStartOperation(inet::LifecycleOperation* op)
 {
     onOffCycles++;
 
@@ -97,7 +96,7 @@ void ORPLHello::handleStartOperation(inet::LifecycleOperation* op)
     }
 }
 
-std::pair<int, inet::L3Address> ORPLHello::quietestDestination() const
+std::pair<int, inet::L3Address> ORWHello::quietestDestination() const
 {
     const int k = 0;
     ASSERT(!destAddresses.empty());
@@ -123,7 +122,7 @@ std::pair<int, inet::L3Address> ORPLHello::quietestDestination() const
     return std::pair<int, inet::L3Address>(quietestCount, quietestAddress);
 }
 
-void ORPLHello::receiveSignal(cComponent* source, omnetpp::simsignal_t signalID, cObject* msg, cObject* details)
+void ORWHello::receiveSignal(cComponent* source, omnetpp::simsignal_t signalID, cObject* msg, cObject* details)
 {
     if(signalID == packetSentToLowerSignal){
         // Extract destination to new header

@@ -19,12 +19,12 @@ import inet.common.LayeredProtocolBase;
 import inet.networklayer.contract.INetworkProtocol;
 
 //
-// OpportunisticRpl as proposed by Duquennoy et al.
+// ORWRouting (Opportunistic Routing Scheme for Wireless Sensor Networks) as proposed by Duquennoy et al.
 //
-simple OpportunisticRpl extends NetworkProtocolBase like INetworkProtocol
+simple ORWRouting extends NetworkProtocolBase like INetworkProtocol
 {
     parameters:
-        @class(OpportunisticRpl);
+        @class(ORWRouting);
         string arpModule = default("^.arp");
         string hubAddress = default("");
         int hubExpectedCost @unit(ExpectedCost) = default(255ExpectedCost);
