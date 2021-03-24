@@ -86,6 +86,7 @@ protected:
     IArp *arp;
 
     L3Address nodeAddress;
+    L3Address rootAddress;
 
     Packet* waitingPacket;
     uint16_t sequenceNumber = 0;

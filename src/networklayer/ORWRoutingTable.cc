@@ -233,9 +233,8 @@ INetfilter::IHook::Result ORWRoutingTable::datagramPreRoutingHook(Packet* datagr
             //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
             return IHook::Result::ACCEPT;
         }
-        else{
-            const L3Address l3dest = arp->getL3AddressFor(destAddr);
-            EqDC acceptPacketThreshold = calculateUpwardsCost(l3dest);
+        else if(header->getUpwards() == true){
+            EqDC acceptPacketThreshold = calculateUpwardsCost(rootAddress);
             if(acceptPacketThreshold<=costHeader->getMinExpectedCost()){
                 datagram->addTagIfAbsent<EqDCInd>()->setEqDC(acceptPacketThreshold);
                 //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
