@@ -15,6 +15,8 @@
 
 #include "ORWRouting.h"
 
+const inet::Protocol oppostack::ORWRouting::OpportunisticRouting("Opportunistic", "Opportunistic", Protocol::NetworkLayer);
+
 #include <inet/common/INETDefs.h>
 #include <inet/common/ProtocolTag_m.h>
 #include "OpportunisticRoutingHeader_m.h"
