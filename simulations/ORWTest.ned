@@ -23,7 +23,7 @@ import inet.visualizer.integrated.IntegratedCanvasVisualizer;
 import inet.networklayer.configurator.nexthop.NextHopNetworkConfigurator;
 
 
-network ORPLTest
+network ORWTest
 {
     parameters:
         visualizer.mediumVisualizer.displayCommunicationRanges = true;
