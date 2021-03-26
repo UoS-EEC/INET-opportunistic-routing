@@ -20,7 +20,7 @@ import inet.networklayer.common.L3Address;
 namespace oppostack;
 
 
-class RoutingSetFooter{
+class RoutingSetFooter extends inet::FieldsChunk{
     int entriesLength = 0; //Number of elements in the entries field
 	inet::L3Address entries[];
 };

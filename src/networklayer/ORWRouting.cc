@@ -14,9 +14,6 @@
 // 
 
 #include "ORWRouting.h"
-
-const inet::Protocol oppostack::ORWRouting::OpportunisticRouting("Opportunistic", "Opportunistic", Protocol::NetworkLayer);
-
 #include <inet/common/INETDefs.h>
 #include <inet/common/ProtocolTag_m.h>
 #include "OpportunisticRoutingHeader_m.h"
@@ -31,7 +28,11 @@ const inet::Protocol oppostack::ORWRouting::OpportunisticRouting("Opportunistic"
 #include "ORWRoutingTable.h"
 
 using namespace oppostack;
+
+
 Define_Module(ORWRouting);
+
+const inet::Protocol oppostack::OpportunisticRouting("Opportunistic", "Opportunistic", Protocol::NetworkLayer);
 
 void ORWRouting::initialize(int const stage) {
     NetworkProtocolBase::initialize(stage);

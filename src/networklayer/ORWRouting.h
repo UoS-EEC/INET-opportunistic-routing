@@ -36,6 +36,7 @@ namespace oppostack{
 
 using namespace inet;
 
+extern const Protocol OpportunisticRouting;
 
 template <class T>
 class OrderedDropHeadQueue{
@@ -95,7 +96,6 @@ protected:
     OrderedDropHeadQueue<oppostack::PacketRecord> packetHistory;
     bool messageKnown(const oppostack::PacketRecord record);
 
-    static const Protocol OpportunisticRouting;
 
     virtual void encapsulate(Packet* packet);
     virtual void decapsulate(Packet* packet) const;
