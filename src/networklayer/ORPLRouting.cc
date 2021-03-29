@@ -13,7 +13,7 @@ Define_Module(ORPLRouting);
 
 void ORPLRouting::handleLowerPacket(Packet* const packet)
 {
-    auto footer = packet->popAtBack<RoutingSetFooter>(b(0));
+    //auto footer = packet->popAtBack<RoutingSetFooter>(b(0));
 
     ORWRouting::handleLowerPacket(packet);
 }

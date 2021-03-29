@@ -26,5 +26,6 @@ module ORPLLayerNode extends ORWLayerNode
 {
     parameters:
         @display("i=misc/receiving");
-        generic.typename = "ORPLLayer";
+        generic.typename = default("ORPLLayer");
+        
 }

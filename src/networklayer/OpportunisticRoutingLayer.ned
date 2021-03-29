@@ -32,8 +32,8 @@ module OpportunisticRoutingLayer extends SimpleNetworkLayer
     parameters:
         arp.typename = "GlobalArp";
         arp.addressType = "modulepath";
-        np.typename = "ORWRouting";
-        routingTable.typename = "ORWRoutingTable";
+        np.typename = default("ORWRouting");
+        routingTable.typename = default("ORWRoutingTable");
         interfaceTableModule = "^.interfaceTable";
         *.routingTableModule = default(absPath(".routingTable"));
         *.arpModule = default(absPath(".arp"));

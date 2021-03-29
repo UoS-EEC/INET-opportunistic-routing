@@ -15,11 +15,6 @@
 
 package oppostack.networklayer;
 
-import inet.networklayer.contract.INetworkLayer;
-import inet.networklayer.common.SimpleNetworkLayer;
-import inet.networklayer.nexthop.NextHopRoutingTable;
-import inet.applications.generic.IIpvxTrafficGenerator;
-
 
 //
 // ORPLLayer
@@ -30,6 +25,6 @@ import inet.applications.generic.IIpvxTrafficGenerator;
 module ORPLLayer extends OpportunisticRoutingLayer
 {
     parameters:
-        np.typename = "ORPLRouting";
-        routingTable.typename = "ORWRoutingTable";
+        np.typename = default("ORPLRouting");
+        routingTable.typename = default("ORPLRoutingTable");
 }

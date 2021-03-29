@@ -44,7 +44,7 @@ module ORWLayerNode extends NetworkLayerNodeBase
 		// Disable default ipv4 enable generic
         hasIpv4 = false;
         hasGn = true;
-        generic.typename = "OpportunisticRoutingLayer";
+        generic.typename = default("OpportunisticRoutingLayer");
         generic.interfaceTableModule = default(".interfaceTable");
         generic.hubAddress = "10.0.0.255";
     submodules:
