@@ -15,7 +15,13 @@ Define_Module(ORPLRouting);
 void ORPLRouting::handleLowerPacket(Packet* const packet)
 {
     auto routingHeader = packet->peekAtFront<OpportunisticRoutingHeader>();
-    auto routingSetExtension = routingHeader->getOptions().findByType(RoutingSetExt::extType,0);
+    auto routingSetExtId = routingHeader->getOptions().findByType(RoutingSetExt::extType,0);
+    if(routingSetExtId!=-1){
+        auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
+        auto mutableOptions = mutableHeader->getOptionsForUpdate();
+        auto routingSetExtension = mutableOptions.dropTlvOption(routingSetExtId);
+        packet->insertAtFront(mutableHeader);
+    }
 
     ORWRouting::handleLowerPacket(packet);
 }
