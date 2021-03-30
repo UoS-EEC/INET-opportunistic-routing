@@ -121,17 +121,21 @@ void ORWRouting::handleLowerPacket(Packet* const packet) {
     else if(nextHopCost < EqDC(25.5)){
         // Route to a node in the routing table
         // Packet not destined for this node
-        // Decrease TTL, set routing cost threshold and Forward.
         // "trim" required to remove the popped headers from lower layers
         packet->trim();
-        auto newTtl = header->getTtl()-1;
+
+        // Update packet header before forwarding
         auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
+        // Decrease TTL, set routing cost threshold and Forward.
+        auto newTtl = mutableHeader->getTtl()-1;
         mutableHeader->setTtl(newTtl);
+        // Remove unprocessed Tlv options as we can't process them.
         auto mutableOptions = mutableHeader->getOptionsForUpdate();
         while(size_t length = mutableOptions.getTlvOptionArraySize()){
             mutableOptions.eraseTlvOption(length-1);
         }
         packet->insertAtFront(mutableHeader);
+
         auto outboundMacAddress = getOutboundMacAddress(packet);
         if(outboundMacAddress == MacAddress::UNSPECIFIED_ADDRESS){
             EV_WARN << "Forwarding message to unknown L3Address" << endl;
