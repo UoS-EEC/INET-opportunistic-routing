@@ -60,6 +60,17 @@ void ORWRouting::initialize(int const stage) {
     }
 }
 
+inet::MacAddress ORWRouting::getOutboundMacAddress(const Packet* packet) const
+{
+    auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
+    inet::L3Address destinationAddress = header->getDestAddr();
+    if( not destinationAddress.isUnspecified()){
+        auto ie = interfaceTable->findFirstNonLoopbackInterface();
+        return arp->resolveL3Address(destinationAddress, ie);
+    }
+    return MacAddress::STP_MULTICAST_ADDRESS;
+}
+
 void ORWRouting::handleUpperPacket(Packet* const packet) {
     auto addressReq = packet->addTagIfAbsent<L3AddressReq>();
     //TODO: check tags assigned by higher layer
@@ -68,12 +79,7 @@ void ORWRouting::handleUpperPacket(Packet* const packet) {
         EV_WARN << "ORPL, setting received packet address to default hub address" << endl;
     }
     encapsulate(packet);
-    auto outboundMacAddress =  MacAddress::STP_MULTICAST_ADDRESS;
-    auto outboundHeader = packet->peekAtFront<OpportunisticRoutingHeader>();
-    if( not outboundHeader->getDestAddr().isUnspecified()){
-        auto ie = interfaceTable->findFirstNonLoopbackInterface();
-        outboundMacAddress = arp->resolveL3Address(outboundHeader->getDestAddr(), ie);
-    }
+    auto outboundMacAddress = getOutboundMacAddress(packet);
     EqDC nextHopCost = EqDC(25.5);
     EqDC ownCost = routingTable->calculateUpwardsCost(rootAddress, nextHopCost);
     setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
@@ -119,12 +125,6 @@ void ORWRouting::handleLowerPacket(Packet* const packet) {
         // "trim" required to remove the popped headers from lower layers
         packet->trim();
         auto newTtl = header->getTtl()-1;
-        auto outboundMacAddress =  MacAddress::STP_MULTICAST_ADDRESS;
-        auto ie = interfaceTable->findFirstNonLoopbackInterface();
-        outboundMacAddress = arp->resolveL3Address(destinationAddress, ie);
-        if(outboundMacAddress == MacAddress::UNSPECIFIED_ADDRESS){
-            EV_WARN << "Forwarding message to unknown L3Address" << endl;
-        }
         auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
         mutableHeader->setTtl(newTtl);
         auto mutableOptions = mutableHeader->getOptionsForUpdate();
@@ -132,6 +132,10 @@ void ORWRouting::handleLowerPacket(Packet* const packet) {
             mutableOptions.eraseTlvOption(length-1);
         }
         packet->insertAtFront(mutableHeader);
+        auto outboundMacAddress = getOutboundMacAddress(packet);
+        if(outboundMacAddress == MacAddress::UNSPECIFIED_ADDRESS){
+            EV_WARN << "Forwarding message to unknown L3Address" << endl;
+        }
         setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
 
         // Delay forwarded packets to reduce physical layer contention

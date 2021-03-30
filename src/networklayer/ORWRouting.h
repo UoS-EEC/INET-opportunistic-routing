@@ -103,6 +103,8 @@ protected:
 
     const Protocol& getProtocol() const override { return OpportunisticRouting; }
 
+    virtual inet::MacAddress getOutboundMacAddress(const inet::Packet* packet) const;
+
     virtual void handleSelfMessage(cMessage* msg) override;
     virtual void handleUpperPacket(Packet* packet) override;
     virtual void queueDelayed(Packet* const packet, const simtime_t delay);
