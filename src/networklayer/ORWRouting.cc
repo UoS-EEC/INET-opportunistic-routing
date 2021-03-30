@@ -90,10 +90,6 @@ void ORWRouting::handleLowerPacket(Packet* const packet) {
     auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
     auto const payloadLength = header->getLength() - header->getChunkLength();
     inet::L3Address destinationAddress = header->getDestAddr();
-    auto upwardsDestTag = packet->findTag<L3AddressReq>();
-    if(upwardsDestTag){
-        destinationAddress = upwardsDestTag->getDestAddress();
-    }
     EqDC nextHopCost = EqDC(25.5);
     EqDC ownCost = routingTable->calculateUpwardsCost(destinationAddress, nextHopCost);
     if(payloadLength<B(1)){
