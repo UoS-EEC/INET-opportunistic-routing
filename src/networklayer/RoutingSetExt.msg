@@ -15,17 +15,21 @@
 
 import inet.common.packet.chunk.Chunk;
 import inet.common.Units;
+import inet.common.TlvOptions;
 import inet.networklayer.common.L3Address;
 
 namespace oppostack;
 
-
-class RoutingSetFooter extends inet::FieldsChunk{
+cplusplus{{
+}}
+class RoutingSetExt extends inet::TlvOptionBase{
     int entriesLength = 0; //Number of elements in the entries field
 	inet::L3Address entries[];
-	chunkLength = inet::b(512);
+	length = 512;
+	type = 241;
 };
 
-cplusplus(RoutingSetFooter) {{
-	virtual inet::B calculateFooterLength() const;
+cplusplus(RoutingSetExt) {{
+    static const short extType = 241;
+	virtual short getLength() const; // Get the compressed length of the Extension
 }}

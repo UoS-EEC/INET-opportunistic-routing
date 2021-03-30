@@ -13,11 +13,11 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 //
 
-#include "RoutingSetFooter_m.h"
+#include "RoutingSetExt_m.h"
 #include <cstdlib>
 using namespace oppostack;
 
-inet::B RoutingSetFooter::calculateFooterLength() const{
+short RoutingSetExt::getLength() const{
     const int minNodeCount = 0;
     const int maxNodeCount = 512;
     const int halfRange = (maxNodeCount - minNodeCount)/2 + minNodeCount;
@@ -26,19 +26,19 @@ inet::B RoutingSetFooter::calculateFooterLength() const{
     //Aproximation of compression possible using Huffman Coding on statistically sparse bit array
     if(entriesLength < 0.0325*maxNodeCount){
         // 15% compression ratio
-        return inet::B(std::ceil(maxNodeCount/8*0.15));
+        return std::ceil(maxNodeCount/8*0.15);
     }
     else if(entriesLength < 0.065*maxNodeCount){
         // 20% compression ratio
-        return inet::B(std::ceil(maxNodeCount/8*0.2));
+        return std::ceil(maxNodeCount/8*0.2);
     }
     else if(entriesLength < 0.25*maxNodeCount){
         // 50% compression ratio
-        return inet::B(std::ceil(maxNodeCount/8*0.5));
+        return std::ceil(maxNodeCount/8*0.5);
     }
     else if(entriesLength <= 0.5*maxNodeCount){
         // Do not compress at all
-        return inet::B(std::ceil(maxNodeCount/8*1.0));
+        return std::ceil(maxNodeCount/8*1.0);
     }
     else{
         omnetpp::cRuntimeError("Higher proportions should be handled by inverting bitmap");
