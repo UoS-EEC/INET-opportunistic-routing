@@ -57,7 +57,7 @@ protected:
     int probCalcEncountersThresholdMax = 40;
     int interactionDenominator = 0;
     oppostack::EqDC forwardingCostW = oppostack::EqDC(0.1);
-    void calculateInteractionProbability();
+    virtual void calculateInteractionProbability();
     void configureInterface(inet::InterfaceEntry *ie);
     static omnetpp::simsignal_t updatedEqDCValueSignal;
     static omnetpp::simsignal_t vagueNeighborsSignal;
