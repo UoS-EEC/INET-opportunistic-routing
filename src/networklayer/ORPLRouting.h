@@ -18,6 +18,8 @@ public:
     ORPLRouting() : ORWRouting() {};
 private:
     void handleLowerPacket(Packet* const packet) override;
+    void setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const EqDC& costIndicator, const EqDC& onwardCost) const override;
+    std::set<L3Address> getSharingRoutingSet() const;
 };
 
 } /* namespace oppostack */
