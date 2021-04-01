@@ -40,7 +40,7 @@ public:
     // Get specific route info for each node
     // Useful for checking if in range or via another node
     // TODO: replace with IRoute*
-    virtual std::pair<inet::L3Address ,int > getRoute(int k);
+    virtual std::pair<const inet::L3Address ,int > getRoute(int k);
 
     EqDC calculateDownwardsCost(inet::L3Address destination);
 };

@@ -26,16 +26,44 @@ int ORPLRoutingTable::getNumRoutes()
     Enter_Method("ORPLRoutingTable::getNumRoutes()");
     auto isNeighborEntryActive = [=](std::pair<inet::L3Address, NeighborEntry> node)
         {return node.second.recentInteractionProb > 0;};
-    int count = std::count_if(routingSetTable.begin(), routingSetTable.end(), isNeighborEntryActive );
-    count +=  std::count_if(encountersTable.begin(), encountersTable.end(), isNeighborEntryActive );
-    return count;
+    const int activeRoutingSetLength = std::count_if(routingSetTable.begin(), routingSetTable.end(), isNeighborEntryActive );
+    const int activeEncountersLength =  std::count_if(encountersTable.begin(), encountersTable.end(), isNeighborEntryActive );
+    return activeRoutingSetLength + activeEncountersLength;
 }
 
 // TODO: replace with IRoute*
-std::pair<L3Address ,int > ORPLRoutingTable::getRoute(int k)
+std::pair<const L3Address ,int > ORPLRoutingTable::getRoute(int k)
 {
     Enter_Method("ORPLRoutingTable::getRoute(k)");
-    cRuntimeError("ORPLRoutingTable::getRoute() is an unimplemented stub");
+    auto isNeighborEntryActive = [=](std::pair<inet::L3Address, NeighborEntry> node)
+        {return node.second.recentInteractionProb > 0;};
+    const int activeRoutingSetLength = std::count_if(routingSetTable.begin(), routingSetTable.end(), isNeighborEntryActive );
+    const int activeEncountersLength =  std::count_if(encountersTable.begin(), encountersTable.end(), isNeighborEntryActive );
+    ASSERT(k < activeRoutingSetLength + activeEncountersLength);
+
+    // get the kth active in joined routingSet and Encounters
+    // Big kludge, needs to store all routes together in std::vector<IRoute*> and return pointer automatically
+    if (k < activeRoutingSetLength){
+        // must be in RoutingSet
+        int activeCount = 0;
+        for(auto node: routingSetTable){
+            if(isNeighborEntryActive(node)){
+                if(activeCount == k)return std::make_pair(node.first,ExpectedCost(node.second.lastEqDC).get());
+                activeCount++;
+            }
+        }
+    }
+    else{
+        // must be in encountersTable
+        int activeCount = 0;
+        for(auto node: encountersTable){
+            if(isNeighborEntryActive(node)){
+                if(activeCount == k-activeRoutingSetLength)return std::make_pair(node.first,ExpectedCost(node.second.lastEqDC).get());
+                activeCount++;
+            }
+        }
+
+    }
 }
 
 EqDC ORPLRoutingTable::calculateDownwardsCost(L3Address destination)
