@@ -1,0 +1,50 @@
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+// 
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see http://www.gnu.org/licenses/.
+// 
+
+#ifndef NETWORKLAYER_ORPLROUTINGTABLE_H_
+#define NETWORKLAYER_ORPLROUTINGTABLE_H_
+
+#include "ORWRoutingTable.h"
+#include "inet/networklayer/common/L3Address.h"
+#include "inet/networklayer/contract/IRoute.h"
+
+namespace oppostack {
+
+class ORPLRoutingTable : public ORWRoutingTable
+{
+private:
+    // Merged set of downward neighbors routing set.
+    // Each occurrence from neighbors increments interactionsTotal
+    // Included in get(Num)Route(s) if recentInteractionProb > 0
+    // Periodically the recentInteractionProb is updated using
+    // interactionsTotal
+    NeighbourRecords routingSetTable;
+
+public:
+    // Like interfaces from IRoutingTable
+    // Get number of routes to nodes in routing set
+    // Does not remove duplicate from immediate neighborTable and routingSetTable
+    virtual int getNumRoutes();
+    // Get specific route info for each node
+    // Useful for checking if in range or via another node
+    // TODO: replace with IRoute*
+    virtual std::pair<inet::L3Address ,int > getRoute(int k);
+
+    EqDC calculateDownwardsCost(inet::L3Address destination);
+};
+
+} /* namespace oppostack */
+
+#endif /* NETWORKLAYER_ORPLROUTINGTABLE_H_ */
