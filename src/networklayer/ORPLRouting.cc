@@ -28,6 +28,7 @@ void ORPLRouting::handleLowerPacket(Packet* const packet)
         auto routingSetExtension = mutableOptions.dropTlvOption(routingSetExtId);
         mutableOptions.eraseTlvOption(routingSetExtId);
         mutableHeader->setOptions(mutableOptions);
+        mutableHeader->setChunkLength(mutableHeader->calculateHeaderByteLength());
         packet->insertAtFront(mutableHeader);
     }
 
@@ -83,6 +84,7 @@ void ORPLRouting::setDownControlInfo(Packet* const packet, const MacAddress& mac
         }
         mutableOptions.insertTlvOption(routingSetExtension);
         mutableHeader->setOptions(mutableOptions);
+        mutableHeader->setChunkLength(mutableHeader->calculateHeaderByteLength());
         packet->insertAtFront(mutableHeader);
     }
     ORWRouting::setDownControlInfo(packet, macMulticast, costIndicator, onwardCost);
