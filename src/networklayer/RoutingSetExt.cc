@@ -21,6 +21,7 @@ short RoutingSetExt::getLength() const{
     const int minNodeCount = 0;
     const int maxNodeCount = 512;
     const int halfRange = (maxNodeCount - minNodeCount)/2 + minNodeCount;
+    const int entriesLength = getEntryArraySize();
     const int entriesLengthDistFromMaxMin = halfRange - std::abs(entriesLength - halfRange);
 
     //Aproximation of compression possible using Huffman Coding on statistically sparse bit array

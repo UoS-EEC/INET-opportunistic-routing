@@ -19,6 +19,7 @@
 #include "ORWRoutingTable.h"
 #include "inet/networklayer/common/L3Address.h"
 #include "inet/networklayer/contract/IRoute.h"
+#include "OpportunisticRoutingHeader_m.h"
 
 namespace oppostack {
 
@@ -32,6 +33,11 @@ private:
     // interactionsTotal
     NeighbourRecords routingSetTable;
 
+    const Ptr<const OpportunisticRoutingHeader> getOpportunisticRoutingHeaderFromPacket(const cObject* msg);
+
+protected:
+    void initialize(int stage);
+    virtual void receiveSignal(cComponent *source, omnetpp::simsignal_t signalID, cObject* msg, cObject *details) override;
 public:
     // Like interfaces from IRoutingTable
     // Get number of routes to nodes in routing set

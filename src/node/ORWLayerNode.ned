@@ -47,6 +47,7 @@ module ORWLayerNode extends NetworkLayerNodeBase
         generic.typename = default("OpportunisticRoutingLayer");
         generic.interfaceTableModule = default(".interfaceTable");
         generic.hubAddress = "10.0.0.255";
+        generic.routingTable.encountersSourceModule = default("^.^.wlan[0].mac");
     submodules:
         packetGenerator: IpvxTrafGen {
             @display("p=437.84998,114.975");

@@ -23,7 +23,6 @@ namespace oppostack;
 cplusplus{{
 }}
 class RoutingSetExt extends inet::TlvOptionBase{
-    int entriesLength = 0; //Number of elements in the entries field
 	inet::L3Address entry[];
 	length = 512;
 	type = 241;

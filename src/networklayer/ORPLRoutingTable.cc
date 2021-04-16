@@ -14,8 +14,11 @@
 // 
 
 #include "ORPLRoutingTable.h"
+#include "OpportunisticRoutingHeader_m.h"
+#include "RoutingSetExt_m.h"
 #include <algorithm>
 #include <functional>
+#include "common/oppDefs.h"
 using namespace oppostack;
 using namespace inet;
 
@@ -73,4 +76,51 @@ EqDC ORPLRoutingTable::calculateDownwardsCost(L3Address destination)
     const EqDC estimatedCost = ExpectedCost(calculateUpwardsCost(destination));
     // Limit resolution and add own routing cost before reporting.
     return ExpectedCost(estimatedCost + forwardingCostW);
+}
+
+void ORPLRoutingTable::initialize(int stage)
+{
+    ORWRoutingTable::initialize(stage);
+
+    if(stage == INITSTAGE_LOCAL){
+        cModule* encountersModule = getCModuleFromPar(par("encountersSourceModule"), this);
+        encountersModule->subscribe(packetReceivedFromLowerSignal, this);
+    }
+}
+
+const Ptr<const OpportunisticRoutingHeader> ORPLRoutingTable::getOpportunisticRoutingHeaderFromPacket(const cObject* msg)
+{
+    // Peek chunk at start
+    auto packet = check_and_cast<const Packet*>(msg);
+    auto firstHeader = packet->peekAtFront();
+    // Drop if chunk at start the only thing in the packet
+    auto secondHeaderOffset = firstHeader->getChunkLength();
+    if( secondHeaderOffset >= packet->getDataLength() ){
+        return nullptr;
+    }
+    // Check and convert network header to OpportunisticRoutingHeader
+    if( packet->hasAt<OpportunisticRoutingHeader>(secondHeaderOffset)){
+        // Peek at Network Header using offset of length of chunk at start.
+        return packet->peekAt<OpportunisticRoutingHeader>(secondHeaderOffset);
+    }
+    return nullptr;
+}
+
+void ORPLRoutingTable::receiveSignal(cComponent* source, omnetpp::simsignal_t signalID, cObject* msg,
+        cObject* details)
+{
+    if(signalID == packetReceivedFromLowerSignal){
+        auto header = getOpportunisticRoutingHeaderFromPacket(msg);
+        if(header!=nullptr){
+            // Check if header has options
+            auto headerOptions = header->getOptions();
+            auto routingSetExtId = headerOptions.findByType(RoutingSetExt::extType,0);
+            if(routingSetExtId!=-1){
+                // Get RoutingSetExt from TlvOptions for sharedRoutingSet
+                auto routingSetExtension = headerOptions.getTlvOption(routingSetExtId);
+                auto sharedRoutingSetExt = check_and_cast<const RoutingSetExt*>(routingSetExtension);
+                // Pass extracted routingSet into merge routing set function
+            }
+        }
+    }
 }
