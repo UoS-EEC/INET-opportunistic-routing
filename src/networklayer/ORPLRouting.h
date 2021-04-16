@@ -14,9 +14,8 @@ namespace oppostack {
 
 class ORPLRouting : public ORWRouting
 {
-public:
-    ORPLRouting() : ORWRouting() {};
 private:
+    void initialize(int stage) override;
     void handleLowerPacket(Packet* const packet) override;
     void setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const EqDC& costIndicator, const EqDC& onwardCost) const override;
     std::set<L3Address> getSharingRoutingSet() const;
