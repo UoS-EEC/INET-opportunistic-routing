@@ -39,7 +39,7 @@ class OpportunisticRoutingHeader extends inet::NetworkHeaderBase{
     // uint4_t fragCount;
     // uint4_t fragId;
     // uint8_t errorCorrection;
-    chunkLength = inet::B(16);
+    chunkLength = inet::B(headerByteLength);
     
     inet::TlvOptions options; // array of option pointers, option pointers owned by datagram
     
