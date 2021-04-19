@@ -23,6 +23,10 @@ void oppostack::ORPLRouting::initialize(int stage)
 
     if(stage == INITSTAGE_LOCAL){
         check_and_cast<ORPLRoutingTable*>(routingTable);
+        routingSetProportion = par("routingSetProportion");
+        routingSetBroadcastProportion = par("routingSetBroadcastProportion");
+        ASSERT(routingSetProportion > 0.05);
+        ASSERT(routingSetBroadcastProportion > 0.2);
     }
 }
 
@@ -80,8 +84,9 @@ std::set<L3Address> ORPLRouting::getSharingRoutingSet() const
 void ORPLRouting::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const EqDC& costIndicator, const EqDC& onwardCost) const
 {
     // TODO: Add routingSetExt TlvOption header occasionally
-    bool isBroadcast = packet->findTag<EqDCBroadcast>() == nullptr;
-    if(isBroadcast){
+    bool isBroadcast = packet->findTag<EqDCBroadcast>() != nullptr;
+    double addRoutingSetRand = uniform(0,1);
+    if(isBroadcast && addRoutingSetRand < routingSetBroadcastProportion || addRoutingSetRand < routingSetProportion){
         // Only get the routing set that should be shared, excluding some directly connected nodes
         std::set<L3Address> sharingRoutingSet = getSharingRoutingSet();
         // Insert routing set into routingSetExt header if there are neighboring nodes.

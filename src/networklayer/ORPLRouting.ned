@@ -20,5 +20,8 @@ package oppostack.networklayer;
 //
 simple ORPLRouting extends ORWRouting
 {
-    @class(ORPLRouting);
+    parameters:
+    	@class(ORPLRouting);
+        double routingSetProportion = default(0.1);
+        double routingSetBroadcastProportion = default(0.4);
 }

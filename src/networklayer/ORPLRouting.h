@@ -15,6 +15,8 @@ namespace oppostack {
 class ORPLRouting : public ORWRouting
 {
 private:
+    double routingSetProportion;
+    double routingSetBroadcastProportion;
     void initialize(int stage) override;
     void handleLowerPacket(Packet* const packet) override;
     void setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const EqDC& costIndicator, const EqDC& onwardCost) const override;
