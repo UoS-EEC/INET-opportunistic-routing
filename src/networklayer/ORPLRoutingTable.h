@@ -33,7 +33,7 @@ private:
     // interactionsTotal
     NeighbourRecords routingSetTable;
 
-    const Ptr<const OpportunisticRoutingHeader> getOpportunisticRoutingHeaderFromPacket(const cObject* msg);
+    const Ptr<const OpportunisticRoutingHeader> getOpportunisticRoutingHeaderFromPacket(const cObject* msg, EqDC& indicatedMinCostToSink);
     int countDownwardNodes(const EqDC ownEqDCEstimate) const;
 
 protected:
@@ -53,6 +53,7 @@ public:
     EqDC calculateDownwardsCost(inet::L3Address destination);
 
     simsignal_t static downwardSetSizeSignal;
+    void addToDownwardsWarmupSet(const inet::L3Address destination, const EqDC minimumEqDC);
 };
 
 } /* namespace oppostack */

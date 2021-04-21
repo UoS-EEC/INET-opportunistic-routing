@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <functional>
 #include "common/oppDefs.h"
+#include "../linklayer/WakeUpGram_m.h"
 using namespace oppostack;
 using namespace inet;
 
@@ -71,6 +72,8 @@ std::pair<const L3Address ,int > ORPLRoutingTable::getRoute(int k)
     }
 }
 
+
+
 EqDC ORPLRoutingTable::calculateDownwardsCost(L3Address destination)
 {
     Enter_Method("ORPLRoutingTable::calculateUpwardsCost(address, ..)");
@@ -83,9 +86,18 @@ EqDC ORPLRoutingTable::calculateDownwardsCost(L3Address destination)
 void ORPLRoutingTable::activateWarmUpRoutingData()
 {
     EqDC ownEqDCEstimate = calculateUpwardsCost(rootAddress);
+    for(auto& node: routingSetTable){
+        if(node.second.interactionsTotal > 0 && node.second.lastEqDC >= ownEqDCEstimate){
+            node.second.recentInteractionProb = 1.0;
+        }
+        else{
+            node.second.recentInteractionProb = 0.0;
+        }
+        node.second.interactionsTotal = 0;
+    }
     ORWRoutingTable::activateWarmUpRoutingData();
 
-    // Emit immediate downward neighbours
+    // Emit downwards nodes information (including immediate downward neighbours)
     int downwardsSetSize = countDownwardNodes(ownEqDCEstimate);
     emit(downwardSetSizeSignal, downwardsSetSize);
 
@@ -101,7 +113,7 @@ void ORPLRoutingTable::initialize(int stage)
     }
 }
 
-const Ptr<const OpportunisticRoutingHeader> ORPLRoutingTable::getOpportunisticRoutingHeaderFromPacket(const cObject* msg)
+const Ptr<const OpportunisticRoutingHeader> ORPLRoutingTable::getOpportunisticRoutingHeaderFromPacket(const cObject* msg, EqDC& indicatedMinCostToSink)
 {
     // Peek chunk at start
     auto packet = check_and_cast<const Packet*>(msg);
@@ -113,17 +125,34 @@ const Ptr<const OpportunisticRoutingHeader> ORPLRoutingTable::getOpportunisticRo
     }
     // Check and convert network header to OpportunisticRoutingHeader
     if( packet->hasAt<OpportunisticRoutingHeader>(secondHeaderOffset)){
+        // TODO: Remove when EqDC indicator sent in OpportunisticRoutingHeader
+        if(packet->hasAtFront<WakeUpGram>()){
+            indicatedMinCostToSink = packet->peekAtFront<WakeUpGram>()->getExpectedCostInd();
+        }
+
         // Peek at Network Header using offset of length of chunk at start.
         return packet->peekAt<OpportunisticRoutingHeader>(secondHeaderOffset);
     }
     return nullptr;
 }
 
+void ORPLRoutingTable::addToDownwardsWarmupSet(const inet::L3Address destination, const EqDC minimumCostToRoot)
+{
+    auto isFirstSinceReset = routingSetTable[destination].interactionsTotal == 0;
+    auto minimumCostHasIncreased = routingSetTable[destination].lastEqDC < minimumCostToRoot;
+    auto hasNeverHadRecordedCost = routingSetTable[destination].lastEqDC == EqDC(25.5); // Needed for initialization when many nodes have cost=25.5
+    routingSetTable[destination].interactionsTotal++; // incremented AFTER isFirstSinceReset definition;
+    if( isFirstSinceReset || minimumCostHasIncreased || hasNeverHadRecordedCost){
+        routingSetTable[destination].lastEqDC = minimumCostToRoot;
+    }
+}
+
 void ORPLRoutingTable::receiveSignal(cComponent* source, omnetpp::simsignal_t signalID, cObject* msg,
         cObject* details)
 {
     if(signalID == packetReceivedFromLowerSignal){
-        auto header = getOpportunisticRoutingHeaderFromPacket(msg);
+        EqDC minCostForDownwardNodes;
+        auto header = getOpportunisticRoutingHeaderFromPacket(msg, minCostForDownwardNodes);
         if(header!=nullptr){
             // Check if header has options
             auto headerOptions = header->getOptions();
@@ -133,6 +162,12 @@ void ORPLRoutingTable::receiveSignal(cComponent* source, omnetpp::simsignal_t si
                 auto routingSetExtension = headerOptions.getTlvOption(routingSetExtId);
                 auto sharedRoutingSetExt = check_and_cast<const RoutingSetExt*>(routingSetExtension);
                 // Pass extracted routingSet into merge routing set function
+                if(minCostForDownwardNodes >= calculateUpwardsCost(rootAddress)){
+                    // Observed Routing Set is downwards from root
+                    for(int k=0; k<sharedRoutingSetExt->getEntryArraySize(); k++ ){
+                        addToDownwardsWarmupSet(sharedRoutingSetExt->getEntry(k), minCostForDownwardNodes);
+                    }
+                }
             }
         }
     }
