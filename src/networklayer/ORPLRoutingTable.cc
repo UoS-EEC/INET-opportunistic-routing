@@ -124,3 +124,40 @@ void ORPLRoutingTable::receiveSignal(cComponent* source, omnetpp::simsignal_t si
         }
     }
 }
+
+int ORPLRoutingTable::countDownwardNodes(const EqDC ownEqDCEstimate) const
+{
+    int downwardsSetSize = 0;
+
+    // Utility functions
+    auto isNeighborEntryActive = [=](const NeighborEntry node)
+        {return node.recentInteractionProb > 0;};
+    auto isNeighborEntryDownwards = [=](const NeighborEntry node)
+        {return node.lastEqDC >= ownEqDCEstimate;};
+
+    // Loop through merged downward set from neighbour
+    for (const auto& nodePair : routingSetTable) {
+        const auto nodeEntry = nodePair.second;
+        // Only count active downward routing set entries
+        if (isNeighborEntryActive(nodeEntry) && isNeighborEntryDownwards(nodeEntry)) {
+            auto encountersTblRes = encountersTable.find(nodePair.first);
+            if (encountersTblRes != encountersTable.end() && isNeighborEntryActive(encountersTblRes->second)) {
+            //if (encountersTblRes != encountersTable.end() && isNeighborEntryActive(encountersTable[node.first])) {
+                // Node is active immediate neighbor so don't count here, count with encountersTable neighbors
+            }
+            else {
+                // Node not encountersTable neighbour so count from routing set
+                downwardsSetSize++;
+            }
+        }
+    }
+    // loop through encountersTable
+    for (const auto& nodePair : encountersTable) {
+        const auto node = nodePair.second;
+        if (isNeighborEntryActive(node) && isNeighborEntryDownwards(node)) {
+            downwardsSetSize++;
+        }
+    }
+    return downwardsSetSize;
+}
+

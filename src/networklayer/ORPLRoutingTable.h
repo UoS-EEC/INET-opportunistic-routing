@@ -34,6 +34,7 @@ private:
     NeighbourRecords routingSetTable;
 
     const Ptr<const OpportunisticRoutingHeader> getOpportunisticRoutingHeaderFromPacket(const cObject* msg);
+    int countDownwardNodes(const EqDC ownEqDCEstimate) const;
 
 protected:
     void initialize(int stage);
