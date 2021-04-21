@@ -200,14 +200,19 @@ void ORWRoutingTable::configureInterface(inet::InterfaceEntry* ie)
         d->setAddress(ModuleIdAddress(interfaceModuleId));
 }
 
+void ORWRoutingTable::activateWarmUpRoutingData()
+{
+    probCalcEncountersThreshold = std::min(probCalcEncountersThreshold * 2, probCalcEncountersThresholdMax);
+    calculateInteractionProbability();
+    encountersCount = 0;
+}
+
 void ORWRoutingTable::increaseInteractionDenominator()
 {
     interactionDenominator++;
     if(encountersCount > probCalcEncountersThreshold
             || interactionDenominator > 2*probCalcEncountersThreshold){// KLUDGE of interaction denominator until hello messages are implemented
-        probCalcEncountersThreshold = std::min(probCalcEncountersThreshold*2,probCalcEncountersThresholdMax);
-        calculateInteractionProbability();
-        encountersCount = 0;
+        activateWarmUpRoutingData();
     }
 }
 

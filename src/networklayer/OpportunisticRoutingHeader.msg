@@ -17,29 +17,42 @@
 // Opportunistic routing header with some common fields to 
 //
 import inet.networklayer.common.IpProtocolId;
+import inet.common.Units;
+import inet.common.TlvOptions;
 import inet.networklayer.contract.NetworkHeaderBase;
 import inet.common.packet.chunk.Chunk;
 cplusplus {{
 #include <inet/common/ProtocolGroup.h>
-}}
-namespace inet;
 
-class OpportunisticRoutingHeader extends NetworkHeaderBase{
-    IpProtocolId version;
-    B length;
+using namespace inet;
+}}
+namespace oppostack;
+
+class OpportunisticRoutingHeader extends inet::NetworkHeaderBase{
+    inet::IpProtocolId version;
+    inet::B length;
     uint16_t id;
-    L3Address   srcAddr;
-    L3Address   destAddr;
-    IpProtocolId   protocolId;
+    inet::L3Address   srcAddr;
+    inet::L3Address   destAddr;
+    inet::IpProtocolId   protocolId;
     uint8_t ttl;
     // uint4_t fragCount;
     // uint4_t fragId;
     // uint8_t errorCorrection;
-    chunkLength = inet::B(16);
+    chunkLength = inet::B(headerByteLength);
+    
+    inet::TlvOptions options; // array of option pointers, option pointers owned by datagram
+    
 }
 
 cplusplus(OpportunisticRoutingHeader) {{
+    static const short headerByteLength = 16;
   public:
+    /**
+     * Calculates the length of the OpportunisticRoutingHeader plus the options
+     */
+    virtual B calculateHeaderByteLength() const;
+    
     virtual L3Address getSourceAddress() const override { return getSrcAddr(); }
     virtual void setSourceAddress(const L3Address& address) override { setSrcAddr(address); }
     virtual L3Address getDestinationAddress() const override { return getDestAddr(); }

@@ -14,7 +14,6 @@
 // 
 
 #include "ORWRouting.h"
-
 #include <inet/common/INETDefs.h>
 #include <inet/common/ProtocolTag_m.h>
 #include "OpportunisticRoutingHeader_m.h"
@@ -29,7 +28,11 @@
 #include "ORWRoutingTable.h"
 
 using namespace oppostack;
+
+
 Define_Module(ORWRouting);
+
+const inet::Protocol oppostack::OpportunisticRouting("Opportunistic", "Opportunistic", Protocol::NetworkLayer);
 
 void ORWRouting::initialize(int const stage) {
     NetworkProtocolBase::initialize(stage);
@@ -57,6 +60,17 @@ void ORWRouting::initialize(int const stage) {
     }
 }
 
+inet::MacAddress ORWRouting::getOutboundMacAddress(const Packet* packet) const
+{
+    auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
+    inet::L3Address destinationAddress = header->getDestAddr();
+    if( not destinationAddress.isUnspecified()){
+        auto ie = interfaceTable->findFirstNonLoopbackInterface();
+        return arp->resolveL3Address(destinationAddress, ie);
+    }
+    return MacAddress::STP_MULTICAST_ADDRESS;
+}
+
 void ORWRouting::handleUpperPacket(Packet* const packet) {
     auto addressReq = packet->addTagIfAbsent<L3AddressReq>();
     //TODO: check tags assigned by higher layer
@@ -65,6 +79,10 @@ void ORWRouting::handleUpperPacket(Packet* const packet) {
         EV_WARN << "ORPL, setting received packet address to default hub address" << endl;
     }
     encapsulate(packet);
+    auto outboundMacAddress = getOutboundMacAddress(packet);
+    EqDC nextHopCost = EqDC(25.5);
+    EqDC ownCost = routingTable->calculateUpwardsCost(rootAddress, nextHopCost);
+    setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
     sendDown(packet);
 }
 
@@ -72,10 +90,6 @@ void ORWRouting::handleLowerPacket(Packet* const packet) {
     auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
     auto const payloadLength = header->getLength() - header->getChunkLength();
     inet::L3Address destinationAddress = header->getDestAddr();
-    auto upwardsDestTag = packet->findTag<L3AddressReq>();
-    if(upwardsDestTag){
-        destinationAddress = upwardsDestTag->getDestAddress();
-    }
     EqDC nextHopCost = EqDC(25.5);
     EqDC ownCost = routingTable->calculateUpwardsCost(destinationAddress, nextHopCost);
     if(payloadLength<B(1)){
@@ -103,19 +117,25 @@ void ORWRouting::handleLowerPacket(Packet* const packet) {
     else if(nextHopCost < EqDC(25.5)){
         // Route to a node in the routing table
         // Packet not destined for this node
-        // Decrease TTL, set routing cost threshold and Forward.
         // "trim" required to remove the popped headers from lower layers
         packet->trim();
-        auto newTtl = header->getTtl()-1;
-        auto outboundMacAddress =  MacAddress::STP_MULTICAST_ADDRESS;
-        auto ie = interfaceTable->findFirstNonLoopbackInterface();
-        outboundMacAddress = arp->resolveL3Address(destinationAddress, ie);
+
+        // Update packet header before forwarding
+        auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
+        // Decrease TTL, set routing cost threshold and Forward.
+        auto newTtl = mutableHeader->getTtl()-1;
+        mutableHeader->setTtl(newTtl);
+        // Remove unprocessed Tlv options as we can't process them.
+        auto mutableOptions = mutableHeader->getOptionsForUpdate();
+        while(size_t length = mutableOptions.getTlvOptionArraySize()){
+            mutableOptions.eraseTlvOption(length-1);
+        }
+        packet->insertAtFront(mutableHeader);
+
+        auto outboundMacAddress = getOutboundMacAddress(packet);
         if(outboundMacAddress == MacAddress::UNSPECIFIED_ADDRESS){
             EV_WARN << "Forwarding message to unknown L3Address" << endl;
         }
-        auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
-        mutableHeader->setTtl(newTtl);
-        packet->insertAtFront(mutableHeader);
         setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
 
         // Delay forwarded packets to reduce physical layer contention
@@ -130,11 +150,8 @@ void ORWRouting::handleLowerPacket(Packet* const packet) {
 
 void ORWRouting::encapsulate(Packet* const packet) {
     auto header = makeShared<OpportunisticRoutingHeader>();
-    auto outboundMacAddress =  MacAddress::STP_MULTICAST_ADDRESS;
     if(packet->findTag<L3AddressReq>()!=nullptr){
         header->setDestAddr(packet->getTag<L3AddressReq>()->getDestAddress());
-        auto ie = interfaceTable->findFirstNonLoopbackInterface();
-        outboundMacAddress = arp->resolveL3Address(header->getDestAddr(), ie);
     }
     else{
         header->setDestAddr( L3Address() );
@@ -159,9 +176,6 @@ void ORWRouting::encapsulate(Packet* const packet) {
     header->setTtl(initialTTL);
     header->setVersion(IpProtocolId::IP_PROT_MANET);
     packet->insertAtFront(header);
-    EqDC nextHopCost = EqDC(25.5);
-    EqDC ownCost = routingTable->calculateUpwardsCost(rootAddress, nextHopCost);
-    setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
 }
 
 void ORWRouting::setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const EqDC& costIndicator, const EqDC& onwardCost) const

@@ -36,7 +36,8 @@ namespace oppostack{
 
 using namespace inet;
 
-const Protocol OpportunisticRouting("ORPL", "ORPL", Protocol::NetworkLayer);
+extern const Protocol OpportunisticRouting;
+
 template <class T>
 class OrderedDropHeadQueue{
 private:
@@ -101,6 +102,8 @@ protected:
     virtual void setDownControlInfo(Packet* packet, const MacAddress& macMulticast, const EqDC& routingCost, const EqDC& onwardCost) const;
 
     const Protocol& getProtocol() const override { return OpportunisticRouting; }
+
+    virtual inet::MacAddress getOutboundMacAddress(const inet::Packet* packet) const;
 
     virtual void handleSelfMessage(cMessage* msg) override;
     virtual void handleUpperPacket(Packet* packet) override;
