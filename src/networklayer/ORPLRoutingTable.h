@@ -49,7 +49,10 @@ public:
     // TODO: replace with IRoute*
     virtual std::pair<const inet::L3Address ,int > getRoute(int k);
 
+    virtual void activateWarmUpRoutingData() override;
     EqDC calculateDownwardsCost(inet::L3Address destination);
+
+    simsignal_t static downwardSetSizeSignal;
 };
 
 } /* namespace oppostack */

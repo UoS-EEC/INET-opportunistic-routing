@@ -24,6 +24,8 @@ using namespace inet;
 
 Define_Module(ORPLRoutingTable);
 
+simsignal_t ORPLRoutingTable::downwardSetSizeSignal = cComponent::registerSignal("downwardSetSize");
+
 int ORPLRoutingTable::getNumRoutes()
 {
     Enter_Method("ORPLRoutingTable::getNumRoutes()");
@@ -76,6 +78,17 @@ EqDC ORPLRoutingTable::calculateDownwardsCost(L3Address destination)
     const EqDC estimatedCost = ExpectedCost(calculateUpwardsCost(destination));
     // Limit resolution and add own routing cost before reporting.
     return ExpectedCost(estimatedCost + forwardingCostW);
+}
+
+void ORPLRoutingTable::activateWarmUpRoutingData()
+{
+    EqDC ownEqDCEstimate = calculateUpwardsCost(rootAddress);
+    ORWRoutingTable::activateWarmUpRoutingData();
+
+    // Emit immediate downward neighbours
+    int downwardsSetSize = countDownwardNodes(ownEqDCEstimate);
+    emit(downwardSetSizeSignal, downwardsSetSize);
+
 }
 
 void ORPLRoutingTable::initialize(int stage)

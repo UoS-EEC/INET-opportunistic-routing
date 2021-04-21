@@ -21,4 +21,6 @@ package oppostack.networklayer;
 simple ORPLRoutingTable extends ORWRoutingTable
 {
     @class(ORPLRoutingTable);
+    @signal[downwardSetSize](type = long);
+    @statistic[downwardSetSize](title="Downward routing set size"; record=vector, last); 
 }

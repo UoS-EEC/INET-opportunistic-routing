@@ -64,6 +64,7 @@ protected:
     static omnetpp::simsignal_t sureNeighborsSignal;
     void increaseInteractionDenominator();
     EqDC calculateCostToRoot() const;
+    virtual void activateWarmUpRoutingData();
 
 public:
     virtual oppostack::EqDC calculateUpwardsCost(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
