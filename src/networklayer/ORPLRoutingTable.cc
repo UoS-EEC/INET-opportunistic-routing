@@ -73,6 +73,10 @@ std::pair<const L3Address ,int > ORPLRoutingTable::getRoute(int k)
 }
 
 
+EqDC ORPLRoutingTable::calculateUpwardsCost(const inet::L3Address destination) const
+{
+    return ORWRoutingTable::calculateUpwardsCost(rootAddress);
+}
 
 EqDC ORPLRoutingTable::calculateDownwardsCost(L3Address destination)
 {
@@ -208,4 +212,3 @@ int ORPLRoutingTable::countDownwardNodes(const EqDC ownEqDCEstimate) const
     }
     return downwardsSetSize;
 }
-
