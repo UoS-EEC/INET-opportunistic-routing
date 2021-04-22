@@ -25,6 +25,7 @@
 #include <inet/networklayer/contract/IRoutingTable.h>
 #include <inet/networklayer/contract/IArp.h>
 #include "common/EncounterDetails_m.h"
+#include "OpportunisticRoutingHeader_m.h"
 #include <set>
 #include <map>
 #include <algorithm> // For std::find
@@ -114,6 +115,10 @@ protected:
     virtual void handleStartOperation(LifecycleOperation* op) override;
     virtual void handleStopOperation(LifecycleOperation* op) override;
     virtual void handleCrashOperation(LifecycleOperation* op) override;
+    void forwardPacket(EqDC ownCost, EqDC nextHopCost, inet::Packet* const packet);
+
+private:
+    void advanceHeaderOneHop(const inet::Ptr<OpportunisticRoutingHeader>& mutableHeader);
 };
 
 } // namespace oppostack

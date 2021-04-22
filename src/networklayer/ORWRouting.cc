@@ -86,6 +86,36 @@ void ORWRouting::handleUpperPacket(Packet* const packet) {
     sendDown(packet);
 }
 
+void ORWRouting::advanceHeaderOneHop(const inet::Ptr<oppostack::OpportunisticRoutingHeader>& mutableHeader)
+{
+    // Decrease TTL, set routing cost threshold and Forward.
+    auto newTtl = mutableHeader->getTtl() - 1;
+    mutableHeader->setTtl(newTtl);
+    // Remove unprocessed Tlv options as we can't process them.
+    auto mutableOptions = mutableHeader->getOptionsForUpdate();
+    while (size_t length = mutableOptions.getTlvOptionArraySize()) {
+        mutableOptions.eraseTlvOption(length - 1);
+    }
+}
+
+void ORWRouting::forwardPacket(EqDC ownCost, EqDC nextHopCost, Packet* const packet)
+{
+    // "trim" required to remove the popped headers from lower layers
+    packet->trim();
+    // Update packet header before forwarding
+    auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
+    // Decrease TTL, set routing cost threshold and Forward.
+    advanceHeaderOneHop(mutableHeader);
+    packet->insertAtFront(mutableHeader);
+    auto outboundMacAddress = getOutboundMacAddress(packet);
+    if (outboundMacAddress == MacAddress::UNSPECIFIED_ADDRESS) {
+        EV_WARN << "Forwarding message to unknown L3Address" << endl;
+    }
+    setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
+    // Delay forwarded packets to reduce physical layer contention
+    queueDelayed(packet, uniform(0, forwardingBackoff));
+}
+
 void ORWRouting::handleLowerPacket(Packet* const packet) {
     auto header = packet->peekAtFront<OpportunisticRoutingHeader>();
     auto const payloadLength = header->getLength() - header->getChunkLength();
@@ -115,31 +145,9 @@ void ORWRouting::handleLowerPacket(Packet* const packet) {
         }
     }
     else if(nextHopCost < EqDC(25.5)){
-        // Route to a node in the routing table
         // Packet not destined for this node
-        // "trim" required to remove the popped headers from lower layers
-        packet->trim();
-
-        // Update packet header before forwarding
-        auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
-        // Decrease TTL, set routing cost threshold and Forward.
-        auto newTtl = mutableHeader->getTtl()-1;
-        mutableHeader->setTtl(newTtl);
-        // Remove unprocessed Tlv options as we can't process them.
-        auto mutableOptions = mutableHeader->getOptionsForUpdate();
-        while(size_t length = mutableOptions.getTlvOptionArraySize()){
-            mutableOptions.eraseTlvOption(length-1);
-        }
-        packet->insertAtFront(mutableHeader);
-
-        auto outboundMacAddress = getOutboundMacAddress(packet);
-        if(outboundMacAddress == MacAddress::UNSPECIFIED_ADDRESS){
-            EV_WARN << "Forwarding message to unknown L3Address" << endl;
-        }
-        setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
-
-        // Delay forwarded packets to reduce physical layer contention
-        queueDelayed(packet, uniform(0, forwardingBackoff));
+        // Route to a node upwards
+        forwardPacket(ownCost, nextHopCost, packet);
     }
     else{
         PacketDropDetails details;
