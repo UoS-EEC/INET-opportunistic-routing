@@ -59,6 +59,17 @@ void ORPLRouting::handleLowerPacket(Packet* const packet)
         packet->insertAtFront(mutableHeader);
     }
 
+    // Check if destination is in downwards set
+    auto routingTable = check_and_cast<ORPLRoutingTable*>(this->routingTable);
+    const EqDC downwardsCost = routingTable->calculateDownwardsCost(routingHeader->getDestAddr());
+    if(downwardsCost < EqDC(25.5)){
+        // Packet can be forwarded set upwards to false TODO: move to overloaded forwardPacket
+        auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
+        mutableHeader->setIsUpwards(false);
+        packet->insertAtFront(mutableHeader);
+        packet->addTag<EqDCReq>()->setEqDC(EqDC(25.5));
+        packet->addTag<EqDCUpwards>()->setIsUpwards(false);
+    }
     ORWRouting::handleLowerPacket(packet);
 }
 
@@ -121,4 +132,3 @@ void ORPLRouting::setDownControlInfo(Packet* const packet, const MacAddress& mac
     }
     ORWRouting::setDownControlInfo(packet, macMulticast, costIndicator, onwardCost);
 }
-
