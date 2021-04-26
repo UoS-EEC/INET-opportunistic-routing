@@ -146,9 +146,12 @@ EqDC ORWRoutingTable::calculateUpwardsCost(const L3Address destination, EqDC& ne
 {
     Enter_Method("ORWRoutingTable::calculateUpwardsCost(address, ..)");
 
-    const EqDC estimatedCost = ExpectedCost(calculateUpwardsCost(destination));
+    const EqDC estimatedCost = calculateUpwardsCost(destination);
+    nextHopEqDC = EqDC(25.5);
     // Limit resolution and add own routing cost before reporting.
-    nextHopEqDC = ExpectedCost(estimatedCost - forwardingCostW);
+    if(estimatedCost < EqDC(25.5)){
+        nextHopEqDC = ExpectedCost(estimatedCost - forwardingCostW);
+    }
     return estimatedCost;
 }
 EqDC ORWRoutingTable::calculateUpwardsCost(const inet::L3Address destination) const
@@ -161,7 +164,7 @@ EqDC ORWRoutingTable::calculateUpwardsCost(const inet::L3Address destination) co
     else if(destination != rootAddress){
         throw cRuntimeError("Routing error, unknown graph root");
     }
-    return ExpectedCost(calculateCostToRoot() + forwardingCostW);
+    return ExpectedCost(std::min(calculateCostToRoot() + forwardingCostW, EqDC(25.5)));
 }
 
 void ORWRoutingTable::calculateInteractionProbability()
