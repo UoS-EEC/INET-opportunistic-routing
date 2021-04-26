@@ -76,19 +76,19 @@ std::pair<const L3Address ,int > ORPLRoutingTable::getRoute(int k)
 EqDC ORPLRoutingTable::calculateUpwardsCost(const inet::L3Address destination) const
 {
     const InterfaceEntry* interface = interfaceTable->findFirstNonLoopbackInterface();
-    if(interface->getNetworkAddress() != rootAddress){
-        return ORWRoutingTable::calculateUpwardsCost(rootAddress);
-    }
-    else if(destination == rootAddress){
-        // Not at destination so there must be some forwarding cost
+
+    if(interface->getNetworkAddress() == rootAddress && destination != rootAddress){
+        // This node is the root and the destination is not the root return minimum cost
+        // As packet will be accepted but not delivered here
         if(forwardingCostW < EqDC(0.1)){
             return ExpectedCost(EqDC(0.1));
         }
         return ExpectedCost(forwardingCostW);
+
     }
     else{
-        // Return something else
-        return ORWRoutingTable::calculateUpwardsCost(destination);
+        // Node can calculate UpwardsCost to root, all other dest are meaningless
+        return ORWRoutingTable::calculateUpwardsCost(rootAddress);
     }
 }
 
