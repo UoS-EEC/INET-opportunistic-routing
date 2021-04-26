@@ -36,6 +36,7 @@ class OpportunisticRoutingHeader extends inet::NetworkHeaderBase{
     inet::L3Address   destAddr;
     inet::IpProtocolId   protocolId;
     uint8_t ttl;
+    bool isUpwards = true;
     // uint4_t fragCount;
     // uint4_t fragId;
     // uint8_t errorCorrection;

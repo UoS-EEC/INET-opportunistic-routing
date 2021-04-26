@@ -51,7 +51,9 @@ public:
 
     virtual void activateWarmUpRoutingData() override;
     EqDC calculateUpwardsCost(const inet::L3Address destination) const override;
-    EqDC calculateDownwardsCost(inet::L3Address destination);
+    EqDC calculateDownwardsCost(const inet::L3Address& destination);
+
+    inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram) override;
 
     simsignal_t static downwardSetSizeSignal;
     void addToDownwardsWarmupSet(const inet::L3Address destination, const EqDC minimumEqDC);

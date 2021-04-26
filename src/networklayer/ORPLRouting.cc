@@ -30,6 +30,20 @@ void oppostack::ORPLRouting::initialize(int stage)
     }
 }
 
+void ORPLRouting::forwardPacket(EqDC ownCost, EqDC nextHopCost, Packet* const packet)
+{
+    // Update ORPL Specific fields from tags
+    auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
+    auto upwardsTag = packet->findTag<EqDCUpwards>();
+    if(upwardsTag == nullptr)
+        mutableHeader->setIsUpwards(true);
+    else
+        mutableHeader->setIsUpwards(upwardsTag->isUpwards());
+    // Set upwards identifier
+    packet->insertAtFront(mutableHeader);
+    ORWRouting::forwardPacket(ownCost, nextHopCost, packet);
+}
+
 void ORPLRouting::handleLowerPacket(Packet* const packet)
 {
     auto routingHeader = packet->peekAtFront<OpportunisticRoutingHeader>();
@@ -56,7 +70,8 @@ std::set<L3Address> ORPLRouting::getSharingRoutingSet() const
     // Might be smaller but guaranteed not to exceed knownDests size
     std::set<L3Address> sharingRoutingSet;
     std::set<L3Address> excludedRoutingSet;
-    EqDC minDownwardsMetric = routingTable->calculateDownwardsCost(rootAddress);
+    // TODO: Should forwarding cost be included in minDownwardsMetric?
+    EqDC minDownwardsMetric = routingTable->calculateUpwardsCost(rootAddress);
     for (int i = 0; i < knownDestsCount; i++) {
         // TODO: get destRoute directly from routing table with getRoute
         std::pair<L3Address, int> destinationExpectedCostPair = routingTable->getRoute(i);
