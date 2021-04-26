@@ -39,7 +39,9 @@ src/out/
 out/gcc-release/
 
 out
+# Results and Analysis
 simulations/results/
+*.anf
 
 # Misc
 *.swp
