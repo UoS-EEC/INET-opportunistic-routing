@@ -224,6 +224,7 @@ INetfilter::IHook::Result ORWRoutingTable::datagramPreRoutingHook(Packet* datagr
     auto header = datagram->peekAtFront<WakeUpGram>();
     bool approve = false;
     const auto destAddr = header->getReceiverAddress();
+    // TODO: Use IInterfaceTable::findInterfaceByAddress( L3Address(destAddr) )
     // If packet addressed directly to interface, then accept it with zero cost.
     for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i){
         auto interfaceEntry = interfaceTable->getInterface(i);
