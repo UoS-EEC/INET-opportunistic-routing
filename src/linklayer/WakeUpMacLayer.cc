@@ -332,7 +332,7 @@ void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
         return;
     }
     if(datagramPreRoutingHook(wakeUp)==HookBase::Result::ACCEPT){
-        ackEqDCResponse = wakeUp->getTag<EqDCInd>()->getEqDC();
+        acceptDataEqDCThreshold = wakeUp->getTag<EqDCReq>()->getEqDC();
         // Approve wake-up request
         cMessage* msg = new cMessage("approve");
         msg->setKind(WAKEUP_APPROVE);
@@ -450,6 +450,8 @@ void WakeUpMacLayer::completePacketReception()
     if (currentRxFrame != nullptr) {
         Packet* pkt = dynamic_cast<Packet*>(currentRxFrame);
         decapsulate(pkt);
+        pkt->removeTagIfPresent<EqDCReq>();
+        pkt->removeTagIfPresent<EqDCInd>();
         pkt->trim();
         if(datagramLocalInHook(pkt)!=IHook::Result::ACCEPT){
             EV_ERROR << "Aborted reception of data is unimplemented" << endl;
@@ -546,10 +548,10 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
             // TODO: Send "Negative Ack"?
         }
         else{
-            EqDC newAckEqDCResponse = incomingFrame->getTag<EqDCInd>()->getEqDC();
-            // If better EqDC response, update
-            if(newAckEqDCResponse < ackEqDCResponse){
-                ackEqDCResponse = newAckEqDCResponse;
+            EqDC newAcceptThreshold = incomingFrame->getTag<EqDCReq>()->getEqDC();
+            // If better EqDC threshold, update
+            if(newAcceptThreshold < acceptDataEqDCThreshold){
+                acceptDataEqDCThreshold = newAcceptThreshold;
             }
 
             // Reset cumulative ack backoff
@@ -598,7 +600,7 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
 
                 // Start CCA Timer to send Ack
                 double relayDiceRoll = uniform(0,1);
-                bool destinationAckPersistance = recheckDataPacketEqDC && (ackEqDCResponse == EqDC(0.0) );
+                bool destinationAckPersistance = recheckDataPacketEqDC && (acceptDataEqDCThreshold == EqDC(0.0) );
                 if(destinationAckPersistance && stopDirectTxExtraAck){
                     // Received Direct Tx and so stop extra ack
                     // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
@@ -694,7 +696,12 @@ Packet* WakeUpMacLayer::buildAck(const Packet* receivedFrame) const{
     auto ackPacket = makeShared<WakeUpAck>();
     ackPacket->setTransmitterAddress(interfaceEntry->getMacAddress());
     ackPacket->setReceiverAddress(receivedMacData->getTransmitterAddress());
-    ackPacket->setExpectedCostInd(ExpectedCost(ackEqDCResponse));
+    // Look for EqDCInd tag to send info in response
+    auto costIndTag = receivedFrame->findTag<EqDCInd>();
+    if(costIndTag!=nullptr)
+        ackPacket->setExpectedCostInd(costIndTag->getEqDC());
+    else
+        cRuntimeError("WakeUpMacLayer must respond with a cost");
     auto frame = new Packet("CsmaAck");
     frame->insertAtFront(ackPacket);
     frame->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
@@ -1022,7 +1029,7 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
             updateWuState(WU_APPROVE_WAIT);
             scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
             Packet* wuPkt = check_and_cast<Packet*>(msg);
-            ackEqDCResponse = EqDC(25.5);
+            acceptDataEqDCThreshold = EqDC(25.5);
             auto wakeUpHeader = wuPkt->peekAtFront<WakeUpGram>();
             EncounterDetails details;
             details.setEncountered(wakeUpHeader->getTransmitterAddress());
