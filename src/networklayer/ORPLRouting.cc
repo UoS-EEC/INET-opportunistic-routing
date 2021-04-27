@@ -64,9 +64,6 @@ void ORPLRouting::handleLowerPacket(Packet* const packet)
     const EqDC downwardsCost = routingTable->calculateDownwardsCost(routingHeader->getDestAddr());
     if(downwardsCost < EqDC(25.5)){
         // Packet can be forwarded set upwards to false TODO: move to overloaded forwardPacket
-        auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
-        mutableHeader->setIsUpwards(false);
-        packet->insertAtFront(mutableHeader);
         packet->addTag<EqDCReq>()->setEqDC(EqDC(25.5));
         packet->addTag<EqDCUpwards>()->setIsUpwards(false);
     }

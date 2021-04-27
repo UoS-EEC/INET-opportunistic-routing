@@ -548,7 +548,8 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
             // TODO: Send "Negative Ack"?
         }
         else{
-            EqDC newAcceptThreshold = incomingFrame->getTag<EqDCReq>()->getEqDC();
+            auto acceptThresholdTag = incomingFrame->findTag<EqDCReq>();
+            EqDC newAcceptThreshold = acceptThresholdTag!=nullptr ? acceptThresholdTag->getEqDC() : EqDC(25.5);
             // If better EqDC threshold, update
             if(newAcceptThreshold < acceptDataEqDCThreshold){
                 acceptDataEqDCThreshold = newAcceptThreshold;
@@ -1002,6 +1003,11 @@ void WakeUpMacLayer::encapsulate(Packet* const pkt) const{ // From CsmaCaMac
     macHeader->setTransmitterAddress(interfaceEntry->getMacAddress());
     // TODO: Make Receiver a multicast address for progress
     macHeader->setReceiverAddress(pkt->getTag<MacAddressReq>()->getDestAddress());;
+
+    const auto upwardsTag = pkt->findTag<EqDCUpwards>();
+    if(upwardsTag != nullptr){
+        macHeader->setUpwards(upwardsTag->isUpwards());
+    }
 
     pkt->insertAtFront(macHeader);
     pkt->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);

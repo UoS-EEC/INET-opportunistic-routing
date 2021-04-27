@@ -78,7 +78,10 @@ EqDC ORPLRoutingTable::calculateUpwardsCost(const inet::L3Address destination) c
     Enter_Method("ORPLRoutingTable::calculateUpwardsCost(address)");
     const InterfaceEntry* interface = interfaceTable->findFirstNonLoopbackInterface();
 
-    if(interface->getNetworkAddress() == rootAddress && destination != rootAddress){
+    if(interface->getNetworkAddress() == destination){
+        return EqDC(0.0);
+    }
+    else if(interface->getNetworkAddress() == rootAddress && destination != rootAddress){
         // This node is the root and the destination is not the root return minimum cost
         // As packet will be accepted but not delivered here
         if(forwardingCostW < EqDC(0.1)){
@@ -100,8 +103,10 @@ EqDC ORPLRoutingTable::calculateDownwardsCost(const inet::L3Address& destination
     EqDC ownEqDCEstimate = calculateCostToRoot();
 
     // Utility functions
+    // TODO: Clarify if checking both recentInteractionProb and node.interactionsTotal is problematic
+    // When is recentInteractionProb == 0 but interactionsTotal > 2
     auto isNeighborEntryActive = [=](const NeighborEntry node)
-        {return node.recentInteractionProb > 0;};
+        {return node.recentInteractionProb > 0 || node.interactionsTotal > 2;};
     auto isNeighborEntryDownwards = [=](const NeighborEntry node)
         {return node.lastEqDC >= ownEqDCEstimate;};
 
