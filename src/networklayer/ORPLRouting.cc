@@ -30,6 +30,20 @@ void oppostack::ORPLRouting::initialize(int stage)
     }
 }
 
+void ORPLRouting::forwardPacket(EqDC ownCost, EqDC nextHopCost, Packet* const packet)
+{
+    // Update ORPL Specific fields from tags
+    auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
+    auto upwardsTag = packet->findTag<EqDCUpwards>();
+    if(upwardsTag == nullptr)
+        mutableHeader->setIsUpwards(true);
+    else
+        mutableHeader->setIsUpwards(upwardsTag->isUpwards());
+    // Set upwards identifier
+    packet->insertAtFront(mutableHeader);
+    ORWRouting::forwardPacket(ownCost, nextHopCost, packet);
+}
+
 void ORPLRouting::handleLowerPacket(Packet* const packet)
 {
     auto routingHeader = packet->peekAtFront<OpportunisticRoutingHeader>();
@@ -45,6 +59,14 @@ void ORPLRouting::handleLowerPacket(Packet* const packet)
         packet->insertAtFront(mutableHeader);
     }
 
+    // Check if destination is in downwards set
+    auto routingTable = check_and_cast<ORPLRoutingTable*>(this->routingTable);
+    const EqDC downwardsCost = routingTable->calculateDownwardsCost(routingHeader->getDestAddr());
+    if(downwardsCost < EqDC(25.5)){
+        // Packet can be forwarded set upwards to false TODO: move to overloaded forwardPacket
+        packet->addTag<EqDCReq>()->setEqDC(EqDC(25.5));
+        packet->addTag<EqDCUpwards>()->setIsUpwards(false);
+    }
     ORWRouting::handleLowerPacket(packet);
 }
 
@@ -56,7 +78,8 @@ std::set<L3Address> ORPLRouting::getSharingRoutingSet() const
     // Might be smaller but guaranteed not to exceed knownDests size
     std::set<L3Address> sharingRoutingSet;
     std::set<L3Address> excludedRoutingSet;
-    EqDC minDownwardsMetric = routingTable->calculateDownwardsCost(rootAddress);
+    // TODO: Should forwarding cost be included in minDownwardsMetric?
+    EqDC minDownwardsMetric = routingTable->calculateUpwardsCost(rootAddress);
     for (int i = 0; i < knownDestsCount; i++) {
         // TODO: get destRoute directly from routing table with getRoute
         std::pair<L3Address, int> destinationExpectedCostPair = routingTable->getRoute(i);
@@ -106,4 +129,3 @@ void ORPLRouting::setDownControlInfo(Packet* const packet, const MacAddress& mac
     }
     ORWRouting::setDownControlInfo(packet, macMulticast, costIndicator, onwardCost);
 }
-

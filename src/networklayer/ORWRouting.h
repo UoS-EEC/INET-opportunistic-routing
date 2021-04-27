@@ -115,7 +115,9 @@ protected:
     virtual void handleStartOperation(LifecycleOperation* op) override;
     virtual void handleStopOperation(LifecycleOperation* op) override;
     virtual void handleCrashOperation(LifecycleOperation* op) override;
-    void forwardPacket(EqDC ownCost, EqDC nextHopCost, inet::Packet* const packet);
+    virtual void forwardPacket(EqDC ownCost, EqDC nextHopCost, inet::Packet* const packet);
+    void deduplicateAndDeliver(const inet::Ptr<const oppostack::OpportunisticRoutingHeader>& header,
+            inet::Packet* const packet);
 
 private:
     void advanceHeaderOneHop(const inet::Ptr<OpportunisticRoutingHeader>& mutableHeader);

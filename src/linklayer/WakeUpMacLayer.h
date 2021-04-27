@@ -216,7 +216,7 @@ protected:
     /** @brief Execute a step in the MAC state machine */
     void stepMacSM(const t_mac_event& event, cMessage *msg);
     simtime_t cumulativeAckBackoff = 0;
-    EqDC ackEqDCResponse = EqDC(25.5);
+    EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
     virtual void stepRxAckProcess(const t_mac_event& event, cMessage *msg);
   private:

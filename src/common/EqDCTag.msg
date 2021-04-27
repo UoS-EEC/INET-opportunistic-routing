@@ -20,3 +20,7 @@ class EqDCBroadcast extends inet::TagBase
 {
     bool isBroadcast = true;
 }
+class EqDCUpwards extends inet::TagBase
+{
+    bool isUpwards = true;
+}

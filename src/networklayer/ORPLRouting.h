@@ -18,6 +18,9 @@ private:
     double routingSetProportion;
     double routingSetBroadcastProportion;
     void initialize(int stage) override;
+
+    // Add tags for downwards routing and max EqDCReq if packet in downwards set
+    void forwardPacket(EqDC ownCost, EqDC nextHopCost, Packet* const packet) override;
     void handleLowerPacket(Packet* const packet) override;
     void setDownControlInfo(Packet* const packet, const MacAddress& macMulticast, const EqDC& costIndicator, const EqDC& onwardCost) const override;
     std::set<L3Address> getSharingRoutingSet() const;
