@@ -69,7 +69,7 @@ network IntermittentDownwardORPLTest extends IntermittentDenseORPLTest
             @display("p=62.952522,40.682755");
             generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
             generic.*.hubExpectedCost = 200ExpectedCost;
-            packetGenerator.destAddresses = "node5(modulepath) receivingWakeUpNode(modulepath)";
+            packetGenerator.destAddresses = "transmittingWakeUpNode(modulepath) receivingWakeUpNode(modulepath)";
             packetGenerator.startTime = 0.5s;
             packetGenerator.sendInterval = 40s;
             energyGenerator.powerGeneration = 40uW;
