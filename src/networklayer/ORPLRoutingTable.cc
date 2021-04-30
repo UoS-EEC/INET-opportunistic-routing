@@ -178,6 +178,7 @@ void ORPLRoutingTable::initialize(int stage)
     if(stage == INITSTAGE_LOCAL){
         cModule* encountersModule = getCModuleFromPar(par("encountersSourceModule"), this);
         encountersModule->subscribe(packetReceivedFromLowerSignal, this);
+        (bool)par("printRoutingTables");// Check that the parameter is the correct value for later use
     }
 }
 
@@ -320,12 +321,14 @@ void ORPLRoutingTable::printRoutingTable()
                     nodeModule->getName(), latestCost, isDirect ? "X" : "-", "X") << endl;
         }
     }
-    EV << "-------------------------\n";
+    EV << "-------------------------" << endl;
 }
 
 void ORPLRoutingTable::finish()
 {
     cComponent::finish();
-    EV_INFO << "Node " << getFullPath() << endl;
-    printRoutingTable();
+    if((bool)par("printRoutingTables")){
+        EV_INFO << "Node " << interfaceTable->getHostModule()->getName() << endl;
+        printRoutingTable();
+    }
 }
