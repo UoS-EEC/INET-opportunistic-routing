@@ -13,6 +13,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
+#include "inet/common/INETUtils.h"
+#include "inet/networklayer/common/L3AddressResolver.h"
 #include "ORPLRoutingTable.h"
 #include "OpportunisticRoutingHeader_m.h"
 #include "RoutingSetExt_m.h"
@@ -274,4 +276,56 @@ int ORPLRoutingTable::countDownwardNodes(const EqDC ownEqDCEstimate) const
         }
     }
     return downwardsSetSize;
+}
+
+void ORPLRoutingTable::printRoutingTable()
+{
+    EqDC ownEqDCEstimate = calculateUpwardsCost(rootAddress);
+    // Utility functions
+    auto isNeighborEntryActive = [=](const NeighborEntry node)
+        {return node.recentInteractionProb > 0;};
+    auto isNeighborEntryDownwards = [=](const NeighborEntry node)
+        {return node.lastEqDC > ownEqDCEstimate;};
+    EV_INFO << "-- Opportunistic routing table --\n" << endl;
+    EV_INFO << inet::utils::stringf("%-16s %-10s %-8s %s\n",
+            "Name", "LatestEqDC", "Direct", "In Merged Set");
+    L3AddressResolver resolver;
+    // Loop through merged downward set from neighbour
+    for (const auto& nodePair : encountersTable) {
+        const auto nodeEntry = nodePair.second;
+        // Only count active downward routing set entries
+        if (isNeighborEntryActive(nodeEntry) && isNeighborEntryDownwards(nodeEntry)) {
+            auto routingSetRes = routingSetTable.find(nodePair.first);
+            if (routingSetRes != routingSetTable.end() && isNeighborEntryActive(routingSetRes->second)) {
+                // Node is in downwards set so don't print here, but with routingSetTable neighbors
+            }
+            else {
+                // Node not routingSetTable neighbour so print
+                auto nodeModule = resolver.findHostWithAddress(nodePair.first);
+                EV_INFO << inet::utils::stringf("%-16.15s   %7.1f      %-4s %4s\n",
+                        nodeModule->getName(), nodeEntry.lastEqDC, "X", "-") << endl;
+            }
+        }
+    }
+    // loop through routingSetTable
+    for (const auto& nodePair : routingSetTable) {
+        const auto node = nodePair.second;
+        if (isNeighborEntryActive(node) && isNeighborEntryDownwards(node)) {
+            const auto& directEncounterPair = encountersTable.find(nodePair.first);
+            const bool isDirect = directEncounterPair != encountersTable.end() && isNeighborEntryActive(directEncounterPair->second);
+            EqDC latestCost = isDirect ? directEncounterPair->second.lastEqDC : node.lastEqDC;
+            auto nodeModule = resolver.findHostWithAddress(nodePair.first);
+            // Node not routingSetTable neighbour so print
+            EV << inet::utils::stringf("%-16.15s   %7.1f      %-4s %4s\n",
+                    nodeModule->getName(), latestCost, isDirect ? "X" : "-", "X") << endl;
+        }
+    }
+    EV << "-------------------------\n";
+}
+
+void ORPLRoutingTable::finish()
+{
+    cComponent::finish();
+    EV_INFO << "Node " << getFullPath() << endl;
+    printRoutingTable();
 }

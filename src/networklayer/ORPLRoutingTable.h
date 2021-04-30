@@ -57,6 +57,9 @@ public:
 
     simsignal_t static downwardSetSizeSignal;
     void addToDownwardsWarmupSet(const inet::L3Address destination, const EqDC minimumEqDC);
+private:
+    void printRoutingTable();
+    virtual void finish();
 };
 
 } /* namespace oppostack */
