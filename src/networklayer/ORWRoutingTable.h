@@ -76,6 +76,7 @@ public:
     virtual inet::INetfilter::IHook::Result datagramPostRoutingHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};
     virtual inet::INetfilter::IHook::Result datagramLocalInHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};
     virtual inet::INetfilter::IHook::Result datagramLocalOutHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};
+    EqDC getForwardingCost(){return forwardingCostW;}
 };
 
 } //namespace oppostack

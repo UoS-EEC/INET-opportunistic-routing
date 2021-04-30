@@ -86,7 +86,8 @@ std::set<L3Address> ORPLRouting::getSharingRoutingSet() const
         NextHopRoute destRoute;
         destRoute.setDestination(destinationExpectedCostPair.first);
         destRoute.setMetric(destinationExpectedCostPair.second);
-        if (ExpectedCost(destRoute.getMetric()) >= minDownwardsMetric) {
+        // TODO: Replace EqDC(0.2) with forwardingCostW value
+        if (ExpectedCost(destRoute.getMetric()) >= minDownwardsMetric + routingTable->getForwardingCost()) {
             // add to the end of sharingRoutingSet and increment size
             sharingRoutingSet.insert(destRoute.getDestinationAsGeneric());
             if (contains(excludedRoutingSet, destRoute.getDestinationAsGeneric())) {

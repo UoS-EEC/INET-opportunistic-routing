@@ -68,8 +68,8 @@ std::pair<const L3Address ,int > ORPLRoutingTable::getRoute(int k)
                 activeCount++;
             }
         }
-
     }
+    cRuntimeError("Unknown route requested");
 }
 
 
@@ -153,7 +153,7 @@ void ORPLRoutingTable::activateWarmUpRoutingData()
 {
     EqDC ownEqDCEstimate = calculateUpwardsCost(rootAddress);
     for(auto& node: routingSetTable){
-        if(node.second.interactionsTotal > 0 && node.second.lastEqDC >= ownEqDCEstimate){
+        if(node.second.interactionsTotal > 0 && node.second.lastEqDC > ownEqDCEstimate){
             node.second.recentInteractionProb = 1.0;
         }
         else{
@@ -228,7 +228,8 @@ void ORPLRoutingTable::receiveSignal(cComponent* source, omnetpp::simsignal_t si
                 auto routingSetExtension = headerOptions.getTlvOption(routingSetExtId);
                 auto sharedRoutingSetExt = check_and_cast<const RoutingSetExt*>(routingSetExtension);
                 // Pass extracted routingSet into merge routing set function
-                if(minCostForDownwardNodes >= calculateUpwardsCost(rootAddress)){
+                if(minCostForDownwardNodes >= calculateUpwardsCost(rootAddress) + forwardingCostW){
+                // if(minCostForDownwardNodes > calculateUpwardsCost(rootAddress)){
                     // Observed Routing Set is downwards from root
                     for(int k=0; k<sharedRoutingSetExt->getEntryArraySize(); k++ ){
                         addToDownwardsWarmupSet(sharedRoutingSetExt->getEntry(k), minCostForDownwardNodes);
