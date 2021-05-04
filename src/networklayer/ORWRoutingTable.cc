@@ -146,9 +146,12 @@ EqDC ORWRoutingTable::calculateUpwardsCost(const L3Address destination, EqDC& ne
 {
     Enter_Method("ORWRoutingTable::calculateUpwardsCost(address, ..)");
 
-    const EqDC estimatedCost = ExpectedCost(calculateUpwardsCost(destination));
+    const EqDC estimatedCost = calculateUpwardsCost(destination);
+    nextHopEqDC = EqDC(25.5);
     // Limit resolution and add own routing cost before reporting.
-    nextHopEqDC = ExpectedCost(estimatedCost - forwardingCostW);
+    if(estimatedCost < EqDC(25.5)){
+        nextHopEqDC = ExpectedCost(estimatedCost - forwardingCostW);
+    }
     return estimatedCost;
 }
 EqDC ORWRoutingTable::calculateUpwardsCost(const inet::L3Address destination) const
@@ -161,7 +164,7 @@ EqDC ORWRoutingTable::calculateUpwardsCost(const inet::L3Address destination) co
     else if(destination != rootAddress){
         throw cRuntimeError("Routing error, unknown graph root");
     }
-    return ExpectedCost(calculateCostToRoot() + forwardingCostW);
+    return ExpectedCost(std::min(calculateCostToRoot() + forwardingCostW, EqDC(25.5)));
 }
 
 void ORWRoutingTable::calculateInteractionProbability()
@@ -221,11 +224,14 @@ INetfilter::IHook::Result ORWRoutingTable::datagramPreRoutingHook(Packet* datagr
     auto header = datagram->peekAtFront<WakeUpGram>();
     bool approve = false;
     const auto destAddr = header->getReceiverAddress();
+    // TODO: Use IInterfaceTable::findInterfaceByAddress( L3Address(destAddr) )
     // If packet addressed directly to interface, then accept it with zero cost.
+    EqDC upwardsCostToRoot = calculateUpwardsCost(rootAddress);
+    datagram->addTagIfAbsent<EqDCInd>()->setEqDC(upwardsCostToRoot);
     for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i){
         auto interfaceEntry = interfaceTable->getInterface(i);
         if(destAddr == interfaceEntry->getMacAddress()){
-            datagram->addTagIfAbsent<EqDCInd>()->setEqDC(EqDC(0.0));
+            datagram->addTagIfAbsent<EqDCReq>()->setEqDC(EqDC(0.0));
             return IHook::Result::ACCEPT;
         }
     }
@@ -234,14 +240,13 @@ INetfilter::IHook::Result ORWRoutingTable::datagramPreRoutingHook(Packet* datagr
             headerType==WakeUpGramType::WU_DATA){
         auto costHeader = datagram->peekAtFront<WakeUpBeacon>();
         if(destAddr == MacAddress::BROADCAST_ADDRESS){
-            datagram->addTagIfAbsent<EqDCInd>()->setEqDC(EqDC(25.5));
+            datagram->addTagIfAbsent<EqDCReq>()->setEqDC(EqDC(25.5));
             //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
             return IHook::Result::ACCEPT;
         }
         else if(header->getUpwards() == true){
-            EqDC acceptPacketThreshold = calculateUpwardsCost(rootAddress);
-            if(acceptPacketThreshold<=costHeader->getMinExpectedCost()){
-                datagram->addTagIfAbsent<EqDCInd>()->setEqDC(acceptPacketThreshold);
+            if(upwardsCostToRoot<=costHeader->getMinExpectedCost()){
+                datagram->addTagIfAbsent<EqDCReq>()->setEqDC(upwardsCostToRoot);
                 //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
                 return IHook::Result::ACCEPT;
             }

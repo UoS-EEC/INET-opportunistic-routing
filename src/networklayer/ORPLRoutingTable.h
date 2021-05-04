@@ -50,10 +50,16 @@ public:
     virtual std::pair<const inet::L3Address ,int > getRoute(int k);
 
     virtual void activateWarmUpRoutingData() override;
-    EqDC calculateDownwardsCost(inet::L3Address destination);
+    EqDC calculateUpwardsCost(const inet::L3Address destination) const override;
+    EqDC calculateDownwardsCost(const inet::L3Address& destination);
+
+    inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram) override;
 
     simsignal_t static downwardSetSizeSignal;
     void addToDownwardsWarmupSet(const inet::L3Address destination, const EqDC minimumEqDC);
+private:
+    void printRoutingTable();
+    virtual void finish();
 };
 
 } /* namespace oppostack */

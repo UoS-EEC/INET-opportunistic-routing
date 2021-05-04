@@ -13,6 +13,8 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
+#include "inet/common/INETUtils.h"
+#include "inet/networklayer/common/L3AddressResolver.h"
 #include "ORPLRoutingTable.h"
 #include "OpportunisticRoutingHeader_m.h"
 #include "RoutingSetExt_m.h"
@@ -68,26 +70,92 @@ std::pair<const L3Address ,int > ORPLRoutingTable::getRoute(int k)
                 activeCount++;
             }
         }
-
     }
+    cRuntimeError("Unknown route requested");
 }
 
 
-
-EqDC ORPLRoutingTable::calculateDownwardsCost(L3Address destination)
+EqDC ORPLRoutingTable::calculateUpwardsCost(const inet::L3Address destination) const
 {
-    Enter_Method("ORPLRoutingTable::calculateUpwardsCost(address, ..)");
+    Enter_Method("ORPLRoutingTable::calculateUpwardsCost(address)");
+    const InterfaceEntry* interface = interfaceTable->findFirstNonLoopbackInterface();
 
-    const EqDC estimatedCost = ExpectedCost(calculateUpwardsCost(destination));
-    // Limit resolution and add own routing cost before reporting.
-    return ExpectedCost(estimatedCost + forwardingCostW);
+    if(interface->getNetworkAddress() == destination){
+        return EqDC(0.0);
+    }
+    else if(interface->getNetworkAddress() == rootAddress && destination != rootAddress){
+        // This node is the root and the destination is not the root return minimum cost
+        // As packet will be accepted but not delivered here
+        if(forwardingCostW < EqDC(0.1)){
+            return ExpectedCost(EqDC(0.1));
+        }
+        return ExpectedCost(forwardingCostW);
+
+    }
+    else{
+        // Node can calculate UpwardsCost to root, all other dest are meaningless
+        return ORWRoutingTable::calculateUpwardsCost(rootAddress);
+    }
+}
+
+EqDC ORPLRoutingTable::calculateDownwardsCost(const inet::L3Address& destination)
+{
+    Enter_Method("ORPLRoutingTable::calculateDownwardsCost(address)");
+
+    EqDC ownEqDCEstimate = calculateCostToRoot();
+
+    // Utility functions
+    // TODO: Clarify if checking both recentInteractionProb and node.interactionsTotal is problematic
+    // When is recentInteractionProb == 0 but interactionsTotal > 2
+    auto isNeighborEntryActive = [=](const NeighborEntry node)
+        {return node.recentInteractionProb > 0 || node.interactionsTotal > 2;};
+    auto isNeighborEntryDownwards = [=](const NeighborEntry node)
+        {return node.lastEqDC >= ownEqDCEstimate;};
+
+    const auto& immediateNeighbor = encountersTable.find(destination);
+    const auto& downwardsSetNode = routingSetTable.find(destination);
+    const InterfaceEntry* interface = interfaceTable->findFirstNonLoopbackInterface();
+    if(interface->getNetworkAddress() == destination){
+        return EqDC(0.0);
+    }
+    else if(immediateNeighbor != encountersTable.end() && isNeighborEntryActive(immediateNeighbor->second) && isNeighborEntryDownwards(immediateNeighbor->second)){
+        if(forwardingCostW <= EqDC(0.1)){
+            return EqDC(0.1);
+        }
+        return EqDC(forwardingCostW);
+    }
+    else if(downwardsSetNode != routingSetTable.end() && isNeighborEntryActive(downwardsSetNode->second)){
+        if(forwardingCostW <= EqDC(0.1)){
+            return 2.0*EqDC(0.1);
+        }
+        return 2.0*EqDC(forwardingCostW);
+    }
+    const EqDC estimatedCost = EqDC(25.5);
+    return ExpectedCost(estimatedCost);
+}
+
+INetfilter::IHook::Result ORPLRoutingTable::datagramPreRoutingHook(Packet* datagram)
+{
+    auto routingDecision = ORWRoutingTable::datagramPreRoutingHook(datagram);
+    if(routingDecision != IHook::Result::ACCEPT){
+        EqDC downwardRoutingThreshold;
+        auto routingHeader = getOpportunisticRoutingHeaderFromPacket((cObject*) datagram, downwardRoutingThreshold);
+        bool isDownwards = routingHeader != nullptr && !routingHeader->isUpwards();
+        if(isDownwards && downwardRoutingThreshold < calculateUpwardsCost(rootAddress)){
+            // Check if destination is in routingSet
+            if(calculateDownwardsCost(routingHeader->getDestAddr()) < EqDC(25.5) ){
+                return IHook::Result::ACCEPT;
+            }
+        }
+    }
+    return routingDecision;
 }
 
 void ORPLRoutingTable::activateWarmUpRoutingData()
 {
     EqDC ownEqDCEstimate = calculateUpwardsCost(rootAddress);
     for(auto& node: routingSetTable){
-        if(node.second.interactionsTotal > 0 && node.second.lastEqDC >= ownEqDCEstimate){
+        if(node.second.interactionsTotal > 0 && node.second.lastEqDC > ownEqDCEstimate){
             node.second.recentInteractionProb = 1.0;
         }
         else{
@@ -110,6 +178,7 @@ void ORPLRoutingTable::initialize(int stage)
     if(stage == INITSTAGE_LOCAL){
         cModule* encountersModule = getCModuleFromPar(par("encountersSourceModule"), this);
         encountersModule->subscribe(packetReceivedFromLowerSignal, this);
+        (bool)par("printRoutingTables");// Check that the parameter is the correct value for later use
     }
 }
 
@@ -162,7 +231,8 @@ void ORPLRoutingTable::receiveSignal(cComponent* source, omnetpp::simsignal_t si
                 auto routingSetExtension = headerOptions.getTlvOption(routingSetExtId);
                 auto sharedRoutingSetExt = check_and_cast<const RoutingSetExt*>(routingSetExtension);
                 // Pass extracted routingSet into merge routing set function
-                if(minCostForDownwardNodes >= calculateUpwardsCost(rootAddress)){
+                if(minCostForDownwardNodes >= calculateUpwardsCost(rootAddress) + forwardingCostW){
+                // if(minCostForDownwardNodes > calculateUpwardsCost(rootAddress)){
                     // Observed Routing Set is downwards from root
                     for(int k=0; k<sharedRoutingSetExt->getEntryArraySize(); k++ ){
                         addToDownwardsWarmupSet(sharedRoutingSetExt->getEntry(k), minCostForDownwardNodes);
@@ -209,3 +279,56 @@ int ORPLRoutingTable::countDownwardNodes(const EqDC ownEqDCEstimate) const
     return downwardsSetSize;
 }
 
+void ORPLRoutingTable::printRoutingTable()
+{
+    EqDC ownEqDCEstimate = calculateUpwardsCost(rootAddress);
+    // Utility functions
+    auto isNeighborEntryActive = [=](const NeighborEntry node)
+        {return node.recentInteractionProb > 0;};
+    auto isNeighborEntryDownwards = [=](const NeighborEntry node)
+        {return node.lastEqDC > ownEqDCEstimate;};
+    EV_INFO << "-- Opportunistic routing table --\n" << endl;
+    EV_INFO << inet::utils::stringf("%-16s %-10s %-8s %s\n",
+            "Name", "LatestEqDC", "Direct", "In Merged Set");
+    L3AddressResolver resolver;
+    // Loop through merged downward set from neighbour
+    for (const auto& nodePair : encountersTable) {
+        const auto nodeEntry = nodePair.second;
+        // Only count active downward routing set entries
+        if (isNeighborEntryActive(nodeEntry) && isNeighborEntryDownwards(nodeEntry)) {
+            auto routingSetRes = routingSetTable.find(nodePair.first);
+            if (routingSetRes != routingSetTable.end() && isNeighborEntryActive(routingSetRes->second)) {
+                // Node is in downwards set so don't print here, but with routingSetTable neighbors
+            }
+            else {
+                // Node not routingSetTable neighbour so print
+                auto nodeModule = resolver.findHostWithAddress(nodePair.first);
+                EV_INFO << inet::utils::stringf("%-16.15s   %7.1f      %-4s %4s\n",
+                        nodeModule->getName(), nodeEntry.lastEqDC, "X", "-") << endl;
+            }
+        }
+    }
+    // loop through routingSetTable
+    for (const auto& nodePair : routingSetTable) {
+        const auto node = nodePair.second;
+        if (isNeighborEntryActive(node) && isNeighborEntryDownwards(node)) {
+            const auto& directEncounterPair = encountersTable.find(nodePair.first);
+            const bool isDirect = directEncounterPair != encountersTable.end() && isNeighborEntryActive(directEncounterPair->second);
+            EqDC latestCost = isDirect ? directEncounterPair->second.lastEqDC : node.lastEqDC;
+            auto nodeModule = resolver.findHostWithAddress(nodePair.first);
+            // Node not routingSetTable neighbour so print
+            EV << inet::utils::stringf("%-16.15s   %7.1f      %-4s %4s\n",
+                    nodeModule->getName(), latestCost, isDirect ? "X" : "-", "X") << endl;
+        }
+    }
+    EV << "-------------------------" << endl;
+}
+
+void ORPLRoutingTable::finish()
+{
+    cComponent::finish();
+    if((bool)par("printRoutingTables")){
+        EV_INFO << "Node " << interfaceTable->getHostModule()->getName() << endl;
+        printRoutingTable();
+    }
+}
