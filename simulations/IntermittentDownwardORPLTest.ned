@@ -34,8 +34,8 @@ network IntermittentDownwardORPLTest extends IntermittentDenseORPLTest
             @display("p=48.14748,32.471558");
             generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
             generic.*.hubExpectedCost = 150ExpectedCost;
-            packetGenerator.destAddresses = "";
-            packetGenerator.sendInterval = 5s;
+            packetGenerator.destAddresses = default("");
+            packetGenerator.sendInterval = default(5s);
         }
         branched2: IntermittentORPLNode {
             @display("p=49.76484,36.950394");
@@ -69,9 +69,9 @@ network IntermittentDownwardORPLTest extends IntermittentDenseORPLTest
             @display("p=62.952522,40.682755");
             generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
             generic.*.hubExpectedCost = 200ExpectedCost;
-            packetGenerator.destAddresses = "transmittingWakeUpNode(modulepath) receivingWakeUpNode(modulepath)";
+            packetGenerator.destAddresses = default("transmittingWakeUpNode(modulepath) receivingWakeUpNode(modulepath)");
             packetGenerator.startTime = 0.5s;
-            packetGenerator.sendInterval = 40s;
-            energyGenerator.powerGeneration = 40uW;
+            packetGenerator.sendInterval = default(40s);
+            energyGenerator.powerGeneration = default(40uW);
         }
 }
