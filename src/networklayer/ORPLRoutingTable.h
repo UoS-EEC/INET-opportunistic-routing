@@ -51,7 +51,7 @@ public:
 
     virtual void activateWarmUpRoutingData() override;
     EqDC calculateUpwardsCost(const inet::L3Address destination) const override;
-    EqDC calculateDownwardsCost(const inet::L3Address& destination);
+    EqDC calculateDownwardsCost(const inet::L3Address& destination) const;
 
     inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram) override;
 
