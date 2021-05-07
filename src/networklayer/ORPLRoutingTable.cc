@@ -98,7 +98,7 @@ EqDC ORPLRoutingTable::calculateUpwardsCost(const inet::L3Address destination) c
     }
 }
 
-EqDC ORPLRoutingTable::calculateDownwardsCost(const inet::L3Address& destination)
+EqDC ORPLRoutingTable::calculateDownwardsCost(const inet::L3Address& destination) const
 {
     Enter_Method("ORPLRoutingTable::calculateDownwardsCost(address)");
 

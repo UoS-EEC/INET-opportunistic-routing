@@ -8,6 +8,7 @@
 #include "ORPLRouting.h"
 #include "ORPLRoutingTable.h"
 #include "OpportunisticRoutingHeader_m.h"
+#include <inet/networklayer/common/L3AddressTag_m.h>
 #include "../common/EqDCTag_m.h"
 #include "RoutingSetExt_m.h"
 #include <inet/networklayer/nexthop/NextHopRoute.h>
@@ -30,7 +31,7 @@ void oppostack::ORPLRouting::initialize(int stage)
     }
 }
 
-void ORPLRouting::forwardPacket(EqDC ownCost, EqDC nextHopCost, Packet* const packet)
+void ORPLRouting::setHeaderDownwardsFieldFromTag(Packet* const packet)
 {
     // Update ORPL Specific fields from tags
     auto mutableHeader = packet->removeAtFront<OpportunisticRoutingHeader>();
@@ -39,9 +40,45 @@ void ORPLRouting::forwardPacket(EqDC ownCost, EqDC nextHopCost, Packet* const pa
         mutableHeader->setIsUpwards(true);
     else
         mutableHeader->setIsUpwards(upwardsTag->isUpwards());
+
     // Set upwards identifier
     packet->insertAtFront(mutableHeader);
+}
+
+void ORPLRouting::forwardPacket(EqDC ownCost, EqDC nextHopCost, Packet* const packet)
+{
+    // Update ORPL Specific fields from tags
+    setHeaderDownwardsFieldFromTag(packet);
     ORWRouting::forwardPacket(ownCost, nextHopCost, packet);
+}
+
+void ORPLRouting::encapsulate(Packet* packet)
+{
+    ORWRouting::encapsulate(packet);
+    setHeaderDownwardsFieldFromTag(packet);
+}
+
+void ORPLRouting::checkDownwardsRoutableAndTag(const inet::L3Address& destAddr, Packet* const packet) const
+{
+    // Check if destination is in downwards set
+    auto routingTable = check_and_cast<ORPLRoutingTable*>(this->routingTable);
+    const EqDC downwardsCost = routingTable->calculateDownwardsCost(destAddr);
+    if (downwardsCost < EqDC(25.5)) {
+        // Packet can be forwarded set upwards to false TODO: move to overloaded forwardPacket
+        packet->addTag<EqDCReq>()->setEqDC(EqDC(25.5));
+        packet->addTag<EqDCUpwards>()->setIsUpwards(false);
+    }
+}
+
+void ORPLRouting::handleUpperPacket(Packet* const packet)
+{
+    // Assign downwards routing tags if address downwards routable
+    auto addressReq = packet->findTag<L3AddressReq>();
+    bool isBroadcast = packet->findTag<EqDCBroadcast>() != nullptr;
+    if(addressReq != nullptr && !isBroadcast){
+        checkDownwardsRoutableAndTag(addressReq->getDestAddress(), packet);
+    }
+    ORWRouting::handleUpperPacket(packet);
 }
 
 void ORPLRouting::handleLowerPacket(Packet* const packet)
@@ -59,14 +96,8 @@ void ORPLRouting::handleLowerPacket(Packet* const packet)
         packet->insertAtFront(mutableHeader);
     }
 
-    // Check if destination is in downwards set
-    auto routingTable = check_and_cast<ORPLRoutingTable*>(this->routingTable);
-    const EqDC downwardsCost = routingTable->calculateDownwardsCost(routingHeader->getDestAddr());
-    if(downwardsCost < EqDC(25.5)){
-        // Packet can be forwarded set upwards to false TODO: move to overloaded forwardPacket
-        packet->addTag<EqDCReq>()->setEqDC(EqDC(25.5));
-        packet->addTag<EqDCUpwards>()->setIsUpwards(false);
-    }
+    const auto destAddr = routingHeader->getDestAddr();
+    checkDownwardsRoutableAndTag(destAddr, packet);
     ORWRouting::handleLowerPacket(packet);
 }
 
