@@ -14,6 +14,7 @@
 //
 cplusplus {{
 #include "Units.h"
+#include "inet/common/Units.h"
 }}
 
 namespace oppostack;
@@ -30,3 +31,5 @@ class EqDC
     @opaque;
     @toString(.str());
 }
+
+class inet::J    { @existingClass; @primitive; @fromString(inet::J(string2double($)));    @toString(unit2string($)); @defaultValue(inet::J(NaN)); }
