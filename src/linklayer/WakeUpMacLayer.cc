@@ -22,6 +22,9 @@
 #include <inet/common/ProtocolGroup.h>
 #include <inet/common/ProtocolTag_m.h>
 #include <inet/physicallayer/base/packetlevel/FlatTransmitterBase.h>
+#include <inet/physicallayer/contract/packetlevel/IRadioMedium.h>
+#include <inet/physicallayer/backgroundnoise/IsotropicScalarBackgroundNoise.h>
+#include <inet/physicallayer/base/packetlevel/FlatReceiverBase.h>
 #include <inet/linklayer/common/InterfaceTag_m.h>
 #include <inet/linklayer/common/MacAddressTag_m.h>
 #include <inet/common/packet/chunk/Chunk.h>
@@ -100,6 +103,23 @@ void WakeUpMacLayer::initialize(int const stage) {
         // Retransmission reduction through data packet updating
         recheckDataPacketEqDC = par("recheckDataPacketEqDC");
         stopDirectTxExtraAck = recheckDataPacketEqDC && par("stopDirectTxExtraAck");
+
+
+        /*
+         * Warning of noise in radio medium exceeding energy detection threshold
+         */
+        auto medium = getModuleFromPar<physicallayer::IRadioMedium>(radioModule->par("radioMediumModule"), radioModule);
+        auto noiseModel = medium->getBackgroundNoise();
+        auto scalarNoiseModel = check_and_cast<const physicallayer::IsotropicScalarBackgroundNoise*>(noiseModel);
+        auto dataReceiverModel = check_and_cast<const physicallayer::FlatReceiverBase*>(dataRadio->getReceiver());
+        if(scalarNoiseModel && dataReceiverModel)
+            if(scalarNoiseModel->getPower() > dataReceiverModel->getEnergyDetection())
+                cRuntimeError("Background noise power is greater than data radio energy detection threshold. Radio will always be \"Busy\"");
+        auto wakeUpReceiverModel = check_and_cast<const physicallayer::FlatReceiverBase*>(wakeUpRadio->getReceiver());
+        if(scalarNoiseModel && wakeUpReceiverModel)
+            if(scalarNoiseModel->getPower() > wakeUpReceiverModel->getEnergyDetection())
+                cRuntimeError("Background noise power is greater than wake up radio energy detection threshold. Radio will always be \"Busy\"");
+
 
         /*
          * Calculation of invalid parameter combinations at the receiver
@@ -657,8 +677,7 @@ simtime_t WakeUpMacLayer::setRadioToTransmitIfFreeOrDelay(cMessage* const timer,
         const simtime_t& maxDelay) {
     // Check medium is free, or schedule tiny timer
     IRadio::ReceptionState receptionState = dataRadio->getReceptionState();
-    bool isIdle = receptionState == IRadio::RECEPTION_STATE_IDLE
-            || receptionState == IRadio::RECEPTION_STATE_BUSY;
+    bool isIdle = receptionState == IRadio::RECEPTION_STATE_IDLE;
     simtime_t delay = 0;
     if (isIdle) {
         // Switch to transmit, send ack then
@@ -676,8 +695,7 @@ simtime_t WakeUpMacLayer::setRadioToTransmitIfFreeOrDelay(cMessage* const timer,
 void WakeUpMacLayer::setWuRadioToTransmitIfFreeOrDelay(const t_mac_event& event, cMessage* const timer, const simtime_t& maxDelay)
 {
     IRadio::ReceptionState receptionState = wakeUpRadio->getReceptionState();
-    bool isIdle = (receptionState == IRadio::RECEPTION_STATE_IDLE
-            || receptionState == IRadio::RECEPTION_STATE_BUSY)
+    bool isIdle = (receptionState == IRadio::RECEPTION_STATE_IDLE)
                     && wakeUpRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER;
     if(isIdle){
         //Start the transmission state machine
