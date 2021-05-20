@@ -110,12 +110,12 @@ void WakeUpMacLayer::initialize(int const stage) {
          */
         auto medium = getModuleFromPar<physicallayer::IRadioMedium>(radioModule->par("radioMediumModule"), radioModule);
         auto noiseModel = medium->getBackgroundNoise();
-        auto scalarNoiseModel = check_and_cast<const physicallayer::IsotropicScalarBackgroundNoise*>(noiseModel);
-        auto dataReceiverModel = check_and_cast<const physicallayer::FlatReceiverBase*>(dataRadio->getReceiver());
+        auto scalarNoiseModel = check_and_cast_nullable<const physicallayer::IsotropicScalarBackgroundNoise*>(noiseModel);
+        auto dataReceiverModel = check_and_cast_nullable<const physicallayer::FlatReceiverBase*>(dataRadio->getReceiver());
         if(scalarNoiseModel && dataReceiverModel)
             if(scalarNoiseModel->getPower() > dataReceiverModel->getEnergyDetection())
                 cRuntimeError("Background noise power is greater than data radio energy detection threshold. Radio will always be \"Busy\"");
-        auto wakeUpReceiverModel = check_and_cast<const physicallayer::FlatReceiverBase*>(wakeUpRadio->getReceiver());
+        auto wakeUpReceiverModel = check_and_cast_nullable<const physicallayer::FlatReceiverBase*>(wakeUpRadio->getReceiver());
         if(scalarNoiseModel && wakeUpReceiverModel)
             if(scalarNoiseModel->getPower() > wakeUpReceiverModel->getEnergyDetection())
                 cRuntimeError("Background noise power is greater than wake up radio energy detection threshold. Radio will always be \"Busy\"");
@@ -840,24 +840,32 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         EV_WARN << "Unhandled event in tx state machine: " << msg << endl;
     }
 }
-Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount) const{
+
+void WakeUpMacLayer::setBeaconFieldsFromTags(const Packet* subject,
+        const inet::Ptr<WakeUpBeacon>& wuHeader) const
+{
     const auto equivalentDCTag = subject->findTag<EqDCReq>();
     const auto equivalentDCInd = subject->findTag<EqDCInd>();
-    ExpectedCost minExpectedCost = ExpectedCost(255);
-    if(equivalentDCTag != nullptr){
+    // Default min is 255, can be updated when ack received from dest
+    ExpectedCost minExpectedCost = dataMinExpectedCost;
+    if (equivalentDCTag != nullptr && equivalentDCTag->getEqDC() < minExpectedCost) {
         minExpectedCost = equivalentDCTag->getEqDC();
         ASSERT(minExpectedCost >= ExpectedCost(0));
     }
-    auto wuHeader = makeShared<WakeUpBeacon>();
     wuHeader->setMinExpectedCost(minExpectedCost);
     wuHeader->setExpectedCostInd(equivalentDCInd->getEqDC());
     wuHeader->setTransmitterAddress(interfaceEntry->getMacAddress());
     wuHeader->setReceiverAddress(subject->getTag<MacAddressReq>()->getDestAddress());
+}
 
+Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount) const{
+    auto wuHeader = makeShared<WakeUpBeacon>();
+    setBeaconFieldsFromTags(subject, wuHeader);
     auto frame = new Packet("wake-up", wuHeader);
     frame->addTag<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
     return frame;
 }
+
 void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const msg) {
     if(event == EV_TX_END){
         //reset confirmed forwarders count
@@ -1007,21 +1015,8 @@ WakeUpMacLayer::~WakeUpMacLayer() {
 }
 
 void WakeUpMacLayer::encapsulate(Packet* const pkt) const{ // From CsmaCaMac
-    const auto equivalentDCTag = pkt->findTag<EqDCReq>();
-    const auto equivalentDCInd = pkt->findTag<EqDCInd>();
-    // Default min is 255, can be updated when ack received from dest
-    ExpectedCost minExpectedCost = dataMinExpectedCost;
-    if(equivalentDCTag != nullptr && equivalentDCTag->getEqDC() < minExpectedCost){
-        minExpectedCost = equivalentDCTag->getEqDC();
-        ASSERT(minExpectedCost >= ExpectedCost(0));
-    }
     auto macHeader = makeShared<WakeUpDatagram>();
-    macHeader->setExpectedCostInd(equivalentDCInd->getEqDC());
-    macHeader->setMinExpectedCost(minExpectedCost);
-    macHeader->setTransmitterAddress(interfaceEntry->getMacAddress());
-    // TODO: Make Receiver a multicast address for progress
-    macHeader->setReceiverAddress(pkt->getTag<MacAddressReq>()->getDestAddress());;
-
+    setBeaconFieldsFromTags(pkt, macHeader);
     const auto upwardsTag = pkt->findTag<EqDCUpwards>();
     if(upwardsTag != nullptr){
         macHeader->setUpwards(upwardsTag->isUpwards());
