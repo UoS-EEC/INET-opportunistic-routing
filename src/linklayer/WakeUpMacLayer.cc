@@ -110,12 +110,12 @@ void WakeUpMacLayer::initialize(int const stage) {
          */
         auto medium = getModuleFromPar<physicallayer::IRadioMedium>(radioModule->par("radioMediumModule"), radioModule);
         auto noiseModel = medium->getBackgroundNoise();
-        auto scalarNoiseModel = check_and_cast<const physicallayer::IsotropicScalarBackgroundNoise*>(noiseModel);
-        auto dataReceiverModel = check_and_cast<const physicallayer::FlatReceiverBase*>(dataRadio->getReceiver());
+        auto scalarNoiseModel = check_and_cast_nullable<const physicallayer::IsotropicScalarBackgroundNoise*>(noiseModel);
+        auto dataReceiverModel = check_and_cast_nullable<const physicallayer::FlatReceiverBase*>(dataRadio->getReceiver());
         if(scalarNoiseModel && dataReceiverModel)
             if(scalarNoiseModel->getPower() > dataReceiverModel->getEnergyDetection())
                 cRuntimeError("Background noise power is greater than data radio energy detection threshold. Radio will always be \"Busy\"");
-        auto wakeUpReceiverModel = check_and_cast<const physicallayer::FlatReceiverBase*>(wakeUpRadio->getReceiver());
+        auto wakeUpReceiverModel = check_and_cast_nullable<const physicallayer::FlatReceiverBase*>(wakeUpRadio->getReceiver());
         if(scalarNoiseModel && wakeUpReceiverModel)
             if(scalarNoiseModel->getPower() > wakeUpReceiverModel->getEnergyDetection())
                 cRuntimeError("Background noise power is greater than wake up radio energy detection threshold. Radio will always be \"Busy\"");
@@ -843,8 +843,8 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
 Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount) const{
     const auto equivalentDCTag = subject->findTag<EqDCReq>();
     const auto equivalentDCInd = subject->findTag<EqDCInd>();
-    ExpectedCost minExpectedCost = ExpectedCost(255);
-    if(equivalentDCTag != nullptr){
+    ExpectedCost minExpectedCost = dataMinExpectedCost;
+    if(equivalentDCTag != nullptr && equivalentDCTag->getEqDC() < minExpectedCost){
         minExpectedCost = equivalentDCTag->getEqDC();
         ASSERT(minExpectedCost >= ExpectedCost(0));
     }
