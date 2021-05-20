@@ -31,6 +31,7 @@
 
 #include "../networklayer/ORWRouting.h"
 #include "common/Units.h"
+#include "WakeUpGram_m.h"
 
 namespace oppostack{
 
@@ -259,6 +260,8 @@ protected:
     virtual void handleStartOperation(LifecycleOperation *operation) override;
     virtual void handleStopOperation(LifecycleOperation *operation) override;
     virtual void handleCrashOperation(LifecycleOperation *operation) override;
+    void setBeaconFieldsFromTags(const inet::Packet* subject,
+            const inet::Ptr<WakeUpBeacon>& wuHeader) const;
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
