@@ -28,6 +28,7 @@ network IntermittentDenseORPLTest
     parameters:
         visualizer.mediumVisualizer.displayCommunicationRanges = true;
         radioMedium.mediumLimitCache.maxTransmissionDuration = 20ms;
+        radioMedium.backgroundNoise.power = default(-110dBm);
         @display("bgb=78.790436,65.78085;scale=4");
     submodules:
         radioMedium: Ieee802154NarrowbandScalarRadioMedium {
