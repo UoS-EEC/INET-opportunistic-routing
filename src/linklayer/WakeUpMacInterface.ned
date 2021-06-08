@@ -64,7 +64,7 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
         	// From TI CC1120 868MHz Tranceiver
             switchingTimes = "ms 0 0.400 1 1 1 0.100 0 0.166 0.166 0.166 0.100 0 0 0.050 0.050 0.100 0 0.050 0 0.050 0.100 0 0.050 0.050 0";
             receiver.energyDetection = -100dBm;
-            receiver.sensitivity = -115dBm;
+            receiver.sensitivity = -100dBm;
             transmitter.power = 0.001W; // 0dBm
             // @brief not useful at the moment {
             transmitter.bitrate = 200kbps;
@@ -85,7 +85,7 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
             // Reduced X->Listening transition to 100us for WuRx abstraction
             switchingTimes = "ms 0 0.400 0.100 1 1 0.100 0 0.100 0.166 0.166 0.100 0.4 0 0.5 0.5 0.100 0 0.050 0 0.050 0.100 0 0.050 0.050 0";
             receiver.energyDetection = -65dBm;
-            receiver.sensitivity = -55dBm; // Magno et al.
+            receiver.sensitivity = -65dBm; // Magno et al.
             // @brief not useful at the moment {
             receiver.bitrate = 10kbps; // 10.1109/WiMOB.2014.6962155
             // }(see computeIsListeningPossible and computeBitErrorRate)
