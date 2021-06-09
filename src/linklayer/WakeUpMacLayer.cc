@@ -785,7 +785,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         }
         break;
     case TX_DATA:
-        if(event == EV_DATA_RX_READY || event == EV_WAKEUP_BACKOFF){
+        if( (event == EV_DATA_RX_READY || event == EV_WAKEUP_BACKOFF) && !wakeUpBackoffTimer->isScheduled()){
             setRadioToTransmitIfFreeOrDelay(wakeUpBackoffTimer, ackWaitDuration/5); // Hardcoded into phyMTU calc in initialize()
             updateTxState(TX_DATA);
         }
