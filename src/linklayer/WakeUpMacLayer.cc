@@ -75,6 +75,7 @@ void WakeUpMacLayer::initialize(int const stage) {
         ackBackoffTimer = new cMessage("ack backoff");
         wuTimeout = new cMessage("wake-up accept timeout");
         replenishmentTimer = new cMessage("replenishment check timeout");
+        txBackoffTimer = new cMessage("tx backoff timer");
         dataListeningDuration = par("dataListeningDuration");
         txWakeUpWaitDuration = par("txWakeUpWaitDuration");
         ackWaitDuration = par("ackWaitDuration");
@@ -317,6 +318,9 @@ void WakeUpMacLayer::handleSelfMessage(cMessage* const msg) {
     else if(msg == replenishmentTimer){
         stepMacSM(EV_REPLENISH_TIMEOUT, msg);
     }
+    if(msg == txBackoffTimer){
+        stepMacSM(EV_CSMA_BACKOFF, msg);
+    }
     else if(msg->getKind() == WAKEUP_APPROVE){
         stepMacSM(EV_WU_APPROVE, msg);
         delete msg;
@@ -368,6 +372,9 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
     // Operate State machine based on current state and event
     const IRadio::RadioMode wuRadioMode = wakeUpRadio->getRadioMode();
 
+    // Needed for S_TRANSMIT backoff in switch
+    CSMATxBackoffBase::t_backoff_state backoffResult = CSMATxBackoffBase::BO_WAIT;
+
     switch (macState){
     case S_REPLENISH:
         updateMacState(S_IDLE);
@@ -387,7 +394,16 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
             // but check ackBackoffTimer in case of longer backoff before transmission
             // Perform carrier sense if there is a currentTxFrame
             if(currentTxFrame != nullptr){
-                setWuRadioToTransmitIfFreeOrDelay(EV_ACK_TIMEOUT, ackBackoffTimer, txWakeUpWaitDuration/2);
+                activeBackoff = new CSMATxUniformBackoff(this, activeRadio, energyStorage, transmissionStartMinEnergy, txWakeUpWaitDuration/2);
+                if(activeBackoff->startInRx()){
+                    updateTxState(TX_WAKEUP_WAIT);
+                    updateMacState(S_TRANSMIT);
+                }
+                else{
+                    // Schedule switch to replenishment state, after small wait for other packets
+                    scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
+                    updateMacState(S_IDLE);
+                }
             }
             // Else do nothing, wait for packet from upper or wake-up
         }
@@ -399,7 +415,8 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
                 updateMacState(S_IDLE);
             }
             else if(setupTransmission()){
-                setWuRadioToTransmitIfFreeOrDelay(EV_TX_START, wakeUpBackoffTimer, txWakeUpWaitDuration/2);
+                updateTxState(TX_WAKEUP_WAIT);
+                updateMacState(S_TRANSMIT);
             }
             else{
                 // Schedule switch to replenishment state, after small wait for other packets
@@ -425,7 +442,12 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
         }
         break;
     case S_TRANSMIT:
-        stepTxSM(event, msg);
+        if(activeBackoff != nullptr){
+            backoffResult = activeBackoff->process(event);
+        }
+        if(backoffResult == CSMATxBackoffBase::BO_FINISHED){
+            stepTxSM(event, msg);
+        }
         // TODO: Add transmission timeout to catch state locks
         break;
     case S_WAKEUP_LSN:
@@ -458,10 +480,26 @@ bool WakeUpMacLayer::setupTransmission() {
     cancelEvent(replenishmentTimer);
     //Reset progress counters
     txInProgressForwarders = 0;
-    if(energyStorage->getResidualEnergyCapacity() < transmissionStartMinEnergy){
+
+    if(currentTxFrame!=nullptr){
+        PacketDropDetails details;
+        details.setReason(PacketDropReason::QUEUE_OVERFLOW);
+        dropCurrentTxFrame(details);
+    }
+    popTxQueue();
+    if(datagramLocalOutHook(currentTxFrame)!=IHook::Result::ACCEPT){
+        updateMacState(S_IDLE);
+    }
+
+    activeBackoff = new CSMATxUniformBackoff(this, activeRadio, energyStorage, transmissionStartMinEnergy, txWakeUpWaitDuration/2);
+
+    if(activeBackoff->startInRx()){
+        // Backoff or transition to listening has started
+        return true;
+    }
+    else{
         return false;
     }
-    return true;
 }
 
 void WakeUpMacLayer::completePacketReception()
@@ -733,30 +771,9 @@ void WakeUpMacLayer::updateMacState(const t_mac_state& newMacState)
 
 void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
     txStateChange = false;
-    if(event == EV_TX_START){
-        // Force state machine to start
-        txState = TX_IDLE;
-        if(currentTxFrame!=nullptr){
-            PacketDropDetails details;
-            details.setReason(PacketDropReason::QUEUE_OVERFLOW);
-            dropCurrentTxFrame(details);
-        }
-        popTxQueue();
-        if(datagramLocalOutHook(currentTxFrame)!=IHook::Result::ACCEPT){
-            updateMacState(S_IDLE);
-        }
-        txInProgressTries = 0;
-    }
     switch (txState){
     case TX_IDLE:
-        if(event == EV_TX_START || event == EV_ACK_TIMEOUT){
-            wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
-            emit(transmissionModeStartSignal, true);
-            txInProgressTries++;
-            changeActiveRadio(wakeUpRadio);
-            updateTxState(TX_WAKEUP_WAIT);
-            EV_DEBUG << "TX SM: EV_TX_START --> TX_WAKEUP_WAIT";
-        }
+        cRuntimeError('Deprecated State');
         break;
     case TX_WAKEUP_WAIT:
         if(event == EV_TX_READY){
@@ -818,6 +835,8 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         changeActiveRadio(wakeUpRadio);
         wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
         scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
+        delete activeBackoff;
+        activeBackoff = nullptr;
         updateMacState(S_IDLE);
         updateTxState(TX_IDLE);
         emit(transmissionEndedSignal, true);
@@ -968,6 +987,8 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
                 changeActiveRadio(wakeUpRadio);
                 wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
                 scheduleAt(simTime(), replenishmentTimer);
+                delete activeBackoff;
+                activeBackoff = nullptr;
                 updateMacState(S_IDLE);
                 updateTxState(TX_IDLE);
             }
@@ -1128,6 +1149,7 @@ void WakeUpMacLayer::cancelAllTimers()
     cancelEvent(ackBackoffTimer);
     cancelEvent(wuTimeout);
     cancelEvent(replenishmentTimer);
+    cancelEvent(txBackoffTimer);
 }
 
 void WakeUpMacLayer::deleteAllTimers(){
@@ -1135,6 +1157,7 @@ void WakeUpMacLayer::deleteAllTimers(){
     delete ackBackoffTimer;
     delete wuTimeout;
     delete replenishmentTimer;
+    delete txBackoffTimer;
 }
 
 void WakeUpMacLayer::dropCurrentRxFrame(PacketDropDetails& details)

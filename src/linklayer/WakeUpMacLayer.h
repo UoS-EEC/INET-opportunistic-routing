@@ -56,7 +56,8 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public Netfi
         energyStorage(nullptr),
         networkNode(nullptr),
         replenishmentTimer(nullptr),
-        currentRxFrame(nullptr)
+        currentRxFrame(nullptr),
+        txBackoffTimer(nullptr)
       {}
     virtual ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
@@ -66,6 +67,200 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public Netfi
     virtual void handleSelfMessage(cMessage *msg) override;
     virtual void receiveSignal(cComponent* source, simsignal_t signalID, intval_t value, cObject* details) override;
 
+    // Timer used by child classes
+    cMessage *txBackoffTimer;
+
+    /** @brief MAC state machine events.*/
+    enum t_mac_event {
+        EV_QUEUE_SEND,
+        EV_TX_START,
+        EV_WAKEUP_BACKOFF,
+        EV_CSMA_BACKOFF,
+        EV_TX_READY,
+        EV_TX_END,
+        EV_ACK_TIMEOUT,
+        EV_WU_START,
+        EV_WU_APPROVE,
+        EV_WU_REJECT,
+        EV_WU_TIMEOUT,
+        EV_DATA_RX_IDLE,
+        EV_DATA_RX_READY,
+        EV_DATA_RECEIVED,
+        EV_REPLENISH_TIMEOUT
+    };
+
+    class CSMATxBackoffBase{
+      private:
+        simtime_t initialBackoff;
+        physicallayer::IRadio* activeRadio;
+        power::IEpEnergyStorage* energyStorage;
+        J transmissionStartMinEnergy = J(0.0);
+        void cancelBackoffTimer(){
+            parent->cancelEvent(parent->txBackoffTimer);
+        }
+      public:
+        enum t_backoff_state {
+            BO_OFF,
+            BO_WAIT,
+            BO_SWITCHING,
+            BO_FINISHED,
+        };
+        enum t_backoff_ev {
+            EV_START,
+            EV_BACKOFF_TIMER,
+            EV_RX_READY,
+            EV_TX_READY,
+            EV_TX_ABORT,
+        };
+      protected:
+        WakeUpMacLayer* parent;
+        virtual simtime_t calculateBackoff(CSMATxBackoffBase::t_backoff_ev returnEv) const = 0;
+
+        t_backoff_state state = BO_OFF;
+      public:
+        CSMATxBackoffBase(WakeUpMacLayer* _parent,
+                physicallayer::IRadio* _activeRadio,
+                power::IEpEnergyStorage* _energyStorage,
+                J _transmissionStartMinEnergy,
+                simtime_t initial_backoff):
+                    parent(_parent),
+                    activeRadio(_activeRadio),
+                    energyStorage(_energyStorage),
+                    transmissionStartMinEnergy(_transmissionStartMinEnergy),
+                    initialBackoff(initial_backoff)
+                    {};
+        void setRadioToTransmitIfFreeOrDelay(){
+            using namespace inet::physicallayer;
+            IRadio::ReceptionState receptionState = activeRadio->getReceptionState();
+            bool isIdle = (receptionState == IRadio::RECEPTION_STATE_IDLE)
+                            && activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER;
+            if(isIdle){
+                //Start the transmission state machine
+                activeRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
+                state = BO_SWITCHING;
+            }
+            else{
+                t_backoff_ev returnEv = EV_BACKOFF_TIMER;
+                parent->scheduleAt(simTime()+calculateBackoff(returnEv), parent->txBackoffTimer);
+                if(returnEv == EV_TX_ABORT){
+                    state = BO_OFF;
+                }
+                else{
+                    state = BO_WAIT;
+                }
+            }
+
+        }
+        bool startCold(){
+            if(energyStorage->getResidualEnergyCapacity() < transmissionStartMinEnergy){
+                return false;
+            }
+            process(EV_START);
+            return true;
+        }
+        bool startInRx(){
+            if(energyStorage->getResidualEnergyCapacity() < transmissionStartMinEnergy){
+                return false;
+            }
+            using namespace inet::physicallayer;
+            ASSERT(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER);
+
+            IRadio::ReceptionState receptionState = activeRadio->getReceptionState();
+            bool isIdle = (receptionState == IRadio::RECEPTION_STATE_IDLE)
+                            && activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER;
+            if(isIdle){
+                //Start the transmission state machine
+                activeRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
+                state = BO_SWITCHING;
+            }
+            else{
+                parent->scheduleAt(simTime()+initialBackoff, parent->txBackoffTimer);
+                state = BO_WAIT;
+            }
+
+            return true;
+        }
+        t_backoff_state process(const t_backoff_ev& event){
+            using namespace inet::physicallayer;
+            switch(state){
+                case BO_OFF:
+                    if(event == EV_START){
+                        activeRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+                        state = BO_WAIT;
+                    }
+                    break;
+                case BO_WAIT:
+                    if( (event == EV_RX_READY || event == EV_BACKOFF_TIMER) && !parent->txBackoffTimer->isScheduled() ){
+                        // EV_BACKOFF_TIMER triggered by need for retry of packet
+                        // EV_RX_READY triggered when radio listening (after Rx->Listening transition)
+                        // TODO: but check ackBackoffTimer as also triggered by (Rx->Listening)
+                        // Perform carrier sense if there is a currentTxFrame
+                        setRadioToTransmitIfFreeOrDelay();
+                    }
+                    break;
+                case BO_SWITCHING:
+                    if( event == EV_TX_READY ){
+                        state = BO_FINISHED;
+                    }
+                    break;
+                case BO_FINISHED:
+                    break;
+            }
+            return state;
+        }
+
+        // Convert WakeUpMacLayer Events to BackoffBase Events
+        t_backoff_state process(const WakeUpMacLayer::t_mac_event event){
+            switch(event){
+                case WakeUpMacLayer::EV_TX_READY:
+                    return process(EV_TX_READY);
+                case WakeUpMacLayer::EV_DATA_RX_READY:
+                    return process(EV_RX_READY);
+                case WakeUpMacLayer::EV_WAKEUP_BACKOFF:
+                    return process(EV_BACKOFF_TIMER);
+            }
+            return state;
+        }
+        ~CSMATxBackoffBase(){
+            if(parent->txBackoffTimer){
+                cancelBackoffTimer();
+            }
+        }
+    };
+    class CSMATxUniformBackoff : public CSMATxBackoffBase{
+
+        simtime_t max_backoff;
+    public:
+        CSMATxUniformBackoff(WakeUpMacLayer* parent,
+                physicallayer::IRadio* activeRadio,
+                power::IEpEnergyStorage* energyStorage,
+                J transmissionStartMinEnergy, simtime_t _max_backoff):
+                    CSMATxBackoffBase(parent, activeRadio, energyStorage, transmissionStartMinEnergy, 0),
+                    max_backoff(_max_backoff){};
+    protected:
+        virtual simtime_t calculateBackoff(CSMATxBackoffBase::t_backoff_ev returnEv) const override{
+            return parent->uniform(0.0, max_backoff);
+        }
+    };
+    class CSMATxRemainderReciprocalBackoff : public CSMATxBackoffBase{
+
+        simtime_t max_backoff;
+
+    public:
+        CSMATxRemainderReciprocalBackoff(WakeUpMacLayer* parent,
+                physicallayer::IRadio* activeRadio,
+                power::IEpEnergyStorage* energyStorage,
+                J transmissionStartMinEnergy,
+                simtime_t _max_backoff):
+                    CSMATxBackoffBase(parent, activeRadio, energyStorage, transmissionStartMinEnergy, 0),
+                    max_backoff(_max_backoff){};
+    protected:
+        virtual simtime_t calculateBackoff(CSMATxBackoffBase::t_backoff_ev returnEv) const override{
+            // TODO:
+        }
+    };
+
+    CSMATxBackoffBase* activeBackoff;
   protected:
     /** @brief User Configured parameters */
     simtime_t txWakeUpWaitDuration = 0;
@@ -139,24 +334,6 @@ protected:
         RX_IDLE,
         RX_RECEIVE,
         //TODO: implement
-    };
-
-    /** @brief MAC state machine events.*/
-    enum t_mac_event {
-        EV_QUEUE_SEND,
-        EV_TX_START,
-        EV_WAKEUP_BACKOFF,
-        EV_TX_READY,
-        EV_TX_END,
-        EV_ACK_TIMEOUT,
-        EV_WU_START,
-        EV_WU_APPROVE,
-        EV_WU_REJECT,
-        EV_WU_TIMEOUT,
-        EV_DATA_RX_IDLE,
-        EV_DATA_RX_READY,
-        EV_DATA_RECEIVED,
-        EV_REPLENISH_TIMEOUT
     };
 
     /** @name Protocol timer messages */
