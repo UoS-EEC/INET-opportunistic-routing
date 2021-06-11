@@ -75,7 +75,6 @@ void WakeUpMacLayer::initialize(int const stage) {
         ackBackoffTimer = new cMessage("ack backoff");
         wuTimeout = new cMessage("wake-up accept timeout");
         replenishmentTimer = new cMessage("replenishment check timeout");
-        txBackoffTimer = new cMessage("tx backoff timer");
         dataListeningDuration = par("dataListeningDuration");
         txWakeUpWaitDuration = par("txWakeUpWaitDuration");
         ackWaitDuration = par("ackWaitDuration");
@@ -318,7 +317,7 @@ void WakeUpMacLayer::handleSelfMessage(cMessage* const msg) {
     else if(msg == replenishmentTimer){
         stepMacSM(EV_REPLENISH_TIMEOUT, msg);
     }
-    else if(msg == txBackoffTimer){
+    else if( activeBackoff && activeBackoff->isBackoffTimer(msg) ){
         stepMacSM(EV_CSMA_BACKOFF, msg);
     }
     else if(msg->getKind() == WAKEUP_APPROVE){
@@ -779,7 +778,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
     switch (txState){
     case TX_WAKEUP_WAIT:
         if(activeBackoff != nullptr){
-            backoffResult = activeBackoff->process(event);
+            backoffResult = stepBackoffSM(event);
         }
         if(backoffResult == CSMATxBackoffBase::BO_FINISHED){
             // TODO: Change this to a short WU packet
@@ -1150,7 +1149,6 @@ void WakeUpMacLayer::cancelAllTimers()
     cancelEvent(ackBackoffTimer);
     cancelEvent(wuTimeout);
     cancelEvent(replenishmentTimer);
-    cancelEvent(txBackoffTimer);
 }
 
 void WakeUpMacLayer::deleteAllTimers(){
@@ -1158,7 +1156,6 @@ void WakeUpMacLayer::deleteAllTimers(){
     delete ackBackoffTimer;
     delete wuTimeout;
     delete replenishmentTimer;
-    delete txBackoffTimer;
 }
 
 void WakeUpMacLayer::dropCurrentRxFrame(PacketDropDetails& details)
