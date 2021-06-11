@@ -209,15 +209,16 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public Netfi
             return state;
         }
 
-        // Convert WakeUpMacLayer Events to BackoffBase Events
+        // Translate WakeUpMacLayer Events to BackoffBase Events
         t_backoff_state process(const WakeUpMacLayer::t_mac_event event){
             switch(event){
                 case WakeUpMacLayer::EV_TX_READY:
                     return process(EV_TX_READY);
                 case WakeUpMacLayer::EV_DATA_RX_READY:
                     return process(EV_RX_READY);
-                case WakeUpMacLayer::EV_WAKEUP_BACKOFF:
+                case WakeUpMacLayer::EV_CSMA_BACKOFF:
                     return process(EV_BACKOFF_TIMER);
+                default: break;
             }
             return state;
         }
@@ -228,18 +229,19 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public Netfi
         }
     };
     class CSMATxUniformBackoff : public CSMATxBackoffBase{
-
-        simtime_t max_backoff;
+        simtime_t minBackoff;
+        simtime_t maxBackoff;
     public:
         CSMATxUniformBackoff(WakeUpMacLayer* parent,
                 physicallayer::IRadio* activeRadio,
                 power::IEpEnergyStorage* energyStorage,
-                J transmissionStartMinEnergy, simtime_t _max_backoff):
+                J transmissionStartMinEnergy, simtime_t min_backoff, simtime_t max_backoff):
                     CSMATxBackoffBase(parent, activeRadio, energyStorage, transmissionStartMinEnergy, 0),
-                    max_backoff(_max_backoff){};
+                    minBackoff(min_backoff),
+                    maxBackoff(max_backoff){};
     protected:
         virtual simtime_t calculateBackoff(CSMATxBackoffBase::t_backoff_ev returnEv) const override{
-            return parent->uniform(0.0, max_backoff);
+            return parent->uniform(minBackoff, maxBackoff);
         }
     };
     class CSMATxRemainderReciprocalBackoff : public CSMATxBackoffBase{
@@ -315,8 +317,8 @@ protected:
     };
 
     enum t_tx_state {
-        TX_IDLE, // Transmitter off
-        TX_WAKEUP_WAIT, // Tx wake-up when radio ready till wake-up finish
+        TX_WAKEUP_WAIT, // Tx wake-up when radio ready and CSMA finished
+        TX_WAKEUP, // Tx Wake-up in progress
         TX_DATA_WAIT, // Wait for receivers to wake-up
         TX_DATA, // Send data when radio ready
         TX_ACK_WAIT, // TODO: Listen for node acknowledging
