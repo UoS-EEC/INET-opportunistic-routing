@@ -71,7 +71,6 @@ CSMATxBackoffBase::t_backoff_state CSMATxBackoffBase::process(const t_backoff_ev
                 activeRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
                 state = BO_WAIT;
             }
-            break;
         case BO_WAIT:
             if( (event == EV_RX_READY || event == EV_BACKOFF_TIMER) && !txBackoffTimer->isScheduled() ){
                 // EV_BACKOFF_TIMER triggered by need for retry of packet
@@ -96,6 +95,7 @@ CSMATxBackoffBase::~CSMATxBackoffBase(){
     if(txBackoffTimer){
         cancelBackoffTimer();
         delete txBackoffTimer;
+        txBackoffTimer = nullptr;
     }
 }
 

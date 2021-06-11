@@ -789,6 +789,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             activeBackoff = nullptr;
             EV_DEBUG << "TX SM in TX_WAKEUP_WAIT";
         }
+        break;
     case TX_WAKEUP:
         if(event == EV_TX_END){
             // Wake-up transmission has ended, start wait backoff for neighbors to wake-up
@@ -797,23 +798,27 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             updateTxState(TX_DATA_WAIT);
             scheduleAt(simTime() + txWakeUpWaitDuration, wakeUpBackoffTimer);
             EV_DEBUG << "TX SM: TX_WAKEUP_WAIT --> TX_DATA_WAIT";
+            // Reset statistic variable counting ack rounds (from transmitter perspective)
+            acknowledgmentRound = 0;
         }
         break;
     case TX_DATA_WAIT:
-        if(event==EV_WAKEUP_BACKOFF){
-            // Reuse wakeup backoff for carrier sense backoff
-            dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-            updateTxState(TX_DATA);
-            // Reset statistic variable counting ack rounds (from transmitter perspective)
-            acknowledgmentRound = 1;
+        if(activeBackoff != nullptr){
+            backoffResult = stepBackoffSM(event);
         }
-        break;
-    case TX_DATA:
-        if( (event == EV_DATA_RX_READY || event == EV_WAKEUP_BACKOFF) && !wakeUpBackoffTimer->isScheduled()){
-            setRadioToTransmitIfFreeOrDelay(wakeUpBackoffTimer, ackWaitDuration/5); // Hardcoded into phyMTU calc in initialize()
-            updateTxState(TX_DATA);
+        else if(event==EV_WAKEUP_BACKOFF){
+            // use activeBackoff for backoff state machine
+            ASSERT(activeBackoff == nullptr);
+            activeBackoff = new CSMATxUniformBackoff(this, activeRadio, energyStorage,
+                    J(0.0), 0.0, ackWaitDuration/3);
+            if(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER){
+                activeBackoff->startInRx();
+            }
+            else{
+                activeBackoff->startCold();
+            }
         }
-        else if(event == EV_TX_READY){
+        if(backoffResult == CSMATxBackoffBase::BO_FINISHED){
             Packet* dataFrame = currentTxFrame->dup();
             if(datagramPostRoutingHook(dataFrame)!=IHook::Result::ACCEPT){
                 EV_ERROR << "Aborted transmission of data is unimplemented." << endl;
@@ -829,10 +834,8 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             sendDown(dataFrame);
             updateTxState(TX_DATA);
         }
-        else if(event == EV_TX_END){
-            stepTxAckProcess(EV_TX_END, msg);
-        }
         break;
+    case TX_DATA:
     case TX_ACK_WAIT:
         stepTxAckProcess(event, msg);
         break;
@@ -892,8 +895,12 @@ Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount)
 
 void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const msg) {
     if(event == EV_TX_END){
+        delete activeBackoff;
+        activeBackoff = nullptr;
         //reset confirmed forwarders count
         acknowledgedForwarders = 0;
+        // Increase acknowledgment round value
+        acknowledgmentRound++;
         // Schedule acknowledgement wait timeout
         scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
         updateMacState(S_TRANSMIT);
@@ -976,7 +983,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         }
         else if(supplementaryForwarders>0){
             // Go straight to immediate data retransmission to reduce forwarders
-            updateTxState(TX_DATA);
+            updateTxState(TX_DATA_WAIT);
             scheduleAt(simTime(), wakeUpBackoffTimer);
             acknowledgmentRound++;
             updateMacState(S_TRANSMIT);

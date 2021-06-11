@@ -57,7 +57,8 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public Netfi
         energyStorage(nullptr),
         networkNode(nullptr),
         replenishmentTimer(nullptr),
-        currentRxFrame(nullptr)
+        currentRxFrame(nullptr),
+        activeBackoff(nullptr)
       {}
     virtual ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
