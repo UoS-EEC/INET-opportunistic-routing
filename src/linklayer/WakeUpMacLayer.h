@@ -49,7 +49,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public Netfi
     WakeUpMacLayer()
       : MacProtocolBase(),
         wakeUpBackoffTimer(nullptr),
-        ackBackoffTimer(nullptr),
         wuTimeout(nullptr),
         dataRadio(nullptr),
         wakeUpRadio(nullptr),
@@ -210,8 +209,6 @@ protected:
     virtual bool isLowerMessage(cMessage* message) override;
     virtual void configureInterfaceEntry() override;
     void queryWakeupRequest(Packet* wakeUp);
-    simtime_t setRadioToTransmitIfFreeOrDelay(cMessage* timer, const simtime_t& maxDelay);
-    void setWuRadioToTransmitIfFreeOrDelay(const t_mac_event& event, cMessage* timer, const simtime_t& maxDelay);
 
 
   protected:
@@ -235,7 +232,6 @@ protected:
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     void stepMacSM(const t_mac_event& event, cMessage *msg);
-    simtime_t cumulativeAckBackoff = 0;
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
     virtual void stepRxAckProcess(const t_mac_event& event, cMessage *msg);
@@ -245,9 +241,8 @@ protected:
 
   protected:
     Packet* buildAck(const Packet* subject) const;
-    void updateMacState(const t_mac_state& newMacState);
+    void updateMacState(const t_mac_state& newMacState){ macState = newMacState; };
     /** @brief Transmitter State Machine **/
-    bool txStateChange = false;
     t_tx_state txState;
     void stepTxSM(const t_mac_event& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
@@ -261,7 +256,7 @@ protected:
     ExpectedCost dataMinExpectedCost = EqDC(25.5);
     simtime_t dataTransmissionDelay = 0;
     virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);
-    void updateTxState(const t_tx_state& newTxState);
+    void updateTxState(const t_tx_state& newTxState){ txState = newTxState; };
     /** @brief Wake-up listening State Machine **/
 
     bool wuStateChange = false;

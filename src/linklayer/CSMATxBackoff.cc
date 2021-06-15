@@ -23,11 +23,12 @@ void CSMATxBackoffBase::setRadioToTransmitIfFreeOrDelay(){
     }
     else{
         t_backoff_ev returnEv = EV_BACKOFF_TIMER;
-        parent->scheduleAt(simTime()+calculateBackoff(returnEv), txBackoffTimer);
+        const SimTime nextAckAttempt = simTime() + calculateBackoff(returnEv);
         if(returnEv == EV_TX_ABORT){
             state = BO_OFF;
         }
         else{
+            parent->scheduleAt(nextAckAttempt, txBackoffTimer);
             state = BO_WAIT;
         }
     }
@@ -99,12 +100,36 @@ CSMATxBackoffBase::~CSMATxBackoffBase(){
     }
 }
 
-simtime_t CSMATxUniformBackoff::calculateBackoff(t_backoff_ev returnEv) const{
+simtime_t CSMATxUniformBackoff::calculateBackoff(t_backoff_ev& returnEv){
     return parent->uniform(minBackoff, maxBackoff);
 }
 
-simtime_t CSMATxRemainderReciprocalBackoff::calculateBackoff(t_backoff_ev returnEv) const{
-    // TODO:
+simtime_t CSMATxRemainderReciprocalBackoff::calculateBackoff(t_backoff_ev& returnEv){
+    // Calculate backoff from remaining time
+    const simtime_t delayWindow = (maxBackoff - cumulativeAckBackoff)/2;
+    if(delayWindow > minimumContentionWindow){
+        // Add resultant random backoff to cumulative total
+        auto delay = parent->uniform(0,delayWindow);
+        cumulativeAckBackoff += delay;
+        return delay;
+    }
+    else{
+        returnEv = EV_TX_ABORT;
+        return SimTime(-1, SimTimeUnit::SIMTIME_S);
+    }
+}
+
+bool CSMATxRemainderReciprocalBackoff::startInRxFromInitialWindow()
+{
+    if(energyStorage->getResidualEnergyCapacity() < transmissionStartMinEnergy){
+        return false;
+    }
+    ASSERT(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER);
+
+    cumulativeAckBackoff = parent->uniform(0, initialContentionWindow);
+    parent->scheduleAt(simTime()+cumulativeAckBackoff, txBackoffTimer);
+    state = BO_WAIT;
+    return true;
 }
 
 } /* namespace oppostack */

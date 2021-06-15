@@ -17,7 +17,7 @@ using namespace omnetpp;
 namespace oppostack {
 
 class CSMATxBackoffBase{
-  private:
+  protected:
     simtime_t initialBackoff;
     cMessage *txBackoffTimer;
     inet::physicallayer::IRadio* activeRadio;
@@ -45,8 +45,7 @@ class CSMATxBackoffBase{
     };
   protected:
     cSimpleModule* parent;
-    virtual simtime_t calculateBackoff(t_backoff_ev returnEv) const = 0;
-
+    virtual simtime_t calculateBackoff(t_backoff_ev& returnEv) = 0;
     t_backoff_state state = BO_OFF;
   public:
     CSMATxBackoffBase(cSimpleModule* _parent,
@@ -64,6 +63,7 @@ class CSMATxBackoffBase{
     void setRadioToTransmitIfFreeOrDelay();
     bool startCold();
     bool startInRx();
+    virtual bool startInRxFromInitialWindow() = 0;
     t_backoff_state process(const t_backoff_ev& event);
 
     virtual ~CSMATxBackoffBase();
@@ -81,23 +81,30 @@ public:
                 minBackoff(min_backoff),
                 maxBackoff(max_backoff){};
 protected:
-    virtual simtime_t calculateBackoff(t_backoff_ev returnEv) const override;
+    virtual simtime_t calculateBackoff(t_backoff_ev& returnEv) override;
+    virtual bool startInRxFromInitialWindow(){cRuntimeError("No initial window known");return false;};
 };
 
 class CSMATxRemainderReciprocalBackoff : public CSMATxBackoffBase{
 
-    simtime_t max_backoff;
-
+    simtime_t maxBackoff;
+    simtime_t initialContentionWindow = 0;
+    simtime_t cumulativeAckBackoff = 0;
+    simtime_t minimumContentionWindow = 0;
 public:
     CSMATxRemainderReciprocalBackoff(cSimpleModule* parent,
             inet::physicallayer::IRadio* activeRadio,
             inet::power::IEpEnergyStorage* energyStorage,
             inet::J transmissionStartMinEnergy,
-            simtime_t _max_backoff):
+            simtime_t _initialContentionWindow, simtime_t _maxBackoff, simtime_t _minimumContentionWindow):
                 CSMATxBackoffBase(parent, activeRadio, energyStorage, transmissionStartMinEnergy, 0),
-                max_backoff(_max_backoff){};
+                initialContentionWindow(_initialContentionWindow), maxBackoff(_maxBackoff), minimumContentionWindow(_minimumContentionWindow){
+        ASSERT(minimumContentionWindow > 0);
+        ASSERT(initialContentionWindow < maxBackoff);
+    };
+    virtual bool startInRxFromInitialWindow() override;
 protected:
-    virtual simtime_t calculateBackoff(t_backoff_ev returnEv) const override;
+    virtual simtime_t calculateBackoff(t_backoff_ev& returnEv) override;
 };
 
 } /* namespace oppostack */
