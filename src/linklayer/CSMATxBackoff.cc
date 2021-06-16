@@ -11,25 +11,27 @@ namespace oppostack {
 using namespace inet;
 using namespace inet::physicallayer;
 
-void CSMATxBackoffBase::setRadioToTransmitIfFreeOrDelay(){
-    using namespace inet::physicallayer;
+bool CSMATxBackoffBase::isCarrierFree()
+{
     IRadio::ReceptionState receptionState = activeRadio->getReceptionState();
-    bool isIdle = (receptionState == IRadio::RECEPTION_STATE_IDLE)
-                    && activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER;
-    if(isIdle){
+    return (receptionState == IRadio::RECEPTION_STATE_IDLE)
+            && activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER;
+}
+
+void CSMATxBackoffBase::startTxOrBackoff(){
+    if( isCarrierFree() ){
         //Start the transmission state machine
         activeRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
         state = BO_SWITCHING;
     }
     else{
         t_backoff_ev returnEv = EV_BACKOFF_TIMER;
-        const SimTime nextAckAttempt = simTime() + calculateBackoff(returnEv);
+        const SimTime delay = calculateBackoff(returnEv);
         if(returnEv == EV_TX_ABORT){
             state = BO_OFF;
         }
         else{
-            parent->scheduleAt(nextAckAttempt, txBackoffTimer);
-            state = BO_WAIT;
+            delayCarrierSense(delay);
         }
     }
 
@@ -43,23 +45,28 @@ bool CSMATxBackoffBase::startCold(){
     return true;
 }
 
-bool CSMATxBackoffBase::startInRx(){
+void CSMATxBackoffBase::delayCarrierSense(simtime_t delay)
+{
+    ASSERT(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER);
+
+    cumulativeAckBackoff += delay;
+    parent->scheduleAt(simTime()+delay, txBackoffTimer);
+    state = BO_WAIT;
+}
+
+bool CSMATxBackoffBase::startTxOrDelay(simtime_t minDelay, simtime_t maxDelay){
     if(energyStorage->getResidualEnergyCapacity() < transmissionStartMinEnergy){
         return false;
     }
-    ASSERT(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER);
 
-    IRadio::ReceptionState receptionState = activeRadio->getReceptionState();
-    bool isIdle = (receptionState == IRadio::RECEPTION_STATE_IDLE)
-                    && activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER;
-    if(isIdle){
+    if( isCarrierFree() ){
         //Start the transmission state machine
         activeRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
         state = BO_SWITCHING;
     }
     else{
-        parent->scheduleAt(simTime()+initialBackoff, txBackoffTimer);
-        state = BO_WAIT;
+        if(minDelay == maxDelay) delayCarrierSense(minDelay);
+        else delayCarrierSense( parent->uniform(minDelay, maxDelay) );
     }
 
     return true;
@@ -78,7 +85,7 @@ CSMATxBackoffBase::t_backoff_state CSMATxBackoffBase::process(const t_backoff_ev
                 // EV_RX_READY triggered when radio listening (after Rx->Listening transition)
                 // TODO: but check ackBackoffTimer as also triggered by (Rx->Listening)
                 // Perform carrier sense if there is a currentTxFrame
-                setRadioToTransmitIfFreeOrDelay();
+                startTxOrBackoff();
             }
             break;
         case BO_SWITCHING:
@@ -110,26 +117,12 @@ simtime_t CSMATxRemainderReciprocalBackoff::calculateBackoff(t_backoff_ev& retur
     if(delayWindow > minimumContentionWindow){
         // Add resultant random backoff to cumulative total
         auto delay = parent->uniform(0,delayWindow);
-        cumulativeAckBackoff += delay;
         return delay;
     }
     else{
         returnEv = EV_TX_ABORT;
         return SimTime(-1, SimTimeUnit::SIMTIME_S);
     }
-}
-
-bool CSMATxRemainderReciprocalBackoff::startInRxFromInitialWindow()
-{
-    if(energyStorage->getResidualEnergyCapacity() < transmissionStartMinEnergy){
-        return false;
-    }
-    ASSERT(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER);
-
-    cumulativeAckBackoff = parent->uniform(0, initialContentionWindow);
-    parent->scheduleAt(simTime()+cumulativeAckBackoff, txBackoffTimer);
-    state = BO_WAIT;
-    return true;
 }
 
 } /* namespace oppostack */

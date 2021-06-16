@@ -18,12 +18,13 @@ namespace oppostack {
 
 class CSMATxBackoffBase{
   protected:
-    simtime_t initialBackoff;
     cMessage *txBackoffTimer;
     inet::physicallayer::IRadio* activeRadio;
     inet::power::IEpEnergyStorage* energyStorage;
     inet::J transmissionStartMinEnergy = inet::J(0.0);
+    simtime_t cumulativeAckBackoff = 0;
 
+    bool isCarrierFree();
     void cancelBackoffTimer(){
         parent->cancelEvent(txBackoffTimer);
     }
@@ -51,19 +52,18 @@ class CSMATxBackoffBase{
     CSMATxBackoffBase(cSimpleModule* _parent,
             inet::physicallayer::IRadio* _activeRadio,
             inet::power::IEpEnergyStorage* _energyStorage,
-            inet::J _transmissionStartMinEnergy,
-            simtime_t initial_backoff):
+            inet::J _transmissionStartMinEnergy):
                 parent(_parent),
                 activeRadio(_activeRadio),
                 energyStorage(_energyStorage),
-                transmissionStartMinEnergy(_transmissionStartMinEnergy),
-                initialBackoff(initial_backoff){
+                transmissionStartMinEnergy(_transmissionStartMinEnergy){
         txBackoffTimer = new cMessage("tx backoff timer");
     };
-    void setRadioToTransmitIfFreeOrDelay();
+    void startTxOrBackoff();
+    bool startTxOrDelay(simtime_t delay){ return startTxOrDelay(delay, delay); };
+    bool startTxOrDelay(simtime_t minDelay, simtime_t maxDelay);
+    void delayCarrierSense(simtime_t delay);
     bool startCold();
-    bool startInRx();
-    virtual bool startInRxFromInitialWindow() = 0;
     t_backoff_state process(const t_backoff_ev& event);
 
     virtual ~CSMATxBackoffBase();
@@ -77,32 +77,26 @@ public:
             inet::physicallayer::IRadio* activeRadio,
             inet::power::IEpEnergyStorage* energyStorage,
             inet::J transmissionStartMinEnergy, simtime_t min_backoff, simtime_t max_backoff):
-                CSMATxBackoffBase(parent, activeRadio, energyStorage, transmissionStartMinEnergy, 0),
+                CSMATxBackoffBase(parent, activeRadio, energyStorage, transmissionStartMinEnergy),
                 minBackoff(min_backoff),
                 maxBackoff(max_backoff){};
 protected:
     virtual simtime_t calculateBackoff(t_backoff_ev& returnEv) override;
-    virtual bool startInRxFromInitialWindow(){cRuntimeError("No initial window known");return false;};
 };
 
 class CSMATxRemainderReciprocalBackoff : public CSMATxBackoffBase{
 
     simtime_t maxBackoff;
-    simtime_t initialContentionWindow = 0;
-    simtime_t cumulativeAckBackoff = 0;
     simtime_t minimumContentionWindow = 0;
 public:
     CSMATxRemainderReciprocalBackoff(cSimpleModule* parent,
             inet::physicallayer::IRadio* activeRadio,
             inet::power::IEpEnergyStorage* energyStorage,
-            inet::J transmissionStartMinEnergy,
-            simtime_t _initialContentionWindow, simtime_t _maxBackoff, simtime_t _minimumContentionWindow):
-                CSMATxBackoffBase(parent, activeRadio, energyStorage, transmissionStartMinEnergy, 0),
-                initialContentionWindow(_initialContentionWindow), maxBackoff(_maxBackoff), minimumContentionWindow(_minimumContentionWindow){
+            inet::J transmissionStartMinEnergy, simtime_t _maxBackoff, simtime_t _minimumContentionWindow):
+                CSMATxBackoffBase(parent, activeRadio, energyStorage, transmissionStartMinEnergy),
+                 maxBackoff(_maxBackoff), minimumContentionWindow(_minimumContentionWindow){
         ASSERT(minimumContentionWindow > 0);
-        ASSERT(initialContentionWindow < maxBackoff);
     };
-    virtual bool startInRxFromInitialWindow() override;
 protected:
     virtual simtime_t calculateBackoff(t_backoff_ev& returnEv) override;
 };

@@ -385,7 +385,7 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
                 auto maximumBackoff = txWakeUpWaitDuration + dataListeningDuration;
                 activeBackoff = new CSMATxUniformBackoff(this, activeRadio, energyStorage,
                         transmissionStartMinEnergy, minimumBackoff, maximumBackoff);
-                if(activeBackoff->startInRx()){
+                if( activeBackoff->startTxOrDelay(minimumBackoff, maximumBackoff) ){
                     updateTxState(TX_WAKEUP_WAIT);
                     updateMacState(S_TRANSMIT);
                 }
@@ -483,9 +483,9 @@ bool WakeUpMacLayer::setupTransmission() {
     }
 
     activeBackoff = new CSMATxUniformBackoff(this, activeRadio, energyStorage, transmissionStartMinEnergy,
-            txWakeUpWaitDuration, txWakeUpWaitDuration + dataListeningDuration);
-
-    if(activeBackoff->startInRx()){
+            0, txWakeUpWaitDuration);
+    const simtime_t delayIfBusy = txWakeUpWaitDuration + dataListeningDuration;
+    if (activeBackoff->startTxOrDelay(delayIfBusy)) {
         // Backoff or transition to listening has started
         return true;
     }
@@ -602,9 +602,8 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
             activeBackoff = new CSMATxRemainderReciprocalBackoff(this,
                     activeRadio,
                     energyStorage,
-                    J(0), initialContentionDuration, ackTxWaitDuration, minimumContentionWindow);
-            auto backoffStarted = activeBackoff->startInRxFromInitialWindow();
-            ASSERT(backoffStarted);
+                    J(0), ackTxWaitDuration, minimumContentionWindow);
+            activeBackoff->delayCarrierSense( uniform(0, initialContentionDuration) );
             rxAckRound++;
         }
     }
@@ -655,9 +654,8 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
                     activeBackoff = new CSMATxRemainderReciprocalBackoff(this,
                             activeRadio,
                             energyStorage,
-                            J(0), initialContentionDuration, ackTxWaitDuration, minimumContentionWindow);
-                    auto backoffStarted = activeBackoff->startInRxFromInitialWindow();
-                    ASSERT(backoffStarted);
+                            J(0), ackTxWaitDuration, minimumContentionWindow);
+                    activeBackoff->delayCarrierSense( uniform(0, initialContentionDuration) );
                 }
                 else{
                     // Drop out of forwarder contention
@@ -753,12 +751,10 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             activeBackoff = new CSMATxUniformBackoff(this, activeRadio, energyStorage,
                     J(0.0), 0.0, ackWaitDuration/3);
             if(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER){
-                auto startedBackoff = activeBackoff->startInRx();
-                ASSERT(startedBackoff);
+                activeBackoff->startTxOrBackoff();
             }
             else{
-                auto startedBackoff = activeBackoff->startCold();
-                ASSERT(startedBackoff);
+                activeBackoff->startCold();
             }
         }
         if(backoffResult == CSMATxBackoffBase::BO_FINISHED){
