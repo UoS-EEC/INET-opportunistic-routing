@@ -32,6 +32,7 @@
 #include "../networklayer/ORWRouting.h"
 #include "common/Units.h"
 #include "WakeUpGram_m.h"
+#include "CSMATxBackoff.h"
 
 namespace oppostack{
 
@@ -48,7 +49,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public Netfi
     WakeUpMacLayer()
       : MacProtocolBase(),
         wakeUpBackoffTimer(nullptr),
-        ackBackoffTimer(nullptr),
         wuTimeout(nullptr),
         dataRadio(nullptr),
         wakeUpRadio(nullptr),
@@ -56,7 +56,8 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public Netfi
         energyStorage(nullptr),
         networkNode(nullptr),
         replenishmentTimer(nullptr),
-        currentRxFrame(nullptr)
+        currentRxFrame(nullptr),
+        activeBackoff(nullptr)
       {}
     virtual ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
@@ -120,8 +121,8 @@ protected:
     };
 
     enum t_tx_state {
-        TX_IDLE, // Transmitter off
-        TX_WAKEUP_WAIT, // Tx wake-up when radio ready till wake-up finish
+        TX_WAKEUP_WAIT, // Tx wake-up when radio ready and CSMA finished
+        TX_WAKEUP, // Tx Wake-up in progress
         TX_DATA_WAIT, // Wait for receivers to wake-up
         TX_DATA, // Send data when radio ready
         TX_ACK_WAIT, // TODO: Listen for node acknowledging
@@ -138,14 +139,13 @@ protected:
     enum t_rx_state{
         RX_IDLE,
         RX_RECEIVE,
-        //TODO: implement
     };
 
     /** @brief MAC state machine events.*/
     enum t_mac_event {
         EV_QUEUE_SEND,
-        EV_TX_START,
         EV_WAKEUP_BACKOFF,
+        EV_CSMA_BACKOFF,
         EV_TX_READY,
         EV_TX_END,
         EV_ACK_TIMEOUT,
@@ -159,12 +159,28 @@ protected:
         EV_REPLENISH_TIMEOUT
     };
 
+    // Translate WakeUpMacLayer Events to BackoffBase Events
+    CSMATxBackoffBase::t_backoff_state stepBackoffSM(const t_mac_event event){
+        switch(event){
+            case EV_TX_READY:
+                return activeBackoff->process(CSMATxBackoffBase::EV_TX_READY);
+            case EV_DATA_RX_READY:
+                return activeBackoff->process(CSMATxBackoffBase::EV_RX_READY);
+            case EV_CSMA_BACKOFF:
+                return activeBackoff->process(CSMATxBackoffBase::EV_BACKOFF_TIMER);
+            default: break;
+        }
+        return activeBackoff->process(CSMATxBackoffBase::EV_NULL);
+    }
+
     /** @name Protocol timer messages */
     /*@{*/
     cMessage *wakeUpBackoffTimer;
     cMessage *ackBackoffTimer;
     cMessage *wuTimeout;
     /*@}*/
+    CSMATxBackoffBase* activeBackoff;
+
     int wakeUpRadioInGateId = -1;
     int wakeUpRadioOutGateId = -1;
 
@@ -191,8 +207,6 @@ protected:
     virtual bool isLowerMessage(cMessage* message) override;
     virtual void configureInterfaceEntry() override;
     void queryWakeupRequest(Packet* wakeUp);
-    simtime_t setRadioToTransmitIfFreeOrDelay(cMessage* timer, const simtime_t& maxDelay);
-    void setWuRadioToTransmitIfFreeOrDelay(const t_mac_event& event, cMessage* timer, const simtime_t& maxDelay);
 
 
   protected:
@@ -216,7 +230,6 @@ protected:
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     void stepMacSM(const t_mac_event& event, cMessage *msg);
-    simtime_t cumulativeAckBackoff = 0;
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
     virtual void stepRxAckProcess(const t_mac_event& event, cMessage *msg);
@@ -226,9 +239,8 @@ protected:
 
   protected:
     Packet* buildAck(const Packet* subject) const;
-    void updateMacState(const t_mac_state& newMacState);
+    void updateMacState(const t_mac_state& newMacState){ macState = newMacState; };
     /** @brief Transmitter State Machine **/
-    bool txStateChange = false;
     t_tx_state txState;
     void stepTxSM(const t_mac_event& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
@@ -242,7 +254,7 @@ protected:
     ExpectedCost dataMinExpectedCost = EqDC(25.5);
     simtime_t dataTransmissionDelay = 0;
     virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);
-    void updateTxState(const t_tx_state& newTxState);
+    void updateTxState(const t_tx_state& newTxState){ txState = newTxState; };
     /** @brief Wake-up listening State Machine **/
 
     bool wuStateChange = false;
