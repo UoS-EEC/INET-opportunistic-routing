@@ -67,41 +67,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public Netfi
     virtual void handleSelfMessage(cMessage *msg) override;
     virtual void receiveSignal(cComponent* source, simsignal_t signalID, intval_t value, cObject* details) override;
 
-    /** @brief MAC state machine events.*/
-    enum t_mac_event {
-        EV_QUEUE_SEND,
-        EV_TX_START,
-        EV_WAKEUP_BACKOFF,
-        EV_CSMA_BACKOFF,
-        EV_TX_READY,
-        EV_TX_END,
-        EV_ACK_TIMEOUT,
-        EV_WU_START,
-        EV_WU_APPROVE,
-        EV_WU_REJECT,
-        EV_WU_TIMEOUT,
-        EV_DATA_RX_IDLE,
-        EV_DATA_RX_READY,
-        EV_DATA_RECEIVED,
-        EV_REPLENISH_TIMEOUT
-    };
-
-    // Translate WakeUpMacLayer Events to BackoffBase Events
-    CSMATxBackoffBase::t_backoff_state stepBackoffSM(const t_mac_event event){
-        switch(event){
-            case EV_TX_READY:
-                return activeBackoff->process(CSMATxBackoffBase::EV_TX_READY);
-            case EV_DATA_RX_READY:
-                return activeBackoff->process(CSMATxBackoffBase::EV_RX_READY);
-            case EV_CSMA_BACKOFF:
-                return activeBackoff->process(CSMATxBackoffBase::EV_BACKOFF_TIMER);
-            default: break;
-        }
-        return activeBackoff->process(CSMATxBackoffBase::EV_NULL);
-    }
-
-
-    CSMATxBackoffBase* activeBackoff;
   protected:
     /** @brief User Configured parameters */
     simtime_t txWakeUpWaitDuration = 0;
@@ -174,8 +139,39 @@ protected:
     enum t_rx_state{
         RX_IDLE,
         RX_RECEIVE,
-        //TODO: implement
     };
+
+    /** @brief MAC state machine events.*/
+    enum t_mac_event {
+        EV_QUEUE_SEND,
+        EV_WAKEUP_BACKOFF,
+        EV_CSMA_BACKOFF,
+        EV_TX_READY,
+        EV_TX_END,
+        EV_ACK_TIMEOUT,
+        EV_WU_START,
+        EV_WU_APPROVE,
+        EV_WU_REJECT,
+        EV_WU_TIMEOUT,
+        EV_DATA_RX_IDLE,
+        EV_DATA_RX_READY,
+        EV_DATA_RECEIVED,
+        EV_REPLENISH_TIMEOUT
+    };
+
+    // Translate WakeUpMacLayer Events to BackoffBase Events
+    CSMATxBackoffBase::t_backoff_state stepBackoffSM(const t_mac_event event){
+        switch(event){
+            case EV_TX_READY:
+                return activeBackoff->process(CSMATxBackoffBase::EV_TX_READY);
+            case EV_DATA_RX_READY:
+                return activeBackoff->process(CSMATxBackoffBase::EV_RX_READY);
+            case EV_CSMA_BACKOFF:
+                return activeBackoff->process(CSMATxBackoffBase::EV_BACKOFF_TIMER);
+            default: break;
+        }
+        return activeBackoff->process(CSMATxBackoffBase::EV_NULL);
+    }
 
     /** @name Protocol timer messages */
     /*@{*/
@@ -183,6 +179,8 @@ protected:
     cMessage *ackBackoffTimer;
     cMessage *wuTimeout;
     /*@}*/
+    CSMATxBackoffBase* activeBackoff;
+
     int wakeUpRadioInGateId = -1;
     int wakeUpRadioOutGateId = -1;
 
