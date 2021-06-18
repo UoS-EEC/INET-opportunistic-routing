@@ -377,7 +377,6 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
         }
         else if((event == EV_ACK_TIMEOUT || event == EV_DATA_RX_READY) && !ackBackoffTimer->isScheduled()){
             // EV_ACK_TIMEOUT triggered by need for retry of packet
-            // EV_DATA_RX_READY triggered at the end of a receive period or switch to Rx,
             // but check ackBackoffTimer in case of longer backoff before transmission
             // Perform carrier sense if there is a currentTxFrame
             if(currentTxFrame != nullptr){
@@ -393,6 +392,8 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
                     // Schedule switch to replenishment state, after small wait for other packets
                     scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
                     updateMacState(S_IDLE);
+                    delete activeBackoff;
+                    activeBackoff = nullptr;
                 }
             }
             // Else do nothing, wait for packet from upper or wake-up
@@ -418,6 +419,8 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
                 // Schedule switch to replenishment state, after small wait for other packets
                 scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
                 updateMacState(S_IDLE);
+                delete activeBackoff;
+                activeBackoff = nullptr;
             }
         }
         else if(event == EV_REPLENISH_TIMEOUT){
@@ -430,7 +433,9 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
                 lifecycleController.initiateOperation(operation);
             }
             else{
-                scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
+                // Now got enough energy so transmit by triggering ackBackoff
+                if(!ackBackoffTimer->isScheduled())
+                    scheduleAt(simTime(), ackBackoffTimer);
             }
         }
         else{
@@ -683,8 +688,7 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
             EncounterDetails details;
             details.setEncountered(incomingMacData->getTransmitterAddress());
             details.setCurrentEqDC(incomingMacData->getExpectedCostInd());
-            // TODO: possibly double weight since it is coincidental
-            emit(coincidentalEncounterSignal, 1/candiateRelayContentionProbability, &details);
+            emit(coincidentalEncounterSignal, 1.0, &details);
         }
         delete incomingFrame;
     }

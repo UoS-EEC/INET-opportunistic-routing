@@ -51,28 +51,28 @@ network IntermittentDenseTest
         node1: IntermittentORWNode {
             @display("p=44.9627,33.68679");
             generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
-            generic.*.hubExpectedCost = 150ExpectedCost;
+            generic.*.hubExpectedCost = 100ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node2: IntermittentORWNode {
             @display("p=38.62,35.378174");
             generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
-            generic.*.hubExpectedCost = 150ExpectedCost;
+            generic.*.hubExpectedCost = 100ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node3: IntermittentORWNode {
             @display("p=31.149708,30.966473");
             generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
-            generic.*.hubExpectedCost = 150ExpectedCost;
+            generic.*.hubExpectedCost = 100ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node4: IntermittentORWNode {
             @display("p=40.452335,39.183796");
             generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
-            generic.*.hubExpectedCost = 150ExpectedCost;
+            generic.*.hubExpectedCost = 100ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
