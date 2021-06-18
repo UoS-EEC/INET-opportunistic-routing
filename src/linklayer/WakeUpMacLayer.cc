@@ -407,7 +407,7 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
             }
             else if(wakeUpRadio->getRadioMode() == IRadio::RADIO_MODE_SWITCHING){
                 // Schedule timer to start backoff after short time if nothing in currentTxFrame buffer
-                if( currentTxFrame == nullptr){
+                if( currentTxFrame == nullptr  && !wakeUpBackoffTimer->isScheduled() ){
                     scheduleAt(simTime() + wuApproveResponseLimit, wakeUpBackoffTimer);
                 }
             }
@@ -727,6 +727,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             // TODO: Change this to a short WU packet
             cMessage* const currentTxWakeUp = check_and_cast<cMessage*>(buildWakeUp(currentTxFrame, txInProgressTries));
             send(currentTxWakeUp, wakeUpRadioOutGateId);
+            txInProgressTries++;
             updateTxState(TX_WAKEUP);
             delete activeBackoff;
             activeBackoff = nullptr;
@@ -920,6 +921,10 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             updateMacState(S_TRANSMIT);
             //The Radio Receive->Sleep triggers next SM transition
             dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
+        }
+        else if( activeRadio->getReceptionState() != IRadio::RECEPTION_STATE_IDLE ){
+            // Data, possibly ACK or contending wake-up still in progress
+            scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
         }
         else if(supplementaryForwarders>0){
             // Go straight to immediate data retransmission to reduce forwarders
@@ -1132,6 +1137,10 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
         }
     }
     cancelAllTimers();
+    if(activeBackoff != nullptr){
+        delete activeBackoff;
+        activeBackoff = nullptr;
+    }
     // Stop all signals from being interpreted
     updateMacState(S_IDLE);
     interfaceEntry->setCarrier(false);
