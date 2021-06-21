@@ -66,7 +66,7 @@ network IntermittentDownwardORPLTest extends IntermittentDenseORPLTest
             packetGenerator.sendInterval = 5s;
         }
         transmittingCrossBranch: IntermittentORPLNode {
-            @display("p=62.952522,40.682755");
+            @display("p=63.763332,41.848225");
             generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
             generic.*.hubExpectedCost = 200ExpectedCost;
             packetGenerator.destAddresses = default("transmittingWakeUpNode(modulepath) receivingWakeUpNode(modulepath)");
