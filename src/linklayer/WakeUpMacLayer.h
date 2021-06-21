@@ -86,7 +86,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public Netfi
     simtime_t minimumContentionWindow = 0;
 
     bool recheckDataPacketEqDC;
-    bool stopDirectTxExtraAck = false;
+    bool skipDirectTxFinalAck = false;
 public:
     /**
      * Mac statistics
@@ -204,7 +204,10 @@ protected:
     virtual void cancelAllTimers();
     virtual void deleteAllTimers();
     void changeActiveRadio(physicallayer::IRadio*);
-    virtual bool isLowerMessage(cMessage* message) override;
+    // Check if message comes from lower gate or wake-up radio
+    virtual bool isLowerMessage(cMessage* msg) override{
+        return MacProtocolBase::isLowerMessage(msg) || msg->getArrivalGateId() == wakeUpRadioInGateId;
+    };
     virtual void configureInterfaceEntry() override;
     void queryWakeupRequest(Packet* wakeUp);
 
@@ -260,7 +263,10 @@ protected:
     bool wuStateChange = false;
     t_wu_state wuState;
     void stepWuSM(const t_mac_event& event, cMessage *msg);
-    void updateWuState(const t_wu_state& newWuState);
+    void updateWuState(const t_wu_state& newWuState){
+        wuStateChange = true;
+        wuState = newWuState;
+    };
     /** @brief Receiving and acknowledgement **/
     cMessage *currentRxFrame;
     void dropCurrentRxFrame(PacketDropDetails& details);

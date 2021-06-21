@@ -56,13 +56,13 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol
         double wuApproveResponseLimit @unit(s) = default(1000ns);
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
         int maxWakeUpTries = default(4);
-		
-		// After receiving wake-up, recheck the data before sending ack and accepting
-		bool recheckDataPacketEqDC = default(true);
-		// If transmitter receives ack from the final dest, and recheckDataPacketEqDC is
-		// performed then don't resend data, as only the final dest will accept EqDC=0
-		bool stopDirectTxExtraAck = default(false);
-		
+
+        // After receiving wake-up, recheck the data before sending ack and accepting
+        bool recheckDataPacketEqDC = default(true);
+        // If transmitter receives ack from the final dest, and recheckDataPacketEqDC is
+        // performed then don't resend data, as only the final dest will accept EqDC=0
+        bool skipDirectTxFinalAck = default(false);
+
         // Weighted Encounters signals and with attached L2Addr and EDC/EquivalentTx(EqTx) details
         @signal[coincidentalEncounter](type=double);
         @signal[expectedEncounter](type=double);

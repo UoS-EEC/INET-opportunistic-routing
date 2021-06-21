@@ -102,7 +102,7 @@ void WakeUpMacLayer::initialize(int const stage) {
 
         // Retransmission reduction through data packet updating
         recheckDataPacketEqDC = par("recheckDataPacketEqDC");
-        stopDirectTxExtraAck = recheckDataPacketEqDC && par("stopDirectTxExtraAck");
+        skipDirectTxFinalAck = recheckDataPacketEqDC && par("skipDirectTxFinalAck");
 
 
         /*
@@ -180,15 +180,6 @@ void WakeUpMacLayer::initialize(int const stage) {
 
     }
 }
-void WakeUpMacLayer::changeActiveRadio(physicallayer::IRadio* const newActiveRadio) {
-    if(activeRadio->getId() != newActiveRadio->getId()){ // TODO: Check ID?
-        activeRadio->setRadioMode(IRadio::RADIO_MODE_OFF);
-        activeRadio = newActiveRadio;
-        transmissionState = activeRadio->getTransmissionState();
-        receptionState = activeRadio->getReceptionState();
-    }
-}
-
 
 void WakeUpMacLayer::handleLowerPacket(Packet* const packet) {
     // Process packet from the wake-up radio or delegate handler
@@ -324,37 +315,6 @@ void WakeUpMacLayer::handleSelfMessage(cMessage* const msg) {
     }
 }
 
-bool WakeUpMacLayer::isLowerMessage(cMessage* const msg) {
-    // Check if message comes from lower gate or wake-up radio
-    return MacProtocolBase::isLowerMessage(msg)
-              || msg->getArrivalGateId() == wakeUpRadioInGateId;
-}
-
-void WakeUpMacLayer::configureInterfaceEntry() {
-    // generate a link-layer address to be used as interface token for IPv6
-    auto lengthPrototype = makeShared<WakeUpDatagram>();
-    const B interfaceMtu = phyMtu-B(lengthPrototype->getChunkLength());
-    ASSERT2(interfaceMtu >= B(80), "The interface MTU available to the net layer is too small (under 80 bytes)");
-    interfaceEntry->setMtu(interfaceMtu.get());
-    interfaceEntry->setMulticast(true);
-    interfaceEntry->setBroadcast(true);
-    interfaceEntry->setPointToPoint(false);
-}
-void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
-    const auto header = wakeUp->peekAtFront<WakeUpGram>();
-    if(header->getType()!=WakeUpGramType::WU_BEACON){
-        return;
-    }
-    if(datagramPreRoutingHook(wakeUp)==HookBase::Result::ACCEPT){
-        acceptDataEqDCThreshold = wakeUp->getTag<EqDCReq>()->getEqDC();
-        // Approve wake-up request
-        cMessage* msg = new cMessage("approve");
-        msg->setKind(WAKEUP_APPROVE);
-        scheduleAt(simTime(), msg);
-    }
-}
-
-
 void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
     if(event == EV_DATA_RECEIVED){
         // TODO: Update neighbor tables
@@ -464,58 +424,6 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
     default:
         EV_WARN << "Wake-up MAC in unhandled state. Return to idle" << endl;
         updateMacState(S_IDLE);
-    }
-}
-
-bool WakeUpMacLayer::setupTransmission() {
-    //Cancel transmission timers
-    cancelEvent(wakeUpBackoffTimer);
-    cancelEvent(ackBackoffTimer);
-    cancelEvent(wuTimeout);
-    cancelEvent(replenishmentTimer);
-    //Reset progress counters
-    txInProgressForwarders = 0;
-
-    if(currentTxFrame!=nullptr){
-        PacketDropDetails details;
-        details.setReason(PacketDropReason::QUEUE_OVERFLOW);
-        dropCurrentTxFrame(details);
-    }
-    popTxQueue();
-    if(datagramLocalOutHook(currentTxFrame)!=IHook::Result::ACCEPT){
-        updateMacState(S_IDLE);
-        return false;
-    }
-
-    activeBackoff = new CSMATxUniformBackoff(this, activeRadio, energyStorage, transmissionStartMinEnergy,
-            0, txWakeUpWaitDuration);
-    const simtime_t delayIfBusy = txWakeUpWaitDuration + dataListeningDuration;
-    if (activeBackoff->startTxOrDelay(delayIfBusy)) {
-        // Backoff or transition to listening has started
-        return true;
-    }
-    else{
-        return false;
-    }
-}
-
-void WakeUpMacLayer::completePacketReception()
-{
-    // The receiving has timed out, if packet is received process
-    if (currentRxFrame != nullptr) {
-        Packet* pkt = dynamic_cast<Packet*>(currentRxFrame);
-        decapsulate(pkt);
-        pkt->removeTagIfPresent<EqDCReq>();
-        pkt->removeTagIfPresent<EqDCInd>();
-        pkt->trim();
-        if(datagramLocalInHook(pkt)!=IHook::Result::ACCEPT){
-            EV_ERROR << "Aborted reception of data is unimplemented" << endl;
-        }
-        else{
-            sendUp(pkt);
-        }
-        currentRxFrame = nullptr;
-        emit(receptionEndedSignal, true);
     }
 }
 
@@ -647,7 +555,7 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
                 // Begin random relay contention
                 double relayDiceRoll = uniform(0,1);
                 bool destinationAckPersistance = recheckDataPacketEqDC && (acceptDataEqDCThreshold == EqDC(0.0) );
-                if(destinationAckPersistance && stopDirectTxExtraAck){
+                if(destinationAckPersistance && skipDirectTxFinalAck){
                     // Received Direct Tx and so stop extra ack
                     // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
                     scheduleAt(simTime(), wuTimeout);
@@ -695,23 +603,6 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
     else{
         updateMacState(S_RECEIVE);
     }
-}
-
-Packet* WakeUpMacLayer::buildAck(const Packet* receivedFrame) const{
-    auto receivedMacData = receivedFrame->peekAtFront<WakeUpGram>();
-    auto ackPacket = makeShared<WakeUpAck>();
-    ackPacket->setTransmitterAddress(interfaceEntry->getMacAddress());
-    ackPacket->setReceiverAddress(receivedMacData->getTransmitterAddress());
-    // Look for EqDCInd tag to send info in response
-    auto costIndTag = receivedFrame->findTag<EqDCInd>();
-    if(costIndTag!=nullptr)
-        ackPacket->setExpectedCostInd(costIndTag->getEqDC());
-    else
-        cRuntimeError("WakeUpMacLayer must respond with a cost");
-    auto frame = new Packet("CsmaAck");
-    frame->insertAtFront(ackPacket);
-    frame->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
-    return frame;
 }
 
 void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
@@ -809,31 +700,6 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
     }
 }
 
-void WakeUpMacLayer::setBeaconFieldsFromTags(const Packet* subject,
-        const inet::Ptr<WakeUpBeacon>& wuHeader) const
-{
-    const auto equivalentDCTag = subject->findTag<EqDCReq>();
-    const auto equivalentDCInd = subject->findTag<EqDCInd>();
-    // Default min is 255, can be updated when ack received from dest
-    ExpectedCost minExpectedCost = dataMinExpectedCost;
-    if (equivalentDCTag != nullptr && equivalentDCTag->getEqDC() < minExpectedCost) {
-        minExpectedCost = equivalentDCTag->getEqDC();
-        ASSERT(minExpectedCost >= ExpectedCost(0));
-    }
-    wuHeader->setMinExpectedCost(minExpectedCost);
-    wuHeader->setExpectedCostInd(equivalentDCInd->getEqDC());
-    wuHeader->setTransmitterAddress(interfaceEntry->getMacAddress());
-    wuHeader->setReceiverAddress(subject->getTag<MacAddressReq>()->getDestAddress());
-}
-
-Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount) const{
-    auto wuHeader = makeShared<WakeUpBeacon>();
-    setBeaconFieldsFromTags(subject, wuHeader);
-    auto frame = new Packet("wake-up", wuHeader);
-    frame->addTag<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
-    return frame;
-}
-
 void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const msg) {
     if(event == EV_TX_END){
         delete activeBackoff;
@@ -849,7 +715,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
 
 
-        if (stopDirectTxExtraAck && dataMinExpectedCost == EqDC(0)) {
+        if (skipDirectTxFinalAck && dataMinExpectedCost == EqDC(0)) {
             // Only the final dest will Ack when expectedCost=0 (A DirectTx)
             // therefore do not retransmit dataPacketAgain
             // Even if destination does not Ack again.
@@ -957,53 +823,6 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
     }
 }
 
-void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
-    // complete unfinished reception
-    completePacketReception();
-    updateMacState(S_IDLE);
-    updateWuState(WU_IDLE);
-    updateTxState(TX_WAKEUP_WAIT);
-    activeRadio = wakeUpRadio;
-    // Will trigger sending of any messages in txQueue
-    wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-    transmissionState = activeRadio->getTransmissionState();
-    receptionState = activeRadio->getReceptionState();
-    interfaceEntry->setState(InterfaceEntry::State::UP);
-    interfaceEntry->setCarrier(true);
-}
-
-void WakeUpMacLayer::handleStopOperation(LifecycleOperation *operation) {
-    handleCrashOperation(operation);
-}
-
-WakeUpMacLayer::~WakeUpMacLayer() {
-    cancelAllTimers();
-    deleteAllTimers();
-}
-
-void WakeUpMacLayer::encapsulate(Packet* const pkt) const{ // From CsmaCaMac
-    auto macHeader = makeShared<WakeUpDatagram>();
-    setBeaconFieldsFromTags(pkt, macHeader);
-    const auto upwardsTag = pkt->findTag<EqDCUpwards>();
-    if(upwardsTag != nullptr){
-        macHeader->setUpwards(upwardsTag->isUpwards());
-    }
-
-    pkt->insertAtFront(macHeader);
-    pkt->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
-}
-
-void WakeUpMacLayer::decapsulate(Packet* const pkt) const{ // From CsmaCaMac
-    auto macHeader = pkt->popAtFront<WakeUpDatagram>();
-    auto addressInd = pkt->addTagIfAbsent<MacAddressInd>();
-    addressInd->setSrcAddress(macHeader->getTransmitterAddress());
-    addressInd->setDestAddress(macHeader->getReceiverAddress());
-    auto payloadProtocol = ProtocolGroup::ipprotocol.getProtocol(245);
-    pkt->addTagIfAbsent<InterfaceInd>()->setInterfaceId(interfaceEntry->getInterfaceId());
-    pkt->addTagIfAbsent<DispatchProtocolReq>()->setProtocol(payloadProtocol);
-    pkt->addTagIfAbsent<PacketProtocolTag>()->setProtocol(payloadProtocol);
-}
-
 void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
     wuStateChange = false;
     switch(wuState){
@@ -1084,9 +903,15 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
     }
 }
 
-void WakeUpMacLayer::updateWuState(const t_wu_state& newWuState) {
-    wuStateChange = true;
-    wuState = newWuState;
+void WakeUpMacLayer::configureInterfaceEntry() {
+    // generate a link-layer address to be used as interface token for IPv6
+    auto lengthPrototype = makeShared<WakeUpDatagram>();
+    const B interfaceMtu = phyMtu-B(lengthPrototype->getChunkLength());
+    ASSERT2(interfaceMtu >= B(80), "The interface MTU available to the net layer is too small (under 80 bytes)");
+    interfaceEntry->setMtu(interfaceMtu.get());
+    interfaceEntry->setMulticast(true);
+    interfaceEntry->setBroadcast(true);
+    interfaceEntry->setPointToPoint(false);
 }
 
 void WakeUpMacLayer::cancelAllTimers()
@@ -1104,12 +929,176 @@ void WakeUpMacLayer::deleteAllTimers(){
     delete replenishmentTimer;
 }
 
+WakeUpMacLayer::~WakeUpMacLayer() {
+    cancelAllTimers();
+    deleteAllTimers();
+}
+
+void WakeUpMacLayer::changeActiveRadio(physicallayer::IRadio* const newActiveRadio) {
+    if(activeRadio->getId() != newActiveRadio->getId()){ // TODO: Check ID?
+        activeRadio->setRadioMode(IRadio::RADIO_MODE_OFF);
+        activeRadio = newActiveRadio;
+        transmissionState = activeRadio->getTransmissionState();
+        receptionState = activeRadio->getReceptionState();
+    }
+}
+
+bool WakeUpMacLayer::setupTransmission() {
+    //Cancel transmission timers
+    cancelEvent(wakeUpBackoffTimer);
+    cancelEvent(ackBackoffTimer);
+    cancelEvent(wuTimeout);
+    cancelEvent(replenishmentTimer);
+    //Reset progress counters
+    txInProgressForwarders = 0;
+
+    if(currentTxFrame!=nullptr){
+        PacketDropDetails details;
+        details.setReason(PacketDropReason::QUEUE_OVERFLOW);
+        dropCurrentTxFrame(details);
+    }
+    popTxQueue();
+    if(datagramLocalOutHook(currentTxFrame)!=IHook::Result::ACCEPT){
+        updateMacState(S_IDLE);
+        return false;
+    }
+
+    activeBackoff = new CSMATxUniformBackoff(this, activeRadio, energyStorage, transmissionStartMinEnergy,
+            0, txWakeUpWaitDuration);
+    const simtime_t delayIfBusy = txWakeUpWaitDuration + dataListeningDuration;
+    if (activeBackoff->startTxOrDelay(delayIfBusy)) {
+        // Backoff or transition to listening has started
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
 void WakeUpMacLayer::dropCurrentRxFrame(PacketDropDetails& details)
 {
     emit(packetDroppedSignal, currentRxFrame, &details);
     emit(falseWakeUpEndedSignal, true);
     delete currentRxFrame;
     currentRxFrame = nullptr;
+}
+
+void WakeUpMacLayer::completePacketReception()
+{
+    // The receiving has timed out, if packet is received process
+    if (currentRxFrame != nullptr) {
+        Packet* pkt = dynamic_cast<Packet*>(currentRxFrame);
+        decapsulate(pkt);
+        pkt->removeTagIfPresent<EqDCReq>();
+        pkt->removeTagIfPresent<EqDCInd>();
+        pkt->trim();
+        if(datagramLocalInHook(pkt)!=IHook::Result::ACCEPT){
+            EV_ERROR << "Aborted reception of data is unimplemented" << endl;
+        }
+        else{
+            sendUp(pkt);
+        }
+        currentRxFrame = nullptr;
+        emit(receptionEndedSignal, true);
+    }
+}
+
+void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
+    const auto header = wakeUp->peekAtFront<WakeUpGram>();
+    if(header->getType()!=WakeUpGramType::WU_BEACON){
+        return;
+    }
+    if(datagramPreRoutingHook(wakeUp)==HookBase::Result::ACCEPT){
+        acceptDataEqDCThreshold = wakeUp->getTag<EqDCReq>()->getEqDC();
+        // Approve wake-up request
+        cMessage* msg = new cMessage("approve");
+        msg->setKind(WAKEUP_APPROVE);
+        scheduleAt(simTime(), msg);
+    }
+}
+
+void WakeUpMacLayer::encapsulate(Packet* const pkt) const{ // From CsmaCaMac
+    auto macHeader = makeShared<WakeUpDatagram>();
+    setBeaconFieldsFromTags(pkt, macHeader);
+    const auto upwardsTag = pkt->findTag<EqDCUpwards>();
+    if(upwardsTag != nullptr){
+        macHeader->setUpwards(upwardsTag->isUpwards());
+    }
+
+    pkt->insertAtFront(macHeader);
+    pkt->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
+}
+
+Packet* WakeUpMacLayer::buildAck(const Packet* receivedFrame) const{
+    auto receivedMacData = receivedFrame->peekAtFront<WakeUpGram>();
+    auto ackPacket = makeShared<WakeUpAck>();
+    ackPacket->setTransmitterAddress(interfaceEntry->getMacAddress());
+    ackPacket->setReceiverAddress(receivedMacData->getTransmitterAddress());
+    // Look for EqDCInd tag to send info in response
+    auto costIndTag = receivedFrame->findTag<EqDCInd>();
+    if(costIndTag!=nullptr)
+        ackPacket->setExpectedCostInd(costIndTag->getEqDC());
+    else
+        cRuntimeError("WakeUpMacLayer must respond with a cost");
+    auto frame = new Packet("CsmaAck");
+    frame->insertAtFront(ackPacket);
+    frame->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
+    return frame;
+}
+
+void WakeUpMacLayer::setBeaconFieldsFromTags(const Packet* subject,
+        const inet::Ptr<WakeUpBeacon>& wuHeader) const
+{
+    const auto equivalentDCTag = subject->findTag<EqDCReq>();
+    const auto equivalentDCInd = subject->findTag<EqDCInd>();
+    // Default min is 255, can be updated when ack received from dest
+    ExpectedCost minExpectedCost = dataMinExpectedCost;
+    if (equivalentDCTag != nullptr && equivalentDCTag->getEqDC() < minExpectedCost) {
+        minExpectedCost = equivalentDCTag->getEqDC();
+        ASSERT(minExpectedCost >= ExpectedCost(0));
+    }
+    wuHeader->setMinExpectedCost(minExpectedCost);
+    wuHeader->setExpectedCostInd(equivalentDCInd->getEqDC());
+    wuHeader->setTransmitterAddress(interfaceEntry->getMacAddress());
+    wuHeader->setReceiverAddress(subject->getTag<MacAddressReq>()->getDestAddress());
+}
+
+Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount) const{
+    auto wuHeader = makeShared<WakeUpBeacon>();
+    setBeaconFieldsFromTags(subject, wuHeader);
+    auto frame = new Packet("wake-up", wuHeader);
+    frame->addTag<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
+    return frame;
+}
+
+void WakeUpMacLayer::decapsulate(Packet* const pkt) const{ // From CsmaCaMac
+    auto macHeader = pkt->popAtFront<WakeUpDatagram>();
+    auto addressInd = pkt->addTagIfAbsent<MacAddressInd>();
+    addressInd->setSrcAddress(macHeader->getTransmitterAddress());
+    addressInd->setDestAddress(macHeader->getReceiverAddress());
+    auto payloadProtocol = ProtocolGroup::ipprotocol.getProtocol(245);
+    pkt->addTagIfAbsent<InterfaceInd>()->setInterfaceId(interfaceEntry->getInterfaceId());
+    pkt->addTagIfAbsent<DispatchProtocolReq>()->setProtocol(payloadProtocol);
+    pkt->addTagIfAbsent<PacketProtocolTag>()->setProtocol(payloadProtocol);
+}
+
+void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
+    // complete unfinished reception
+    completePacketReception();
+    updateMacState(S_IDLE);
+    updateWuState(WU_IDLE);
+    updateTxState(TX_WAKEUP_WAIT);
+    activeRadio = wakeUpRadio;
+    // Will trigger sending of any messages in txQueue
+    wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+    transmissionState = activeRadio->getTransmissionState();
+    receptionState = activeRadio->getReceptionState();
+    interfaceEntry->setState(InterfaceEntry::State::UP);
+    interfaceEntry->setCarrier(true);
+}
+
+void WakeUpMacLayer::handleStopOperation(LifecycleOperation *operation) {
+    handleCrashOperation(operation);
 }
 
 void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
