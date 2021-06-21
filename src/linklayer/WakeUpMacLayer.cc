@@ -488,7 +488,7 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         cancelEvent(wuTimeout);
 
         // Check using packet data that accepting wake-up is still correct
-        IHook::Result preRoutingResponse = datagramPreRoutingHook(incomingFrame);
+        INetfilter::IHook::Result preRoutingResponse = datagramPreRoutingHook(incomingFrame);
         if(preRoutingResponse != IHook::ACCEPT){
             // New information in the data packet means do not accept data packet
             PacketDropDetails details;
@@ -543,7 +543,7 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
             // Check if the retransmited packet still accepted
             // Packet will change if transmitter receives ack from the final destination
             // to improve the chances that only the data destination responds.
-            if(recheckDataPacketEqDC && datagramPreRoutingHook(incomingFrame) != IHook::ACCEPT){
+            if(recheckDataPacketEqDC && datagramPreRoutingHook(incomingFrame) != INetfilter::IHook::ACCEPT){
                 // New information in the data packet means do not accept data packet
                 PacketDropDetails details;
                 details.setReason(PacketDropReason::OTHER_PACKET_DROP);
@@ -655,7 +655,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         }
         if(backoffResult == CSMATxBackoffBase::BO_FINISHED){
             Packet* dataFrame = currentTxFrame->dup();
-            if(datagramPostRoutingHook(dataFrame)!=IHook::Result::ACCEPT){
+            if(datagramPostRoutingHook(dataFrame)!=INetfilter::IHook::Result::ACCEPT){
                 EV_ERROR << "Aborted transmission of data is unimplemented." << endl;
                 // Taken from TX_END
                 changeActiveRadio(wakeUpRadio);
@@ -958,7 +958,7 @@ bool WakeUpMacLayer::setupTransmission() {
         dropCurrentTxFrame(details);
     }
     popTxQueue();
-    if(datagramLocalOutHook(currentTxFrame)!=IHook::Result::ACCEPT){
+    if(datagramLocalOutHook(currentTxFrame)!=INetfilter::IHook::Result::ACCEPT){
         updateMacState(S_IDLE);
         return false;
     }
@@ -1134,77 +1134,4 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
     updateMacState(S_IDLE);
     interfaceEntry->setCarrier(false);
     interfaceEntry->setState(InterfaceEntry::State::DOWN);
-}
-
-INetfilter::IHook::Result WakeUpMacLayer::datagramPreRoutingHook(Packet *datagram)
-{
-    auto ret = IHook::Result::DROP;
-    for (auto & elem : hooks) {
-        IHook::Result r = elem.second->datagramPreRoutingHook(datagram);
-        PacketDropDetails details;
-        switch (r) {
-            case IHook::ACCEPT:
-                ret = r;
-                break;    // continue iteration
-            case IHook::DROP:
-                return r;
-            case IHook::QUEUE:
-            case IHook::STOLEN:
-            default:
-                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
-        }
-    }
-    return ret;
-}
-
-INetfilter::IHook::Result WakeUpMacLayer::datagramPostRoutingHook(Packet *datagram)
-{
-    for (auto & elem : hooks) {
-        IHook::Result r = elem.second->datagramPostRoutingHook(datagram);
-        switch (r) {
-            case IHook::ACCEPT:
-                break;    // continue iteration
-            case IHook::DROP:
-            case IHook::QUEUE:
-            case IHook::STOLEN:
-            default:
-                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
-        }
-    }
-    return IHook::ACCEPT;
-}
-
-INetfilter::IHook::Result WakeUpMacLayer::datagramLocalInHook(Packet *datagram)
-{
-    L3Address address;
-    for (auto & elem : hooks) {
-        IHook::Result r = elem.second->datagramLocalInHook(datagram);
-        switch (r) {
-            case IHook::ACCEPT:
-                break;    // continue iteration
-            case IHook::DROP:
-            case IHook::QUEUE:
-            case IHook::STOLEN:
-            default:
-                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
-        }
-    }
-    return IHook::ACCEPT;
-}
-
-INetfilter::IHook::Result WakeUpMacLayer::datagramLocalOutHook(Packet *datagram)
-{
-    for (auto & elem : hooks) {
-        IHook::Result r = elem.second->datagramLocalOutHook(datagram);
-        switch (r) {
-            case IHook::ACCEPT:
-                break;    // continue iteration
-            case IHook::DROP:
-            case IHook::QUEUE:
-            case IHook::STOLEN:
-            default:
-                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
-        }
-    }
-    return IHook::ACCEPT;
 }
