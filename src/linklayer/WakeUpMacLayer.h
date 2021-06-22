@@ -33,6 +33,7 @@
 #include "WakeUpGram_m.h"
 #include "CSMATxBackoff.h"
 #include "IOpportunisticLinkLayer.h"
+#include "IObservableMac.h"
 
 namespace oppostack{
 
@@ -43,7 +44,7 @@ using namespace inet;
  * WakeUpMacLayer - Implements two stage message transmission of
  * high power wake up followed by the data message
  */
-class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOpportunisticLinkLayer
+class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOpportunisticLinkLayer, public IObservableMac
 {
   public:
     WakeUpMacLayer()
@@ -87,21 +88,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOppo
 
     bool recheckDataPacketEqDC;
     bool skipDirectTxFinalAck = false;
-public:
-    /**
-     * Mac statistics
-     */
-    static simsignal_t transmissionTriesSignal;
-    static simsignal_t ackContentionRoundsSignal;
-
-    /**
-     * Mac monitoring signals
-     */
-    static simsignal_t receptionStartedSignal;
-    static simsignal_t receptionEndedSignal;
-    static simsignal_t receptionDroppedSignal;
-    static simsignal_t transmissionStartedSignal;
-    static simsignal_t transmissionEndedSignal;
 protected:
     /** @brief MAC high level states */
     enum t_mac_state {

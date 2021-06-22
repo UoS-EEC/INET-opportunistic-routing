@@ -11,6 +11,11 @@ namespace oppostack {
 using namespace inet;
 
 /**
+ * Opportunistic Transmission Acknowledgements and Retries Statistics
+ */
+simsignal_t IOpportunisticLinkLayer::transmissionTriesSignal = cComponent::registerSignal("transmissionTries");
+simsignal_t IOpportunisticLinkLayer::ackContentionRoundsSignal = cComponent::registerSignal("ackContentionRounds");
+/**
  * Neighbor Update signals
  * Sent when information overheard from neighbors
  */

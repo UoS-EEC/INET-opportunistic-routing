@@ -41,18 +41,6 @@ using namespace oppostack;
 
 Define_Module(WakeUpMacLayer);
 
-simsignal_t WakeUpMacLayer::transmissionTriesSignal = cComponent::registerSignal("transmissionTries");
-simsignal_t WakeUpMacLayer::ackContentionRoundsSignal = cComponent::registerSignal("ackContentionRounds");
-
-/**
- * Mac monitoring signals
- */
-simsignal_t WakeUpMacLayer::receptionStartedSignal = cComponent::registerSignal("receptionStarted");
-simsignal_t WakeUpMacLayer::receptionEndedSignal = cComponent::registerSignal("receptionEnded");
-simsignal_t WakeUpMacLayer::receptionDroppedSignal = cComponent::registerSignal("receptionDropped");
-simsignal_t WakeUpMacLayer::transmissionStartedSignal = cComponent::registerSignal("transmissionStarted");
-simsignal_t WakeUpMacLayer::transmissionEndedSignal = cComponent::registerSignal("transmissionEnded");
-
 void WakeUpMacLayer::initialize(int const stage) {
     MacProtocolBase::initialize(stage);
 //    // Allow serialization to better represent conflicting radio protocols

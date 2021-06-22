@@ -18,7 +18,7 @@
 #include <inet/physicallayer/contract/packetlevel/IRadio.h>
 #include <inet/physicallayer/base/packetlevel/FlatTransmitterBase.h>
 #include "WuMacEnergyMonitor.h"
-#include "WakeUpMacLayer.h"
+#include "IObservableMac.h"
 #include "WakeUpGram_m.h"
 
 using namespace oppostack;
@@ -40,11 +40,11 @@ void WuMacEnergyMonitor::initialize(int stage)
         cModule* storageModule = getCModuleFromPar(macModule->par("energyStorage"), macModule);
         energyStorage = check_and_cast<inet::power::IEpEnergyStorage*>(storageModule);
 
-        macModule->subscribe(WakeUpMacLayer::receptionStartedSignal, this);
-        macModule->subscribe(WakeUpMacLayer::receptionEndedSignal, this);
-        macModule->subscribe(WakeUpMacLayer::receptionDroppedSignal, this);
-        macModule->subscribe(WakeUpMacLayer::transmissionStartedSignal, this);
-        macModule->subscribe(WakeUpMacLayer::transmissionEndedSignal, this);
+        macModule->subscribe(IObservableMac::receptionStartedSignal, this);
+        macModule->subscribe(IObservableMac::receptionEndedSignal, this);
+        macModule->subscribe(IObservableMac::receptionDroppedSignal, this);
+        macModule->subscribe(IObservableMac::transmissionStartedSignal, this);
+        macModule->subscribe(IObservableMac::transmissionEndedSignal, this);
     }
 }
 
@@ -122,22 +122,22 @@ void WuMacEnergyMonitor::receiveSignal(cComponent* const source, simsignal_t con
     if(inProgress == signalID){
         // Ignore as monitoring this mode already
     }
-    else if(inProgress == WakeUpMacLayer::receptionStartedSignal &&
+    else if(inProgress == IObservableMac::receptionStartedSignal &&
             isMatchingEndedSignal(signalID) ){
         // reception and wakeUpEnded signals can only end wakeUpModeStarted signal, otherwise it goes to unknown
-        if(signalID == WakeUpMacLayer::receptionEndedSignal){
+        if(signalID == IObservableMac::receptionEndedSignal){
             finishMonitoring(receptionConsumptionSignal);
         }
         else{
             finishMonitoring(falseWakeUpConsumptionSignal);
         }
     }
-    else if(inProgress == WakeUpMacLayer::transmissionStartedSignal &&
+    else if(inProgress == IObservableMac::transmissionStartedSignal &&
             isMatchingEndedSignal(signalID) ){
         finishMonitoring(transmissionConsumptionSignal);
     }
     else if(inProgress==SIMSIGNAL_NULL &&
-            (signalID == WakeUpMacLayer::receptionStartedSignal || signalID == WakeUpMacLayer::transmissionStartedSignal) ){
+            (signalID == IObservableMac::receptionStartedSignal || signalID == IObservableMac::transmissionStartedSignal) ){
         startMonitoring(signalID);
     }
     else{
@@ -187,12 +187,12 @@ const inet::J oppostack::WuMacEnergyMonitor::calcTxAndAckEstConsumption(inet::b 
 
 bool oppostack::WuMacEnergyMonitor::isMatchingEndedSignal(const simsignal_t endedSignal)
 {
-    if(inProgress == WakeUpMacLayer::receptionStartedSignal &&
-                (endedSignal == WakeUpMacLayer::receptionEndedSignal || endedSignal == WakeUpMacLayer::receptionDroppedSignal) ){
+    if(inProgress == IObservableMac::receptionStartedSignal &&
+                (endedSignal == IObservableMac::receptionEndedSignal || endedSignal == IObservableMac::receptionDroppedSignal) ){
         return true;
     }
-    else if(inProgress == WakeUpMacLayer::transmissionStartedSignal &&
-            endedSignal == WakeUpMacLayer::transmissionEndedSignal){
+    else if(inProgress == IObservableMac::transmissionStartedSignal &&
+            endedSignal == IObservableMac::transmissionEndedSignal){
         return true;
     }
     return false;

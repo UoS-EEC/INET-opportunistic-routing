@@ -63,12 +63,6 @@ module WakeUpMacLayer extends MacProtocolBase like IMacProtocol, IOpportunisticL
         // performed then don't resend data, as only the final dest will accept EqDC=0
         bool skipDirectTxFinalAck = default(false);
 
-        // WakeUpMac retry signals and statistics
-        @signal[transmissionTries](type=long);
-        @signal[ackContentionRounds](type=long);
-        @statistic[transmissionTries](title="Number of Tries till packet discarded or received"; record=histogram,vector);
-        @statistic[ackContentionRounds](title="Number of ack contention rounds for each packet"; record=histogram,vector);
-
 		// Mac Energy Consumption Monitoring Signals
         @signal[receptionStarted](type=bool);
         @signal[receptionEnded](type=bool);

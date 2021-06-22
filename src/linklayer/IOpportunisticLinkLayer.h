@@ -19,6 +19,12 @@ class IOpportunisticLinkLayer : public inet::NetfilterBase
 {
 public:
     /**
+     * Opportunistic Transmission Acknowledgements and Retries Statistics
+     */
+    static omnetpp::simsignal_t transmissionTriesSignal;
+    static omnetpp::simsignal_t ackContentionRoundsSignal;
+
+    /**
      * Neighbor Update signals definitions
      */
     static omnetpp::simsignal_t expectedEncounterSignal;
