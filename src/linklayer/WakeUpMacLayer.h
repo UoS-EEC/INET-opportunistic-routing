@@ -242,6 +242,10 @@ protected:
     virtual void handleCrashOperation(LifecycleOperation *operation) override;
     void setBeaconFieldsFromTags(const inet::Packet* subject,
             const inet::Ptr<WakeUpBeacon>& wuHeader) const;
+    void dropCurrentTxFrame(inet::PacketDropDetails details){
+        MacProtocolBase::dropCurrentTxFrame(details);
+        emit(transmissionTriesSignal, txInProgressTries);
+    };
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
