@@ -18,7 +18,7 @@
 #include "common/EncounterDetails_m.h"
 #include <inet/networklayer/nexthop/NextHopInterfaceData.h>
 #include <inet/networklayer/common/L3AddressResolver.h>
-#include "linklayer/WakeUpMacLayer.h"
+#include "linklayer/IOpportunisticLinkLayer.h"
 #include "linklayer/WakeUpGram_m.h"
 #include "common/oppDefs.h"
 #include "common/EqDCTag_m.h"
@@ -35,9 +35,9 @@ simsignal_t ORWRoutingTable::sureNeighborsSignal = cComponent::registerSignal("s
 void ORWRoutingTable::initialize(int stage){
     if(stage == INITSTAGE_LOCAL){
         cModule* encountersModule = getCModuleFromPar(par("encountersSourceModule"), this);
-        encountersModule->subscribe(WakeUpMacLayer::coincidentalEncounterSignal, this);
-        encountersModule->subscribe(WakeUpMacLayer::expectedEncounterSignal, this);
-        encountersModule->subscribe(WakeUpMacLayer::listenForEncountersEndedSignal, this);
+        encountersModule->subscribe(IOpportunisticLinkLayer::coincidentalEncounterSignal, this);
+        encountersModule->subscribe(IOpportunisticLinkLayer::expectedEncounterSignal, this);
+        encountersModule->subscribe(IOpportunisticLinkLayer::listenForEncountersEndedSignal, this);
 
         interfaceTable = inet::getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
 
@@ -77,12 +77,12 @@ void ORWRoutingTable::initialize(int stage){
 
 void ORWRoutingTable::receiveSignal(cComponent* source, simsignal_t signalID, double weight, cObject* details)
 {
-    if(signalID == WakeUpMacLayer::coincidentalEncounterSignal || signalID == WakeUpMacLayer::expectedEncounterSignal){
+    if(signalID == IOpportunisticLinkLayer::coincidentalEncounterSignal || signalID == IOpportunisticLinkLayer::expectedEncounterSignal){
         oppostack::EncounterDetails* encounterMacDetails = check_and_cast<oppostack::EncounterDetails*>(details);
         const L3Address inboundMacAddress = arp->getL3AddressFor(encounterMacDetails->getEncountered());
         updateEncounters(inboundMacAddress, encounterMacDetails->getCurrentEqDC(), weight);
     }
-    if(signalID == WakeUpMacLayer::listenForEncountersEndedSignal || signalID == WakeUpMacLayer::coincidentalEncounterSignal){
+    if(signalID == IOpportunisticLinkLayer::listenForEncountersEndedSignal || signalID == IOpportunisticLinkLayer::coincidentalEncounterSignal){
         increaseInteractionDenominator();
     }
 }

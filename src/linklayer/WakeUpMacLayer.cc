@@ -45,20 +45,12 @@ simsignal_t WakeUpMacLayer::transmissionTriesSignal = cComponent::registerSignal
 simsignal_t WakeUpMacLayer::ackContentionRoundsSignal = cComponent::registerSignal("ackContentionRounds");
 
 /**
- * Neighbor Update signals
- * Sent when information overheard from neighbors
- */
-simsignal_t WakeUpMacLayer::expectedEncounterSignal = cComponent::registerSignal("expectedEncounter");
-simsignal_t WakeUpMacLayer::coincidentalEncounterSignal = cComponent::registerSignal("coincidentalEncounter");
-simsignal_t WakeUpMacLayer::listenForEncountersEndedSignal = cComponent::registerSignal("listenForEncountersEnded");
-
-/**
  * Mac monitoring signals
  */
-simsignal_t WakeUpMacLayer::wakeUpModeStartSignal = cComponent::registerSignal("wakeUpModeStart");
+simsignal_t WakeUpMacLayer::receptionStartedSignal = cComponent::registerSignal("receptionStarted");
 simsignal_t WakeUpMacLayer::receptionEndedSignal = cComponent::registerSignal("receptionEnded");
-simsignal_t WakeUpMacLayer::falseWakeUpEndedSignal = cComponent::registerSignal("falseWakeUpEnded");
-simsignal_t WakeUpMacLayer::transmissionModeStartSignal = cComponent::registerSignal("transmissionModeStart");
+simsignal_t WakeUpMacLayer::receptionDroppedSignal = cComponent::registerSignal("receptionDropped");
+simsignal_t WakeUpMacLayer::transmissionStartedSignal = cComponent::registerSignal("transmissionStarted");
 simsignal_t WakeUpMacLayer::transmissionEndedSignal = cComponent::registerSignal("transmissionEnded");
 
 void WakeUpMacLayer::initialize(int const stage) {
@@ -830,7 +822,7 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
         if(event==EV_WU_START){
             changeActiveRadio(dataRadio);
             dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
-            emit(wakeUpModeStartSignal, true);
+            emit(receptionStartedSignal, true);
             updateWuState(WU_APPROVE_WAIT);
             scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
             Packet* wuPkt = check_and_cast<Packet*>(msg);
@@ -884,7 +876,7 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
         if(event==EV_DATA_RX_IDLE||event==EV_DATA_RX_READY){
             changeActiveRadio(wakeUpRadio);
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-            emit(falseWakeUpEndedSignal, true);
+            emit(receptionDroppedSignal, true);
             updateWuState(WU_IDLE);
             scheduleAt(simTime(), replenishmentTimer);
             updateMacState(S_IDLE);
@@ -978,7 +970,7 @@ bool WakeUpMacLayer::setupTransmission() {
 void WakeUpMacLayer::dropCurrentRxFrame(PacketDropDetails& details)
 {
     emit(packetDroppedSignal, currentRxFrame, &details);
-    emit(falseWakeUpEndedSignal, true);
+    emit(receptionDroppedSignal, true);
     delete currentRxFrame;
     currentRxFrame = nullptr;
 }
@@ -1119,7 +1111,7 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
             // Ack not sent yet so just bow out
             delete currentRxFrame;
             currentRxFrame = nullptr;
-            emit(falseWakeUpEndedSignal, true);
+            emit(receptionDroppedSignal, true);
         }// TODO: check how many contending acks there were
         else{
             // Send packet up upon restart by leaving in memory

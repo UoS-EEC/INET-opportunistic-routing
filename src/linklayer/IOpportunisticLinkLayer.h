@@ -1,22 +1,29 @@
 /*
- * OpportunisticLinkBase.h
+ * IOpportunisticLinkLayer.h
  *
  *  Created on: 21 Jun 2021
  *      Author: Edward
  */
 
-#ifndef LINKLAYER_OPPORTUNISTICLINKBASE_H_
-#define LINKLAYER_OPPORTUNISTICLINKBASE_H_
+#ifndef LINKLAYER_IOPPORTUNISTICLINKLAYER_H_
+#define LINKLAYER_IOPPORTUNISTICLINKLAYER_H_
 
 #include <inet/networklayer/contract/INetfilter.h>
 
 namespace oppostack {
 
-// Base for reactive/opportunistic link layer protocol
+// Interface for reactive/opportunistic link layer protocol
 // Pre-routing hook is queried with any incoming Packet to test opportunistic acceptance
 // All other hooks must accept
-class OpportunisticLinkBase : public inet::NetfilterBase
+class IOpportunisticLinkLayer : public inet::NetfilterBase
 {
+public:
+    /**
+     * Neighbor Update signals definitions
+     */
+    static omnetpp::simsignal_t expectedEncounterSignal;
+    static omnetpp::simsignal_t coincidentalEncounterSignal;
+    static omnetpp::simsignal_t listenForEncountersEndedSignal;
 protected:
     // NetFilter functions:
     // @brief called before a inet::Packetarriving from the network is accepted/acked
@@ -38,4 +45,4 @@ protected:
 
 } /* namespace oppostack */
 
-#endif /* LINKLAYER_OPPORTUNISTICLINKBASE_H_ */
+#endif /* LINKLAYER_IOPPORTUNISTICLINKLAYER_H_ */

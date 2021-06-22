@@ -28,11 +28,11 @@
 #include <inet/common/lifecycle/NodeStatus.h>
 #include <inet/common/Protocol.h>
 
-#include "OpportunisticLinkBase.h"
 #include "../networklayer/ORWRouting.h"
 #include "common/Units.h"
 #include "WakeUpGram_m.h"
 #include "CSMATxBackoff.h"
+#include "IOpportunisticLinkLayer.h"
 
 namespace oppostack{
 
@@ -43,7 +43,7 @@ using namespace inet;
  * WakeUpMacLayer - Implements two stage message transmission of
  * high power wake up followed by the data message
  */
-class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public OpportunisticLinkBase
+class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOpportunisticLinkLayer
 {
   public:
     WakeUpMacLayer()
@@ -95,19 +95,12 @@ public:
     static simsignal_t ackContentionRoundsSignal;
 
     /**
-     * Neighbor Update signals definitions TODO: Move elsewhere
-     */
-    static simsignal_t expectedEncounterSignal;
-    static simsignal_t coincidentalEncounterSignal;
-    static simsignal_t listenForEncountersEndedSignal;
-
-    /**
      * Mac monitoring signals
      */
-    static simsignal_t wakeUpModeStartSignal;
+    static simsignal_t receptionStartedSignal;
     static simsignal_t receptionEndedSignal;
-    static simsignal_t falseWakeUpEndedSignal;
-    static simsignal_t transmissionModeStartSignal;
+    static simsignal_t receptionDroppedSignal;
+    static simsignal_t transmissionStartedSignal;
     static simsignal_t transmissionEndedSignal;
 protected:
     /** @brief MAC high level states */

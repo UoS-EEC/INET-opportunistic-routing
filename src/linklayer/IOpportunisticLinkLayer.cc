@@ -5,11 +5,20 @@
  *      Author: Edward
  */
 
-#include "OpportunisticLinkBase.h"
+#include "IOpportunisticLinkLayer.h"
 
 namespace oppostack {
 using namespace inet;
-INetfilter::IHook::Result OpportunisticLinkBase::datagramPreRoutingHook(Packet *datagram)
+
+/**
+ * Neighbor Update signals
+ * Sent when information overheard from neighbors
+ */
+simsignal_t IOpportunisticLinkLayer::expectedEncounterSignal = cComponent::registerSignal("expectedEncounter");
+simsignal_t IOpportunisticLinkLayer::coincidentalEncounterSignal = cComponent::registerSignal("coincidentalEncounter");
+simsignal_t IOpportunisticLinkLayer::listenForEncountersEndedSignal = cComponent::registerSignal("listenForEncountersEnded");
+
+INetfilter::IHook::Result IOpportunisticLinkLayer::datagramPreRoutingHook(Packet *datagram)
 {
     auto ret = INetfilter::IHook::Result::DROP;
     for (auto & elem : hooks) {
@@ -30,7 +39,7 @@ INetfilter::IHook::Result OpportunisticLinkBase::datagramPreRoutingHook(Packet *
     return ret;
 }
 
-INetfilter::IHook::Result OpportunisticLinkBase::datagramPostRoutingHook(Packet *datagram)
+INetfilter::IHook::Result IOpportunisticLinkLayer::datagramPostRoutingHook(Packet *datagram)
 {
     for (auto & elem : hooks) {
         INetfilter::IHook::Result r = elem.second->datagramPostRoutingHook(datagram);
@@ -47,7 +56,7 @@ INetfilter::IHook::Result OpportunisticLinkBase::datagramPostRoutingHook(Packet 
     return INetfilter::IHook::ACCEPT;
 }
 
-INetfilter::IHook::Result OpportunisticLinkBase::datagramLocalInHook(Packet *datagram)
+INetfilter::IHook::Result IOpportunisticLinkLayer::datagramLocalInHook(Packet *datagram)
 {
     L3Address address;
     for (auto & elem : hooks) {
@@ -65,7 +74,7 @@ INetfilter::IHook::Result OpportunisticLinkBase::datagramLocalInHook(Packet *dat
     return INetfilter::IHook::ACCEPT;
 }
 
-INetfilter::IHook::Result OpportunisticLinkBase::datagramLocalOutHook(Packet *datagram)
+INetfilter::IHook::Result IOpportunisticLinkLayer::datagramLocalOutHook(Packet *datagram)
 {
     for (auto & elem : hooks) {
         INetfilter::IHook::Result r = elem.second->datagramLocalOutHook(datagram);
