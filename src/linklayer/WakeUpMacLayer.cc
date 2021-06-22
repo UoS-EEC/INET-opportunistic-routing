@@ -41,26 +41,6 @@ using namespace oppostack;
 
 Define_Module(WakeUpMacLayer);
 
-simsignal_t WakeUpMacLayer::transmissionTriesSignal = cComponent::registerSignal("transmissionTries");
-simsignal_t WakeUpMacLayer::ackContentionRoundsSignal = cComponent::registerSignal("ackContentionRounds");
-
-/**
- * Neighbor Update signals
- * Sent when information overheard from neighbors
- */
-simsignal_t WakeUpMacLayer::expectedEncounterSignal = cComponent::registerSignal("expectedEncounter");
-simsignal_t WakeUpMacLayer::coincidentalEncounterSignal = cComponent::registerSignal("coincidentalEncounter");
-simsignal_t WakeUpMacLayer::listenForEncountersEndedSignal = cComponent::registerSignal("listenForEncountersEnded");
-
-/**
- * Mac monitoring signals
- */
-simsignal_t WakeUpMacLayer::wakeUpModeStartSignal = cComponent::registerSignal("wakeUpModeStart");
-simsignal_t WakeUpMacLayer::receptionEndedSignal = cComponent::registerSignal("receptionEnded");
-simsignal_t WakeUpMacLayer::falseWakeUpEndedSignal = cComponent::registerSignal("falseWakeUpEnded");
-simsignal_t WakeUpMacLayer::transmissionModeStartSignal = cComponent::registerSignal("transmissionModeStart");
-simsignal_t WakeUpMacLayer::transmissionEndedSignal = cComponent::registerSignal("transmissionEnded");
-
 void WakeUpMacLayer::initialize(int const stage) {
     MacProtocolBase::initialize(stage);
 //    // Allow serialization to better represent conflicting radio protocols
@@ -488,7 +468,7 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
         cancelEvent(wuTimeout);
 
         // Check using packet data that accepting wake-up is still correct
-        IHook::Result preRoutingResponse = datagramPreRoutingHook(incomingFrame);
+        INetfilter::IHook::Result preRoutingResponse = datagramPreRoutingHook(incomingFrame);
         if(preRoutingResponse != IHook::ACCEPT){
             // New information in the data packet means do not accept data packet
             PacketDropDetails details;
@@ -543,7 +523,7 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
             // Check if the retransmited packet still accepted
             // Packet will change if transmitter receives ack from the final destination
             // to improve the chances that only the data destination responds.
-            if(recheckDataPacketEqDC && datagramPreRoutingHook(incomingFrame) != IHook::ACCEPT){
+            if(recheckDataPacketEqDC && datagramPreRoutingHook(incomingFrame) != INetfilter::IHook::ACCEPT){
                 // New information in the data packet means do not accept data packet
                 PacketDropDetails details;
                 details.setReason(PacketDropReason::OTHER_PACKET_DROP);
@@ -655,7 +635,7 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
         }
         if(backoffResult == CSMATxBackoffBase::BO_FINISHED){
             Packet* dataFrame = currentTxFrame->dup();
-            if(datagramPostRoutingHook(dataFrame)!=IHook::Result::ACCEPT){
+            if(datagramPostRoutingHook(dataFrame)!=INetfilter::IHook::Result::ACCEPT){
                 EV_ERROR << "Aborted transmission of data is unimplemented." << endl;
                 // Taken from TX_END
                 changeActiveRadio(wakeUpRadio);
@@ -690,8 +670,8 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             dropCurrentTxFrame(details);
         }
         else {
-            emit(transmissionTriesSignal, txInProgressTries);
             deleteCurrentTxFrame();
+            emit(transmissionTriesSignal, txInProgressTries);
         }
         break;
     default:
@@ -830,7 +810,7 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
         if(event==EV_WU_START){
             changeActiveRadio(dataRadio);
             dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
-            emit(wakeUpModeStartSignal, true);
+            emit(receptionStartedSignal, true);
             updateWuState(WU_APPROVE_WAIT);
             scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
             Packet* wuPkt = check_and_cast<Packet*>(msg);
@@ -884,7 +864,7 @@ void WakeUpMacLayer::stepWuSM(const t_mac_event& event, cMessage * const msg) {
         if(event==EV_DATA_RX_IDLE||event==EV_DATA_RX_READY){
             changeActiveRadio(wakeUpRadio);
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-            emit(falseWakeUpEndedSignal, true);
+            emit(receptionDroppedSignal, true);
             updateWuState(WU_IDLE);
             scheduleAt(simTime(), replenishmentTimer);
             updateMacState(S_IDLE);
@@ -958,7 +938,7 @@ bool WakeUpMacLayer::setupTransmission() {
         dropCurrentTxFrame(details);
     }
     popTxQueue();
-    if(datagramLocalOutHook(currentTxFrame)!=IHook::Result::ACCEPT){
+    if(datagramLocalOutHook(currentTxFrame)!=INetfilter::IHook::Result::ACCEPT){
         updateMacState(S_IDLE);
         return false;
     }
@@ -978,7 +958,7 @@ bool WakeUpMacLayer::setupTransmission() {
 void WakeUpMacLayer::dropCurrentRxFrame(PacketDropDetails& details)
 {
     emit(packetDroppedSignal, currentRxFrame, &details);
-    emit(falseWakeUpEndedSignal, true);
+    emit(receptionDroppedSignal, true);
     delete currentRxFrame;
     currentRxFrame = nullptr;
 }
@@ -1109,7 +1089,6 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
             details.setReason(INTERFACE_DOWN);
             // Packet has been received by a forwarder
             dropCurrentTxFrame(details);
-            emit(transmissionTriesSignal, txInProgressForwarders);
             emit(transmissionEndedSignal, true);
         }
     }
@@ -1119,7 +1098,7 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
             // Ack not sent yet so just bow out
             delete currentRxFrame;
             currentRxFrame = nullptr;
-            emit(falseWakeUpEndedSignal, true);
+            emit(receptionDroppedSignal, true);
         }// TODO: check how many contending acks there were
         else{
             // Send packet up upon restart by leaving in memory
@@ -1134,77 +1113,4 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
     updateMacState(S_IDLE);
     interfaceEntry->setCarrier(false);
     interfaceEntry->setState(InterfaceEntry::State::DOWN);
-}
-
-INetfilter::IHook::Result WakeUpMacLayer::datagramPreRoutingHook(Packet *datagram)
-{
-    auto ret = IHook::Result::DROP;
-    for (auto & elem : hooks) {
-        IHook::Result r = elem.second->datagramPreRoutingHook(datagram);
-        PacketDropDetails details;
-        switch (r) {
-            case IHook::ACCEPT:
-                ret = r;
-                break;    // continue iteration
-            case IHook::DROP:
-                return r;
-            case IHook::QUEUE:
-            case IHook::STOLEN:
-            default:
-                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
-        }
-    }
-    return ret;
-}
-
-INetfilter::IHook::Result WakeUpMacLayer::datagramPostRoutingHook(Packet *datagram)
-{
-    for (auto & elem : hooks) {
-        IHook::Result r = elem.second->datagramPostRoutingHook(datagram);
-        switch (r) {
-            case IHook::ACCEPT:
-                break;    // continue iteration
-            case IHook::DROP:
-            case IHook::QUEUE:
-            case IHook::STOLEN:
-            default:
-                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
-        }
-    }
-    return IHook::ACCEPT;
-}
-
-INetfilter::IHook::Result WakeUpMacLayer::datagramLocalInHook(Packet *datagram)
-{
-    L3Address address;
-    for (auto & elem : hooks) {
-        IHook::Result r = elem.second->datagramLocalInHook(datagram);
-        switch (r) {
-            case IHook::ACCEPT:
-                break;    // continue iteration
-            case IHook::DROP:
-            case IHook::QUEUE:
-            case IHook::STOLEN:
-            default:
-                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
-        }
-    }
-    return IHook::ACCEPT;
-}
-
-INetfilter::IHook::Result WakeUpMacLayer::datagramLocalOutHook(Packet *datagram)
-{
-    for (auto & elem : hooks) {
-        IHook::Result r = elem.second->datagramLocalOutHook(datagram);
-        switch (r) {
-            case IHook::ACCEPT:
-                break;    // continue iteration
-            case IHook::DROP:
-            case IHook::QUEUE:
-            case IHook::STOLEN:
-            default:
-                throw cRuntimeError("Unimplemented Hook::Result value: %d", (int)r);
-        }
-    }
-    return IHook::ACCEPT;
 }

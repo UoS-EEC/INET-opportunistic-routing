@@ -27,12 +27,13 @@
 #include <inet/common/lifecycle/LifecycleController.h>
 #include <inet/common/lifecycle/NodeStatus.h>
 #include <inet/common/Protocol.h>
-#include <inet/networklayer/contract/INetfilter.h>
 
 #include "../networklayer/ORWRouting.h"
 #include "common/Units.h"
 #include "WakeUpGram_m.h"
 #include "CSMATxBackoff.h"
+#include "IOpportunisticLinkLayer.h"
+#include "IObservableMac.h"
 
 namespace oppostack{
 
@@ -43,7 +44,7 @@ using namespace inet;
  * WakeUpMacLayer - Implements two stage message transmission of
  * high power wake up followed by the data message
  */
-class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public NetfilterBase
+class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOpportunisticLinkLayer, public IObservableMac
 {
   public:
     WakeUpMacLayer()
@@ -87,28 +88,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public Netfi
 
     bool recheckDataPacketEqDC;
     bool skipDirectTxFinalAck = false;
-public:
-    /**
-     * Mac statistics
-     */
-    static simsignal_t transmissionTriesSignal;
-    static simsignal_t ackContentionRoundsSignal;
-
-    /**
-     * Neighbor Update signals definitions TODO: Move elsewhere
-     */
-    static simsignal_t expectedEncounterSignal;
-    static simsignal_t coincidentalEncounterSignal;
-    static simsignal_t listenForEncountersEndedSignal;
-
-    /**
-     * Mac monitoring signals
-     */
-    static simsignal_t wakeUpModeStartSignal;
-    static simsignal_t receptionEndedSignal;
-    static simsignal_t falseWakeUpEndedSignal;
-    static simsignal_t transmissionModeStartSignal;
-    static simsignal_t transmissionEndedSignal;
 protected:
     /** @brief MAC high level states */
     enum t_mac_state {
@@ -213,23 +192,6 @@ protected:
 
 
   protected:
-    // NetFilter functions:
-    // @brief called before a packet arriving from the network is accepted/acked
-    virtual IHook::Result datagramPreRoutingHook(Packet *datagram);
-    // @brief datagramForwardHook not implemented since MAC does not forward -> see datagramLocalOutHook
-    // called before a packet arriving from the network is delivered via the network
-    // @brief called before a packet is delivered via the network
-    virtual IHook::Result datagramPostRoutingHook(Packet *datagram);
-    // @brief called before a packet arriving from the network is delivered locally
-    virtual IHook::Result datagramLocalInHook(Packet *datagram);
-    // @brief called before a packet arriving locally is delivered to the network
-    virtual IHook::Result datagramLocalOutHook(Packet *datagram);
-
-    // @brief reinjecting datagram means nothing at mac layer currently
-    virtual void reinjectQueuedDatagram(const Packet *datagram) override{};
-    // @brief dropQueuedDatagram cannot drop due to forced const argument
-    virtual void dropQueuedDatagram(const Packet* datagram) override{};
-
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     void stepMacSM(const t_mac_event& event, cMessage *msg);
@@ -280,6 +242,10 @@ protected:
     virtual void handleCrashOperation(LifecycleOperation *operation) override;
     void setBeaconFieldsFromTags(const inet::Packet* subject,
             const inet::Ptr<WakeUpBeacon>& wuHeader) const;
+    void dropCurrentTxFrame(inet::PacketDropDetails details){
+        MacProtocolBase::dropCurrentTxFrame(details);
+        emit(transmissionTriesSignal, txInProgressTries);
+    };
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
