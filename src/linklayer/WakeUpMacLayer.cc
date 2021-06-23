@@ -667,8 +667,8 @@ void WakeUpMacLayer::stepTxSM(const t_mac_event& event, cMessage* const msg) {
             dropCurrentTxFrame(details);
         }
         else {
-            emit(transmissionTriesSignal, txInProgressTries);
             deleteCurrentTxFrame();
+            emit(transmissionTriesSignal, txInProgressTries);
         }
         break;
     default:
@@ -1086,7 +1086,6 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
             details.setReason(INTERFACE_DOWN);
             // Packet has been received by a forwarder
             dropCurrentTxFrame(details);
-            emit(transmissionTriesSignal, txInProgressForwarders);
             emit(transmissionEndedSignal, true);
         }
     }
