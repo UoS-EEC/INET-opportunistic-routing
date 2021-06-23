@@ -387,6 +387,7 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
         stateWakeUpProcess(event, msg);
         break;
     case S_RECEIVE:
+        // Listen for a data packet after a wake-up and start timeout for ack
         stateReceiveProcess(event, msg);
         break;
     default:
@@ -409,15 +410,11 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
         else if(backoffResult==CSMATxBackoffBase::BO_OFF){
             // Backoff has been aborted
             // Drop packet and schedule immediate timeout
-            PacketDropDetails details;
-            EV_WARN << "Dropping packet because of channel congestion";
-            details.setReason(PacketDropReason::INCORRECTLY_RECEIVED);
-            dropCurrentRxFrame(details);
+            stateReceiveEnterDataWaitDropReceived(PacketDropReason::INCORRECTLY_RECEIVED);
 
             cancelEvent(wuTimeout);
             scheduleAt(simTime(), wuTimeout);
-            delete activeBackoff;
-            activeBackoff = nullptr;
+            stateReceiveExitAck();
         }
     }
     if(event == EV_DATA_RECEIVED){
@@ -443,6 +440,28 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
     }
 }
 
+void WakeUpMacLayer::stateReceiveEnterDataWaitDropReceived(const inet::PacketDropReason reason)
+{
+    PacketDropDetails details;
+    details.setReason(reason);
+    dropCurrentRxFrame(details);
+}
+
+void WakeUpMacLayer::stateReceiveEnterAck()
+{
+    // Continue to contend for packet
+    rxAckRound++;
+    activeBackoff = new CSMATxRemainderReciprocalBackoff(this, activeRadio, energyStorage, J(0), ackTxWaitDuration,
+            minimumContentionWindow);
+    activeBackoff->delayCarrierSense(uniform(0, initialContentionDuration));
+}
+
+void WakeUpMacLayer::stateReceiveExitAck()
+{
+    delete activeBackoff;
+    activeBackoff = nullptr;
+}
+
 void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const msg) {
     Packet* incomingFrame = check_and_cast<Packet*>(msg);
     auto incomingMacData = incomingFrame->peekAtFront<WakeUpGram>();
@@ -459,13 +478,8 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
         INetfilter::IHook::Result preRoutingResponse = datagramPreRoutingHook(incomingFrame);
         if(preRoutingResponse != IHook::ACCEPT){
             // New information in the data packet means do not accept data packet
-            PacketDropDetails details;
-            details.setReason(PacketDropReason::OTHER_PACKET_DROP);
-            dropCurrentRxFrame(details);
-            // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
+            stateReceiveEnterDataWaitDropReceived(PacketDropReason::OTHER_PACKET_DROP);
             scheduleAt(simTime(), wuTimeout);
-
-            // TODO: Send "Negative Ack"?
         }
         else{
             auto acceptThresholdTag = incomingFrame->findTag<EqDCReq>();
@@ -477,15 +491,10 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
 
             // Reset cumulative ack backoff
             if(activeBackoff)
-                delete activeBackoff;
+                stateReceiveExitAck();
             // Limit collisions with exponentially decreasing backoff, ack takes about 1ms anyway,
             // with minimum contention window derived from the Rx->tx turnaround time
-            activeBackoff = new CSMATxRemainderReciprocalBackoff(this,
-                    activeRadio,
-                    energyStorage,
-                    J(0), ackTxWaitDuration, minimumContentionWindow);
-            activeBackoff->delayCarrierSense( uniform(0, initialContentionDuration) );
-            rxAckRound++;
+            stateReceiveEnterAck();
         }
     }
     // Compare the received data to stored data, discard it new data
@@ -504,9 +513,7 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
         // to improve the chances that only the data destination responds.
         if(recheckDataPacketEqDC && datagramPreRoutingHook(incomingFrame) != INetfilter::IHook::ACCEPT){
             // New information in the data packet means do not accept data packet
-            PacketDropDetails details;
-            details.setReason(PacketDropReason::OTHER_PACKET_DROP);
-            dropCurrentRxFrame(details);
+            stateReceiveEnterDataWaitDropReceived(PacketDropReason::OTHER_PACKET_DROP);
             // Wait to overhear Acks before EV_WU_TIMEOUT
             scheduleAt(simTime() + initialContentionDuration, wuTimeout);
         }
@@ -522,19 +529,11 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
             else if(destinationAckPersistance ||
                     relayDiceRoll<candiateRelayContentionProbability){
                 // Continue to contend for packet
-                rxAckRound++;
-                activeBackoff = new CSMATxRemainderReciprocalBackoff(this,
-                        activeRadio,
-                        energyStorage,
-                        J(0), ackTxWaitDuration, minimumContentionWindow);
-                activeBackoff->delayCarrierSense( uniform(0, initialContentionDuration) );
+                stateReceiveEnterAck();
             }
             else{
                 // Drop out of forwarder contention
-                PacketDropDetails details;
-                details.setReason(PacketDropReason::DUPLICATE_DETECTED);
-                dropCurrentRxFrame(details);
-                // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
+                stateReceiveEnterDataWaitDropReceived(PacketDropReason::DUPLICATE_DETECTED);
                 scheduleAt(simTime(), wuTimeout);
                 EV_DEBUG  << "Detected other relay so discarding packet" << endl;
             }
@@ -1090,4 +1089,3 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
     interfaceEntry->setCarrier(false);
     interfaceEntry->setState(InterfaceEntry::State::DOWN);
 }
-

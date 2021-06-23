@@ -93,7 +93,7 @@ protected:
     enum t_mac_state {
         S_IDLE, // WuRx listening
         S_WAKEUP_LSN, // WuRx receiving or processing
-        S_RECEIVE, // Data radio listening and sending ACK
+        S_RECEIVE, // Data radio listening, receiving and ack following wake-up or initial data
         S_TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
     };
 
@@ -195,6 +195,9 @@ protected:
     void stepMacSM(const t_mac_event& event, cMessage *msg);
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
+    void stateReceiveEnterDataWaitDropReceived(const inet::PacketDropReason reason);
+    void stateReceiveEnterAck();
+    void stateReceiveExitAck();
     virtual void stateReceiveProcess(const t_mac_event& event, cMessage *msg);
   private:
     void stateReceiveDataWaitProcessDataReceived(cMessage *msg);
