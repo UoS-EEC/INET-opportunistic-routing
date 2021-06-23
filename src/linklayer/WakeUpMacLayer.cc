@@ -501,6 +501,10 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
     else if(incomingMacData->getType()==WU_DATA/* && currentRxFrame != nullptr*/
             && storedFrame->peekAtFront<WakeUpGram>()->getTransmitterAddress() == incomingMacData->getTransmitterAddress() ){
         updateMacState(S_ACK);
+        // Delete the existing currentRxFrame
+        delete currentRxFrame;
+        // Store the new received packet
+        currentRxFrame = incomingFrame;
         // Cancel delivery timer until next round
         cancelEvent(wuTimeout);
 
@@ -544,7 +548,6 @@ void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
                 EV_DEBUG  << "Detected other relay so discarding packet" << endl;
             }
         }
-        delete incomingFrame;
     }
     else if(incomingMacData->getType()==WU_ACK){
         // Overheard Ack from neighbor
