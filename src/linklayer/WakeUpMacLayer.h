@@ -206,7 +206,7 @@ protected:
     void updateMacState(const t_mac_state& newMacState){ macState = newMacState; };
     /** @brief Transmitter State Machine **/
     t_tx_state txState;
-    void stepTxSM(const t_mac_event& event, cMessage* msg);
+    void stateTxProcess(const t_mac_event& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
     const int requiredForwarders = 1;
     const int maxForwarders = 4;
@@ -223,7 +223,7 @@ protected:
 
     bool wuStateChange = false;
     t_wu_state wuState;
-    void stepWuSM(const t_mac_event& event, cMessage *msg);
+    void stateWakeUpProcess(const t_mac_event& event, cMessage *msg);
     void updateWuState(const t_wu_state& newWuState){
         wuStateChange = true;
         wuState = newWuState;
