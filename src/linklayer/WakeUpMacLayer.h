@@ -91,7 +91,6 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOppo
 protected:
     /** @brief MAC high level states */
     enum t_mac_state {
-        S_REPLENISH, // No listening, to charge storage
         S_IDLE, // WuRx listening
         S_WAKEUP_LSN, // WuRx receiving or processing
         S_RECEIVE, // Data radio listening

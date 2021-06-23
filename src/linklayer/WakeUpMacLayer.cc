@@ -303,9 +303,6 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
     const IRadio::RadioMode wuRadioMode = wakeUpRadio->getRadioMode();
 
     switch (macState){
-    case S_REPLENISH:
-        updateMacState(S_IDLE);
-        break;
     case S_IDLE:
         ASSERT(wuRadioMode == IRadio::RADIO_MODE_RECEIVER
                 || wuRadioMode == IRadio::RADIO_MODE_SWITCHING);
