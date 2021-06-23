@@ -196,9 +196,9 @@ protected:
     void stepMacSM(const t_mac_event& event, cMessage *msg);
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
-    virtual void stepRxAckProcess(const t_mac_event& event, cMessage *msg);
+    virtual void stateReceiveProcess(const t_mac_event& event, cMessage *msg);
   private:
-    void handleDataReceivedInAckState(cMessage *msg);
+    void stateReceiveDataWaitProcessDataReceived(cMessage *msg);
     void completePacketReception();
 
   protected:

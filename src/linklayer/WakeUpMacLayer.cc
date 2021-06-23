@@ -389,14 +389,14 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
     case S_RECEIVE:
         // Listen for a data packet after a wake-up and start timeout for ack
         if(event == EV_WU_TIMEOUT||event == EV_DATA_RECEIVED){
-            stepRxAckProcess(event, msg);
+            stateReceiveProcess(event, msg);
         }
         else{
             EV_WARN << "Unhandled event in receive state: " << msg << endl;
         }
         break;
     case S_ACK:
-        stepRxAckProcess(event, msg);
+        stateReceiveProcess(event, msg);
         break;
     default:
         EV_WARN << "Wake-up MAC in unhandled state. Return to idle" << endl;
@@ -405,7 +405,7 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
 }
 
 // Receive acknowledgement process that can be overridden
-void WakeUpMacLayer::stepRxAckProcess(const t_mac_event& event, cMessage * const msg) {
+void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * const msg) {
     if(activeBackoff){
         const auto backoffResult = stepBackoffSM(event);
         if(backoffResult==CSMATxBackoffBase::BO_FINISHED){
@@ -430,7 +430,7 @@ void WakeUpMacLayer::stepRxAckProcess(const t_mac_event& event, cMessage * const
         }
     }
     if(event == EV_DATA_RECEIVED){
-        handleDataReceivedInAckState(msg);
+        stateReceiveDataWaitProcessDataReceived(msg);
     }
     else if(event == EV_TX_END){
         // return to receive mode (via receive wait) when ack transmitted
@@ -452,7 +452,7 @@ void WakeUpMacLayer::stepRxAckProcess(const t_mac_event& event, cMessage * const
     }
 }
 
-void WakeUpMacLayer::handleDataReceivedInAckState(cMessage * const msg) {
+void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const msg) {
     Packet* incomingFrame = check_and_cast<Packet*>(msg);
     auto incomingMacData = incomingFrame->peekAtFront<WakeUpGram>();
     Packet* storedFrame = check_and_cast_nullable<Packet*>(currentRxFrame);
