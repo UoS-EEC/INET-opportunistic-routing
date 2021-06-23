@@ -93,9 +93,8 @@ protected:
     enum t_mac_state {
         S_IDLE, // WuRx listening
         S_WAKEUP_LSN, // WuRx receiving or processing
-        S_RECEIVE, // Data radio listening
-        S_TRANSMIT, // Transmitting (Wake-up, pause, transmit and wait for ack)
-        S_ACK // Transmitting ACK after receiving
+        S_RECEIVE, // Data radio listening and sending ACK
+        S_TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
     };
 
     enum t_tx_state {

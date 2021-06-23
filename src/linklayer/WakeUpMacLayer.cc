@@ -387,15 +387,6 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
         stateWakeUpProcess(event, msg);
         break;
     case S_RECEIVE:
-        // Listen for a data packet after a wake-up and start timeout for ack
-        if(event == EV_WU_TIMEOUT||event == EV_DATA_RECEIVED){
-            stateReceiveProcess(event, msg);
-        }
-        else{
-            EV_WARN << "Unhandled event in receive state: " << msg << endl;
-        }
-        break;
-    case S_ACK:
         stateReceiveProcess(event, msg);
         break;
     default:
@@ -411,7 +402,7 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
         if(backoffResult==CSMATxBackoffBase::BO_FINISHED){
             // send acknowledgement packet when radio is ready
             sendDown(buildAck(check_and_cast<Packet*>(currentRxFrame)));
-            updateMacState(S_ACK);
+            updateMacState(S_RECEIVE);
             delete activeBackoff;
             activeBackoff = nullptr;
         }
@@ -458,7 +449,7 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
     Packet* storedFrame = check_and_cast_nullable<Packet*>(currentRxFrame);
     if(incomingMacData->getType()==WU_DATA && currentRxFrame == nullptr){
         auto incomingFullHeader = incomingFrame->peekAtFront<WakeUpDatagram>();
-        updateMacState(S_ACK);
+        updateMacState(S_RECEIVE);
         // Store the new received packet
         currentRxFrame = incomingFrame;
         // Cancel delivery timer until next round
@@ -500,7 +491,7 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
     // Compare the received data to stored data, discard it new data
     else if(incomingMacData->getType()==WU_DATA/* && currentRxFrame != nullptr*/
             && storedFrame->peekAtFront<WakeUpGram>()->getTransmitterAddress() == incomingMacData->getTransmitterAddress() ){
-        updateMacState(S_ACK);
+        updateMacState(S_RECEIVE);
         // Delete the existing currentRxFrame
         delete currentRxFrame;
         // Store the new received packet
