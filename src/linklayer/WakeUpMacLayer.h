@@ -246,7 +246,9 @@ protected:
     void dropCurrentTxFrame(inet::PacketDropDetails& details) override{
         MacProtocolBase::dropCurrentTxFrame(details);
         emit(transmissionTriesSignal, txInProgressTries);
-    };
+    }
+
+    void stateReceiveAckProcessBackoff(const t_mac_event& event);
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
