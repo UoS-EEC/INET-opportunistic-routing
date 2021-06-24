@@ -548,9 +548,6 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
                 acceptDataEqDCThreshold = newAcceptThreshold;
             }
 
-            // Reset cumulative ack backoff
-            if(activeBackoff)
-                stateReceiveExitAck();
             // Limit collisions with exponentially decreasing backoff, ack takes about 1ms anyway,
             // with minimum contention window derived from the Rx->tx turnaround time
             stateReceiveEnterAck();
