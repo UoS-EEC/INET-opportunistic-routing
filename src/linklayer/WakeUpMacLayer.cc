@@ -575,9 +575,6 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
         if(recheckDataPacketEqDC && datagramPreRoutingHook(incomingFrame) != INetfilter::IHook::ACCEPT){
             // New information in the data packet means do not accept data packet
             stateReceiveEnterDataWaitDropReceived(PacketDropReason::OTHER_PACKET_DROP);
-            // Wait to overhear Acks before EV_WU_TIMEOUT
-            cancelEvent(wuTimeout);
-            scheduleAt(simTime() + initialContentionDuration, wuTimeout);
         }
         else{
             // Begin random relay contention
