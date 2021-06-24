@@ -551,6 +551,7 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
             stateReceiveEnterDataWaitDropReceived(PacketDropReason::OTHER_PACKET_DROP);
         }
         else{
+            //TODO: Make Opportunisitic Acceptance Decision
             auto acceptThresholdTag = incomingFrame->findTag<EqDCReq>();
             EqDC newAcceptThreshold = acceptThresholdTag!=nullptr ? acceptThresholdTag->getEqDC() : EqDC(25.5);
             // If better EqDC threshold, update
@@ -580,7 +581,9 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
         if(rxState == RxState::ACK)
             stateReceiveExitAck();
 
-        // Check if the retransmited packet still accepted
+        // TODO: Make Opportunistic Contention Decision
+        //        Containing Make Opportunisitic Acceptance Decision
+        // Check if the retransmitted packet still accepted
         // Packet will change if transmitter receives ack from the final destination
         // to improve the chances that only the data destination responds.
         if(recheckDataPacketEqDC && datagramPreRoutingHook(incomingFrame) != INetfilter::IHook::ACCEPT){
