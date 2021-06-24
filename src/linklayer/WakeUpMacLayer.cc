@@ -440,6 +440,12 @@ void WakeUpMacLayer::stateReceiveAckProcessBackoff(const t_mac_event& event)
 // Receive acknowledgement process that can be overridden
 void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * const msg) {
     if(event == EV_DATA_RECEIVED){
+        auto packet = check_and_cast<const Packet*>(msg);
+        if(packet->peekAtFront<WakeUpGram>()->getType() == WU_ACK){
+            handleOverheardAckInDataReceiveState(packet);
+            delete packet;
+            return;
+        }
     }
 
     switch(rxState){
@@ -478,6 +484,20 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
             }
             break;
         default: cRuntimeError("Unknown state");
+    }
+}
+
+void WakeUpMacLayer::handleOverheardAckInDataReceiveState(const Packet * const msg){
+    // Overheard Ack from neighbor
+    EV_WARN << "Overheard Ack from neighbor is it worth sending own ACK?" << endl;
+    // Leave in current mac state which could be S_RECEIVE or S_ACK
+    // Only count coincidental ack in the first round to reduce double counting
+    if(rxAckRound<=1){
+        EncounterDetails details;
+        auto incomingMacData = msg->peekAtFront<WakeUpGram>();
+        details.setEncountered(incomingMacData->getTransmitterAddress());
+        details.setCurrentEqDC(incomingMacData->getExpectedCostInd());
+        emit(coincidentalEncounterSignal, 1.0, &details);
     }
 }
 
@@ -590,19 +610,6 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
                 EV_DEBUG  << "Detected other relay so discarding packet" << endl;
             }
         }
-    }
-    else if(incomingMacData->getType()==WU_ACK){
-        // Overheard Ack from neighbor
-        EV_WARN << "Overheard Ack from neighbor is it worth sending own ACK?" << endl;
-        // Leave in current mac state which could be S_RECEIVE or S_ACK
-        // Only count coincidental ack in the first round to reduce double counting
-        if(rxAckRound<=1){
-            EncounterDetails details;
-            details.setEncountered(incomingMacData->getTransmitterAddress());
-            details.setCurrentEqDC(incomingMacData->getExpectedCostInd());
-            emit(coincidentalEncounterSignal, 1.0, &details);
-        }
-        delete incomingFrame;
     }
     else{
         // Delete unknown message

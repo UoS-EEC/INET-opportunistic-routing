@@ -207,6 +207,7 @@ protected:
     void stateReceiveExitAck();
     virtual void stateReceiveProcess(const t_mac_event& event, cMessage *msg);
   private:
+    void handleOverheardAckInDataReceiveState(const Packet * const msg);
     void stateReceiveDataWaitProcessDataReceived(cMessage *msg);
     void completePacketReception();
 
