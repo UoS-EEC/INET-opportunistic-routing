@@ -425,16 +425,13 @@ void WakeUpMacLayer::stateReceiveAckProcessBackoff(const t_mac_event& event)
     if (backoffResult == CSMATxBackoffBase::BO_FINISHED) {
         // send acknowledgement packet when radio is ready
         sendDown(buildAck(check_and_cast<Packet*>(currentRxFrame)));
-        updateMacState(S_RECEIVE);
-        delete activeBackoff;
-        activeBackoff = nullptr;
     }
     else if (backoffResult == CSMATxBackoffBase::BO_OFF) {
         // Backoff has been aborted
         // Drop packet and schedule immediate timeout
         EV_WARN << "Dropping packet because of channel congestion";
         stateReceiveExitAck();
-        stateReceiveEnterDataWaitDropReceived(PacketDropReason::INCORRECTLY_RECEIVED);
+        stateReceiveEnterDataWaitDropReceived(PacketDropReason::DUPLICATE_DETECTED);
     }
 }
 // Receive acknowledgement process that can be overridden
@@ -452,17 +449,12 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
         case RxState::DATA_WAIT:
             if(event == EV_WU_TIMEOUT){
                 // The receiving has timed out, optionally process received packet
-                completePacketReception();
-                // Return to idle listening
-                changeActiveRadio(wakeUpRadio);
-                cancelEvent(wuTimeout);
-                wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-                scheduleAt(simTime(), replenishmentTimer);
-                updateMacState(S_IDLE);
+                stateReceiveDataWaitProcessDataTimeout();
             }
             else if(event == EV_DATA_RECEIVED){
                 stateReceiveDataWaitProcessDataReceived(msg);
             }
+            // Transition from ACK after TX_END
             else if(event == EV_DATA_RX_READY){
                 cancelEvent(wuTimeout);
                 StateReceiveDataWaitEnter();
@@ -475,9 +467,6 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
             }
             else if(event == EV_DATA_RECEIVED){
                 stateReceiveDataWaitProcessDataReceived(msg);
-            }
-            else if(event == EV_WU_TIMEOUT){
-                cRuntimeError("Unprocessed event");
             }
             if(activeBackoff){
                 stateReceiveAckProcessBackoff(event);
