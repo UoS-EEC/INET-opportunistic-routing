@@ -396,30 +396,31 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
     }
 }
 
-            updateMacState(S_RECEIVE);
-            delete activeBackoff;
-            activeBackoff = nullptr;
-
-            scheduleAt(simTime(), wuTimeout);
-
 void WakeUpMacLayer::stateReceiveAckProcessBackoff(const t_mac_event& event)
 {
     const auto backoffResult = stepBackoffSM(event);
     if (backoffResult == CSMATxBackoffBase::BO_FINISHED) {
         // send acknowledgement packet when radio is ready
         sendDown(buildAck(check_and_cast<Packet*>(currentRxFrame)));
+        updateMacState(S_RECEIVE);
+        delete activeBackoff;
+        activeBackoff = nullptr;
     }
     else if (backoffResult == CSMATxBackoffBase::BO_OFF) {
         // Backoff has been aborted
         // Drop packet and schedule immediate timeout
         EV_WARN << "Dropping packet because of channel congestion";
         cancelEvent(wuTimeout);
+        scheduleAt(simTime(), wuTimeout);
         stateReceiveExitAck();
-        stateReceiveEnterDataWaitDropReceived(PacketDropReason::DUPLICATE_DETECTED);
+        stateReceiveEnterDataWaitDropReceived(PacketDropReason::INCORRECTLY_RECEIVED);
     }
 }
 // Receive acknowledgement process that can be overridden
 void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * const msg) {
+    if(activeBackoff){
+        stateReceiveAckProcessBackoff(event);
+    }
     if(event == EV_DATA_RECEIVED){
         stateReceiveDataWaitProcessDataReceived(msg);
     }
