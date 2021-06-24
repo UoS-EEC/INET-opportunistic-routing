@@ -113,9 +113,10 @@ protected:
         WU_ABORT // Shutdown data radio and restart wake-up radio
     };
 
-    enum t_rx_state{
-        RX_IDLE,
-        RX_RECEIVE,
+    enum class RxState{
+        IDLE,
+        DATA_WAIT,
+        ACK // Transmitting ACK after receiving
     };
 
     /** @brief MAC state machine events.*/
@@ -195,7 +196,13 @@ protected:
     void stepMacSM(const t_mac_event& event, cMessage *msg);
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
+    RxState rxState;
+    void StateReceiveEnter();
+    void StateReceiveDataWaitEnter();
+    void stateReceiveAckEnterReceiveDataWait();
     void stateReceiveEnterDataWaitDropReceived(const inet::PacketDropReason reason);
+    void stateReceiveEnterDataWaitTimeoutNow();
+    void stateReceiveDataWaitProcessDataTimeout();
     void stateReceiveEnterAck();
     void stateReceiveExitAck();
     virtual void stateReceiveProcess(const t_mac_event& event, cMessage *msg);
