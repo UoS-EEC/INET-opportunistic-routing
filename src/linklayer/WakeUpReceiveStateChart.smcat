@@ -1,7 +1,8 @@
 initial,
-WAKE_UP_WAIT {
+WAKE_UP_WAIT{
   wu.initial,
-  APPROVE_WAIT,
+  APPROVE_WAIT:enter/ queryWakeUpRequest
+  /          setWuTimeout ,
   ABORT,
   /* #currently WAKE_UP_WAIT */
   DATA_RADIO_WAIT;
@@ -16,7 +17,7 @@ RECEIVE {
          exit/ deleteBackoff,
    DATA_WAIT: entry/ setDataTimeout,
    FINISH : entry/ setDataTimeoutNow;
-   
+
    ACK => FINISH : BO_ABORT
                   /dropPacket;
    DATA_WAIT => FINISH : DATA_RECEIVED

@@ -92,7 +92,7 @@ protected:
     /** @brief MAC high level states */
     enum t_mac_state {
         S_IDLE, // WuRx listening
-        S_WAKEUP_LSN, // WuRx receiving or processing
+        S_WAKE_UP_WAIT, // WuRx receiving or processing
         S_RECEIVE, // Data radio listening, receiving and ack following wake-up or initial data
         S_TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
     };
@@ -106,11 +106,11 @@ protected:
         TX_END // Reset
     };
 
-    enum t_wu_state{
-        WU_IDLE, // WuRx listening
-        WU_APPROVE_WAIT, // Wait for approval for wake-up (call to net layer)
-        WU_WAKEUP_WAIT, // Wait for the data radio to start
-        WU_ABORT // Shutdown data radio and restart wake-up radio
+    enum class WuWaitState{
+        IDLE, // WuRx listening
+        APPROVE_WAIT, // Wait for approval for wake-up (call to net layer)
+        WAKEUP_WAIT, // Wait for the data radio to start
+        ABORT // Shutdown data radio and restart wake-up radio
     };
 
     enum class RxState{
@@ -230,13 +230,11 @@ protected:
     simtime_t dataTransmissionDelay = 0;
     virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);
     void updateTxState(const t_tx_state& newTxState){ txState = newTxState; };
-    /** @brief Wake-up listening State Machine **/
 
-    bool wuStateChange = false;
-    t_wu_state wuState;
+    /** @brief Wake-up listening State Machine **/
+    WuWaitState wuState;
     void stateWakeUpProcess(const t_mac_event& event, cMessage *msg);
-    void updateWuState(const t_wu_state& newWuState){
-        wuStateChange = true;
+    void updateWuState(const WuWaitState& newWuState){
         wuState = newWuState;
     };
     /** @brief Receiving and acknowledgement **/

@@ -310,7 +310,7 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
         if(event == EV_WU_START){
             // Start the wake-up state machine
             stateWakeUpProcess(event, msg);
-            updateMacState(S_WAKEUP_LSN);
+            updateMacState(S_WAKE_UP_WAIT);
         }
         else if((event == EV_ACK_TIMEOUT || event == EV_DATA_RX_READY) && !ackBackoffTimer->isScheduled()){
             // EV_ACK_TIMEOUT triggered by need for retry of packet
@@ -382,7 +382,7 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
     case S_TRANSMIT:
         stateTxProcess(event, msg);
         break;
-    case S_WAKEUP_LSN:
+    case S_WAKE_UP_WAIT:
         // Process wake-up and wait for listening to start
         stateWakeUpProcess(event, msg);
         break;
@@ -836,14 +836,13 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
 }
 
 void WakeUpMacLayer::stateWakeUpProcess(const t_mac_event& event, cMessage * const msg) {
-    wuStateChange = false;
     switch(wuState){
-    case WU_IDLE:
+    case WuWaitState::IDLE:
         if(event==EV_WU_START){
             changeActiveRadio(dataRadio);
             dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
             emit(receptionStartedSignal, true);
-            updateWuState(WU_APPROVE_WAIT);
+            updateWuState(WuWaitState::APPROVE_WAIT);
             scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
             Packet* wuPkt = check_and_cast<Packet*>(msg);
             acceptDataEqDCThreshold = EqDC(25.5);
@@ -855,10 +854,10 @@ void WakeUpMacLayer::stateWakeUpProcess(const t_mac_event& event, cMessage * con
             queryWakeupRequest(wuPkt);
         }
         break;
-    case WU_APPROVE_WAIT:
+    case WuWaitState::APPROVE_WAIT:
         if(event==EV_WU_APPROVE){
-            updateMacState(S_WAKEUP_LSN);
-            updateWuState(WU_WAKEUP_WAIT);
+            updateMacState(S_WAKE_UP_WAIT);
+            updateWuState(WuWaitState::WAKEUP_WAIT);
             rxAckRound = 0;
             cancelEvent(wuTimeout);
             // Cancel transmit packet backoff till receive is done
@@ -867,50 +866,47 @@ void WakeUpMacLayer::stateWakeUpProcess(const t_mac_event& event, cMessage * con
         else if(event==EV_WU_TIMEOUT||event==EV_WU_REJECT){
             // Upper layer did not approve wake-up in time.
             // Will abort the wake-up when radio mode switches
-            updateMacState(S_WAKEUP_LSN);
-            updateWuState(WU_ABORT);
+            updateMacState(S_WAKE_UP_WAIT);
+            updateWuState(WuWaitState::ABORT);
         }
         else if(event==EV_DATA_RX_IDLE||event==EV_DATA_RX_READY){
             //Stop the timer if other event called it first
             changeActiveRadio(wakeUpRadio);
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-            updateWuState(WU_IDLE);
+            updateWuState(WuWaitState::IDLE);
             scheduleAt(simTime(), replenishmentTimer);
             updateMacState(S_IDLE);
         }
         break;
-    case WU_WAKEUP_WAIT:
+    case WuWaitState::WAKEUP_WAIT:
         if(event==EV_DATA_RX_IDLE){
             dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-            updateMacState(S_WAKEUP_LSN);
-            updateWuState(WU_WAKEUP_WAIT);
+            updateMacState(S_WAKE_UP_WAIT);
+            updateWuState(WuWaitState::WAKEUP_WAIT);
         }
         else if(event==EV_DATA_RX_READY){
             // data radio now listening
-            updateWuState(WU_IDLE);
+            updateWuState(WuWaitState::IDLE);
             StateReceiveEnter();
         }
         break;
-    case WU_ABORT:
+    case WuWaitState::ABORT:
         if(event==EV_DATA_RX_IDLE||event==EV_DATA_RX_READY){
             changeActiveRadio(wakeUpRadio);
             wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
             emit(receptionDroppedSignal, true);
-            updateWuState(WU_IDLE);
+            updateWuState(WuWaitState::IDLE);
             scheduleAt(simTime(), replenishmentTimer);
             updateMacState(S_IDLE);
         }
         else if(event==EV_WU_TIMEOUT||event==EV_WU_REJECT){
             // Already canceled the wake-up still waiting for radio mode switch
-            updateMacState(S_WAKEUP_LSN);
+            updateMacState(S_WAKE_UP_WAIT);
         }
         break;
     default:
         EV_WARN << "Unhandled wake-up State. Return to Idle" << endl;
-        updateWuState(WU_IDLE);
-    }
-    if(wuStateChange == false){
-        EV_WARN << "Unhandled event in wake-up state machine: " << msg << endl;
+        updateWuState(WuWaitState::IDLE);
     }
 }
 
@@ -1107,7 +1103,7 @@ void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
     // complete unfinished reception
     completePacketReception();
     updateMacState(S_IDLE);
-    updateWuState(WU_IDLE);
+    updateWuState(WuWaitState::IDLE);
     updateTxState(TX_WAKEUP_WAIT);
     activeRadio = wakeUpRadio;
     // Will trigger sending of any messages in txQueue
