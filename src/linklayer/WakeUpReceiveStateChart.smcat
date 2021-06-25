@@ -1,0 +1,48 @@
+initial,
+WAKE_UP_WAIT {
+  wu.initial,
+  APPROVE_WAIT,
+  ABORT,
+  /* #currently WAKE_UP_WAIT */
+  DATA_RADIO_WAIT;
+  wu.initial => APPROVE_WAIT;
+  APPROVE_WAIT => ABORT : WU_REJECT;
+  DATA_RADIO_WAIT => DATA_RADIO_WAIT : DATA_RX_IDLE
+  /setRadioToRx;
+  APPROVE_WAIT => DATA_RADIO_WAIT : WU_ACCEPT;
+},
+RECEIVE {
+   ACK:entry/ startBackoff
+         exit/ deleteBackoff,
+   DATA_WAIT: entry/ setDataTimeout,
+   FINISH : entry/ setDataTimeoutNow;
+   
+   ACK => FINISH : BO_ABORT
+                  /dropPacket;
+   DATA_WAIT => FINISH : DATA_RECEIVED
+                         [preRoutingReject]
+                         /dropPacket;
+   DATA_WAIT => DATA_WAIT : DATA_RX_READY;
+   DATA_WAIT => FINISH : DATA_RECEIVED
+                            [acceptNoAck];
+   DATA_WAIT => ACK : DATA_RECEIVED
+                           [same source && accept data]
+                           /dropPacket;
+   ACK => ACK [type=internal] : TX_READY
+                                / sendDown;
+   ACK => DATA_WAIT : TX_END
+   / dataRadio->Receiver;
+   FINISH => rx.final : DATA_TIMEOUT;
+   DATA_WAIT => rx.final : DATA_TIMEOUT;
+},
+DATA_IDLE,
+final;
+
+DATA_IDLE => ACK : DATA_RECEIVED / setAcceptDataEqDCThreshold;
+DATA_RADIO_WAIT => DATA_WAIT : DATA_RX_READY;
+rx.final => final : /completePacketReception;
+ABORT => final : DATA_RX_IDLE
+/startListening;
+
+initial => WAKE_UP_WAIT;
+initial => DATA_IDLE;
