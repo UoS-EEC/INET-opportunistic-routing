@@ -116,7 +116,8 @@ protected:
     enum class RxState{
         IDLE,
         DATA_WAIT,
-        ACK // Transmitting ACK after receiving
+        ACK, // Transmitting ACK after receiving
+        FINISH // Immediately set timeout and enter main sm idle
     };
 
     /** @brief MAC state machine events.*/
@@ -198,11 +199,11 @@ protected:
     int rxAckRound = 0;
     RxState rxState;
     void StateReceiveEnter();
-    void StateReceiveDataWaitEnter();
+    void StateReceiveEnterDataWait();
     void stateReceiveAckEnterReceiveDataWait();
-    void stateReceiveEnterDataWaitDropReceived(const inet::PacketDropReason reason);
-    void stateReceiveEnterDataWaitTimeoutNow();
-    void stateReceiveDataWaitProcessDataTimeout();
+    void stateReceiveEnterFinishDropReceived(const inet::PacketDropReason reason);
+    void stateReceiveEnterFinish();
+    void stateReceiveProcessDataTimeout();
     void stateReceiveEnterAck();
     void stateReceiveExitAck();
     virtual void stateReceiveProcess(const t_mac_event& event, cMessage *msg);
@@ -257,6 +258,7 @@ protected:
     }
 
     void stateReceiveAckProcessBackoff(const t_mac_event& event);
+    void stateReceiveExitDataWait();
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);

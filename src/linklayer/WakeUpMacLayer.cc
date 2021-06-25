@@ -401,19 +401,18 @@ void WakeUpMacLayer::stateReceiveAckEnterReceiveDataWait()
     // return to receive mode (via receive wait) when ack transmitted
     // For follow up packet
     cancelEvent(wuTimeout);
-    StateReceiveDataWaitEnter();
+    StateReceiveEnterDataWait();
 
     // From transmit mode
     dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
 }
 
-void WakeUpMacLayer::stateReceiveDataWaitProcessDataTimeout()
+void WakeUpMacLayer::stateReceiveProcessDataTimeout()
 {
     // The receiving has timed out, if packet is received process
     completePacketReception();
     // Return to idle listening
     changeActiveRadio(wakeUpRadio);
-    cancelEvent(wuTimeout);
     wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
     scheduleAt(simTime(), replenishmentTimer);
     updateMacState(S_IDLE);
@@ -431,7 +430,7 @@ void WakeUpMacLayer::stateReceiveAckProcessBackoff(const t_mac_event& event)
         // Drop packet and schedule immediate timeout
         EV_WARN << "Dropping packet because of channel congestion";
         stateReceiveExitAck();
-        stateReceiveEnterDataWaitDropReceived(PacketDropReason::DUPLICATE_DETECTED);
+        stateReceiveEnterFinishDropReceived(PacketDropReason::DUPLICATE_DETECTED);
     }
 }
 // Receive acknowledgement process that can be overridden
@@ -449,15 +448,15 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
         case RxState::DATA_WAIT:
             if(event == EV_WU_TIMEOUT){
                 // The receiving has timed out, optionally process received packet
-                stateReceiveDataWaitProcessDataTimeout();
+                stateReceiveProcessDataTimeout();
             }
             else if(event == EV_DATA_RECEIVED){
                 stateReceiveDataWaitProcessDataReceived(msg);
             }
             // Transition from ACK after TX_END
             else if(event == EV_DATA_RX_READY){
-                cancelEvent(wuTimeout);
-                StateReceiveDataWaitEnter();
+                stateReceiveExitDataWait();
+                StateReceiveEnterDataWait();
             }
             break;
         case RxState::ACK:
@@ -470,6 +469,12 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
             }
             if(activeBackoff){
                 stateReceiveAckProcessBackoff(event);
+            }
+            break;
+        case RxState::FINISH:
+            if(event == EV_WU_TIMEOUT){
+                // The receiving has timed out, optionally process received packet
+                stateReceiveProcessDataTimeout();
             }
             break;
         default: cRuntimeError("Unknown state");
@@ -490,18 +495,19 @@ void WakeUpMacLayer::handleOverheardAckInDataReceiveState(const Packet * const m
     }
 }
 
-void WakeUpMacLayer::stateReceiveEnterDataWaitDropReceived(const inet::PacketDropReason reason)
+void WakeUpMacLayer::stateReceiveEnterFinishDropReceived(const inet::PacketDropReason reason)
 {
     PacketDropDetails details;
     details.setReason(reason);
     dropCurrentRxFrame(details);
-    stateReceiveEnterDataWaitTimeoutNow();
+    stateReceiveEnterFinish();
 }
 
-void WakeUpMacLayer::stateReceiveEnterDataWaitTimeoutNow()
+void WakeUpMacLayer::stateReceiveEnterFinish()
 {
-    // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
-    rxState = RxState::DATA_WAIT;
+    // return to receive mode (via receive finish) when ack transmitted
+    // For follow up packet
+    rxState = RxState::FINISH;
     scheduleAt(simTime(), wuTimeout);
 }
 
@@ -522,22 +528,27 @@ void WakeUpMacLayer::stateReceiveExitAck()
     rxState = RxState::IDLE;
 }
 
+void WakeUpMacLayer::stateReceiveExitDataWait()
+{
+    // Cancel delivery timer until next round
+    cancelEvent(wuTimeout);
+}
+
 void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const msg) {
     Packet* incomingFrame = check_and_cast<Packet*>(msg);
     auto incomingMacData = incomingFrame->peekAtFront<WakeUpGram>();
     Packet* storedFrame = check_and_cast_nullable<Packet*>(currentRxFrame);
     if(incomingMacData->getType()==WU_DATA && currentRxFrame == nullptr){
-        auto incomingFullHeader = incomingFrame->peekAtFront<WakeUpDatagram>();
+        stateReceiveExitDataWait();
+
         // Store the new received packet
         currentRxFrame = incomingFrame;
-        // Cancel delivery timer until next round
-        cancelEvent(wuTimeout);
 
         // Check using packet data that accepting wake-up is still correct
         INetfilter::IHook::Result preRoutingResponse = datagramPreRoutingHook(incomingFrame);
         if(preRoutingResponse != IHook::ACCEPT){
             // New information in the data packet means do not accept data packet
-            stateReceiveEnterDataWaitDropReceived(PacketDropReason::OTHER_PACKET_DROP);
+            stateReceiveEnterFinishDropReceived(PacketDropReason::OTHER_PACKET_DROP);
         }
         else{
             //TODO: Make Opportunisitic Acceptance Decision
@@ -558,14 +569,16 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
             && storedFrame->peekAtFront<WakeUpGram>()->getTransmitterAddress() == incomingMacData->getTransmitterAddress() ){
         // Delete the existing currentRxFrame
         delete currentRxFrame;
-        // Store the new received packet
-        currentRxFrame = incomingFrame;
-        // Cancel delivery timer until next round
-        cancelEvent(wuTimeout);
 
         // Sometimes the new data comes while in the Ack State
         if(rxState == RxState::ACK)
             stateReceiveExitAck();
+        else
+            stateReceiveExitDataWait();
+
+        // Store the new received packet
+        currentRxFrame = incomingFrame;
+
 
         // TODO: Make Opportunistic Contention Decision
         //        Containing Make Opportunisitic Acceptance Decision
@@ -574,7 +587,7 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
         // to improve the chances that only the data destination responds.
         if(recheckDataPacketEqDC && datagramPreRoutingHook(incomingFrame) != INetfilter::IHook::ACCEPT){
             // New information in the data packet means do not accept data packet
-            stateReceiveEnterDataWaitDropReceived(PacketDropReason::OTHER_PACKET_DROP);
+            stateReceiveEnterFinishDropReceived(PacketDropReason::OTHER_PACKET_DROP);
         }
         else{
             // Begin random relay contention
@@ -583,7 +596,7 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
             if(destinationAckPersistance && skipDirectTxFinalAck){
                 // Received Direct Tx and so stop extra ack
                 // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
-                stateReceiveEnterDataWaitTimeoutNow();
+                stateReceiveEnterFinish();
             }
             else if(destinationAckPersistance ||
                     relayDiceRoll<candiateRelayContentionProbability){
@@ -592,7 +605,7 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
             }
             else{
                 // Drop out of forwarder contention
-                stateReceiveEnterDataWaitDropReceived(PacketDropReason::DUPLICATE_DETECTED);
+                stateReceiveEnterFinishDropReceived(PacketDropReason::DUPLICATE_DETECTED);
                 EV_DEBUG  << "Detected other relay so discarding packet" << endl;
             }
         }
@@ -904,9 +917,9 @@ void WakeUpMacLayer::stateWakeUpProcess(const t_mac_event& event, cMessage * con
 void WakeUpMacLayer::StateReceiveEnter()
 {
     updateMacState(S_RECEIVE);
-    StateReceiveDataWaitEnter();
+    StateReceiveEnterDataWait();
 }
-void WakeUpMacLayer::StateReceiveDataWaitEnter()
+void WakeUpMacLayer::StateReceiveEnterDataWait()
 {
     rxState = RxState::DATA_WAIT;
     scheduleAt(simTime() + dataListeningDuration, wuTimeout);
