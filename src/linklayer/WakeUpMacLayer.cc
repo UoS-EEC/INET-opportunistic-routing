@@ -309,8 +309,7 @@ void WakeUpMacLayer::stepMacSM(const t_mac_event& event, cMessage * const msg) {
         cancelEvent(replenishmentTimer);
         if(event == EV_WU_START){
             // Start the wake-up state machine
-            stateWakeUpProcess(event, msg);
-            updateMacState(S_WAKE_UP_WAIT);
+            stateWakeUpWaitApproveWaitEnter(msg);
         }
         else if((event == EV_ACK_TIMEOUT || event == EV_DATA_RX_READY) && !ackBackoffTimer->isScheduled()){
             // EV_ACK_TIMEOUT triggered by need for retry of packet
@@ -835,25 +834,35 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
     }
 }
 
+void WakeUpMacLayer::stateWakeUpWaitEnter()
+{
+    changeActiveRadio(dataRadio);
+    dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
+    emit(receptionStartedSignal, true);
+    updateMacState(S_WAKE_UP_WAIT);
+}
+
+void WakeUpMacLayer::handleCoincidentalOverheardData(Packet* receivedData)
+{
+    auto receivedHeader = receivedData->peekAtFront<WakeUpGram>();
+    EncounterDetails details;
+    details.setEncountered(receivedHeader->getTransmitterAddress());
+    details.setCurrentEqDC(receivedHeader->getExpectedCostInd());
+    emit(coincidentalEncounterSignal, 2.0, &details);
+}
+
+void WakeUpMacLayer::stateWakeUpWaitApproveWaitEnter(cMessage* const msg)
+{
+    stateWakeUpWaitEnter();
+    wuState = WuWaitState::APPROVE_WAIT;
+    scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
+    Packet* receivedData = check_and_cast<Packet*>(msg);
+    handleCoincidentalOverheardData(check_and_cast<Packet*>(msg));
+    queryWakeupRequest(receivedData);
+}
+
 void WakeUpMacLayer::stateWakeUpProcess(const t_mac_event& event, cMessage * const msg) {
     switch(wuState){
-    case WuWaitState::IDLE:
-        if(event==EV_WU_START){
-            changeActiveRadio(dataRadio);
-            dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
-            emit(receptionStartedSignal, true);
-            updateWuState(WuWaitState::APPROVE_WAIT);
-            scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
-            Packet* wuPkt = check_and_cast<Packet*>(msg);
-            acceptDataEqDCThreshold = EqDC(25.5);
-            auto wakeUpHeader = wuPkt->peekAtFront<WakeUpGram>();
-            EncounterDetails details;
-            details.setEncountered(wakeUpHeader->getTransmitterAddress());
-            details.setCurrentEqDC(wakeUpHeader->getExpectedCostInd());
-            emit(coincidentalEncounterSignal, 2.0, &details);
-            queryWakeupRequest(wuPkt);
-        }
-        break;
     case WuWaitState::APPROVE_WAIT:
         if(event==EV_WU_APPROVE){
             updateMacState(S_WAKE_UP_WAIT);
@@ -905,8 +914,7 @@ void WakeUpMacLayer::stateWakeUpProcess(const t_mac_event& event, cMessage * con
         }
         break;
     default:
-        EV_WARN << "Unhandled wake-up State. Return to Idle" << endl;
-        updateWuState(WuWaitState::IDLE);
+        cRuntimeError("unhandled state");
     }
 }
 

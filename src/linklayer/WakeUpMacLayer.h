@@ -257,6 +257,9 @@ protected:
 
     void stateReceiveAckProcessBackoff(const t_mac_event& event);
     void stateReceiveExitDataWait();
+    void stateWakeUpWaitEnter();
+    void handleCoincidentalOverheardData(inet::Packet* receivedData);
+    void stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
