@@ -91,7 +91,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOppo
 protected:
     /** @brief MAC high level states */
     enum t_mac_state {
-        S_IDLE, // WuRx listening
+        S_WAKE_UP_IDLE, // WuRx listening
         S_WAKE_UP_WAIT, // WuRx receiving or processing
         S_RECEIVE, // Data radio listening, receiving and ack following wake-up or initial data
         S_TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
@@ -109,7 +109,7 @@ protected:
     enum class WuWaitState{
         IDLE, // WuRx listening
         APPROVE_WAIT, // Wait for approval for wake-up (call to net layer)
-        WAKEUP_WAIT, // Wait for the data radio to start
+        DATA_RADIO_WAIT, // Wait for the data radio to start
         ABORT // Shutdown data radio and restart wake-up radio
     };
 
@@ -194,7 +194,8 @@ protected:
   protected:
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
-    void stepMacSM(const t_mac_event& event, cMessage *msg);
+    void stateProcess(const t_mac_event& event, cMessage *msg);
+    void stateWakeUpIdleEnter();
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
     RxState rxState;
