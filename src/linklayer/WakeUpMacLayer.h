@@ -195,7 +195,7 @@ protected:
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     void stateProcess(const t_mac_event& event, cMessage *msg);
-    void stateWakeUpIdleEnter();
+    void stateWakeUpIdleEnterStartListening();
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
     RxState rxState;
@@ -238,6 +238,7 @@ protected:
     /** @brief Wake-up listening State Machine **/
     WuWaitState wuState;
     void stateWakeUpWaitEnter();
+    void stateWakeUpWaitExitToListening();
     void stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
     void stateWakeUpProcess(const t_mac_event& event, cMessage *msg);
     void updateWuState(const WuWaitState& newWuState){
