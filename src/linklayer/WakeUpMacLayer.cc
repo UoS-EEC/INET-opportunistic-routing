@@ -741,7 +741,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
     else if(event == EV_DATA_RECEIVED){
         EV_DEBUG << "Data Ack Received";
         auto receivedData = check_and_cast<Packet* >(msg);
-        auto receivedAck = receivedData->popAtFront<WakeUpGram>();
+        auto receivedAck = receivedData->peekAtFront<WakeUpGram>();
         updateMacState(S_TRANSMIT);
         if(receivedAck->getType() == WU_ACK){
             EncounterDetails details;
@@ -773,10 +773,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             delete receivedData;
         }
         else{
-            EncounterDetails details;
-            details.setEncountered(receivedAck->getTransmitterAddress());
-            details.setCurrentEqDC(receivedAck->getExpectedCostInd());
-            emit(coincidentalEncounterSignal, 2.0, &details);
+            handleCoincidentalOverheardData(receivedData);
             updateTxState(TX_ACK_WAIT);
             EV_DEBUG <<  "Discarding overheard data as busy transmitting" << endl;
             delete receivedData;
