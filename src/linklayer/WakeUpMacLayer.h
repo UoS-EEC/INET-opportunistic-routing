@@ -206,8 +206,11 @@ protected:
     void stateReceiveProcessDataTimeout();
     void stateReceiveEnterAck();
     void stateReceiveExitAck();
+    void stateReceiveAckProcessBackoff(const t_mac_event& event);
+    void stateReceiveExitDataWait();
     virtual void stateReceiveProcess(const t_mac_event& event, cMessage *msg);
   private:
+    void handleCoincidentalOverheardData(inet::Packet* receivedData);
     void handleOverheardAckInDataReceiveState(const Packet * const msg);
     void stateReceiveDataWaitProcessDataReceived(cMessage *msg);
     void completePacketReception();
@@ -233,6 +236,8 @@ protected:
 
     /** @brief Wake-up listening State Machine **/
     WuWaitState wuState;
+    void stateWakeUpWaitEnter();
+    void stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
     void stateWakeUpProcess(const t_mac_event& event, cMessage *msg);
     void updateWuState(const WuWaitState& newWuState){
         wuState = newWuState;
@@ -254,12 +259,6 @@ protected:
         MacProtocolBase::dropCurrentTxFrame(details);
         emit(transmissionTriesSignal, txInProgressTries);
     }
-
-    void stateReceiveAckProcessBackoff(const t_mac_event& event);
-    void stateReceiveExitDataWait();
-    void stateWakeUpWaitEnter();
-    void handleCoincidentalOverheardData(inet::Packet* receivedData);
-    void stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);

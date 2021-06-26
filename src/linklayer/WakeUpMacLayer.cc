@@ -539,7 +539,6 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
     Packet* storedFrame = check_and_cast_nullable<Packet*>(currentRxFrame);
     if(incomingMacData->getType()==WU_DATA && currentRxFrame == nullptr){
         stateReceiveExitDataWait();
-
         // Store the new received packet
         currentRxFrame = incomingFrame;
 
@@ -577,7 +576,6 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
 
         // Store the new received packet
         currentRxFrame = incomingFrame;
-
 
         // TODO: Make Opportunistic Contention Decision
         //        Containing Make Opportunisitic Acceptance Decision
