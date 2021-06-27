@@ -309,6 +309,7 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
         cancelEvent(replenishmentTimer);
         if(event == EV_WU_START){
             // Start the wake-up state machine
+            handleCoincidentalOverheardData(check_and_cast<Packet*>(msg));
             stateWakeUpWaitApproveWaitEnter(msg);
         }
         else if((event == EV_ACK_TIMEOUT || event == EV_DATA_RX_READY) && !ackBackoffTimer->isScheduled()){
@@ -858,7 +859,6 @@ void WakeUpMacLayer::stateWakeUpWaitApproveWaitEnter(cMessage* const msg)
     wuState = WuWaitState::APPROVE_WAIT;
     scheduleAt(simTime() + wuApproveResponseLimit, wuTimeout);
     Packet* receivedData = check_and_cast<Packet*>(msg);
-    handleCoincidentalOverheardData(check_and_cast<Packet*>(msg));
     queryWakeupRequest(receivedData);
 }
 
