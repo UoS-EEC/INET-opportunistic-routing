@@ -748,13 +748,13 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         auto receivedData = check_and_cast<Packet* >(msg);
         auto receivedAck = receivedData->peekAtFront<WakeUpGram>();
         updateMacState(S_TRANSMIT);
-        if(receivedAck->getType() == WU_ACK){
+        if(receivedAck->getType() == WU_ACK &&
+                receivedAck->getReceiverAddress() == interfaceEntry->getMacAddress() ){
             EncounterDetails details;
             details.setEncountered(receivedAck->getTransmitterAddress());
             details.setCurrentEqDC(receivedAck->getExpectedCostInd());
             emit(expectedEncounterSignal, 1.0/acknowledgmentRound, &details);
-            // TODO: Update neighbors and check source and dest address match
-            // count first few ack
+
             acknowledgedForwarders++;
             if(acknowledgedForwarders>=maxForwarders){
                 // Skip listening for any more and send data again to reduce forwarders
