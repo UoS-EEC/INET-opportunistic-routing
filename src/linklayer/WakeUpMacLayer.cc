@@ -319,9 +319,10 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
             if(currentTxFrame != nullptr){
                 auto minimumBackoff = txWakeUpWaitDuration;
                 auto maximumBackoff = txWakeUpWaitDuration + dataListeningDuration;
-                activeBackoff = new CSMATxUniformBackoff(this, activeRadio, energyStorage,
-                        transmissionStartMinEnergy, minimumBackoff, maximumBackoff);
-                if( activeBackoff->startTxOrDelay(minimumBackoff, maximumBackoff) ){
+                if(energyStorage->getResidualEnergyCapacity() >= transmissionStartMinEnergy){
+                    activeBackoff = new CSMATxUniformBackoff(this, activeRadio,
+                            minimumBackoff, maximumBackoff);
+                    activeBackoff->startTxOrDelay(minimumBackoff, maximumBackoff);
                     updateTxState(TxDataState::WAKE_UP_WAIT);
                     updateMacState(S_TRANSMIT);
                 }
@@ -329,8 +330,6 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
                     // Schedule switch to replenishment state, after small wait for other packets
                     scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
                     updateMacState(S_WAKE_UP_IDLE);
-                    delete activeBackoff;
-                    activeBackoff = nullptr;
                 }
             }
             // Else do nothing, wait for packet from upper or wake-up
@@ -349,6 +348,10 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
                 }
             }
             else if(setupTransmission()){
+                activeBackoff = new CSMATxUniformBackoff(this, activeRadio,
+                        0, txWakeUpWaitDuration);
+                const simtime_t delayIfBusy = txWakeUpWaitDuration + dataListeningDuration;
+                activeBackoff->startTxOrDelay(delayIfBusy);
                 updateTxState(TxDataState::WAKE_UP_WAIT);
                 updateMacState(S_TRANSMIT);
             }
@@ -521,8 +524,8 @@ void WakeUpMacLayer::stateReceiveEnterAck()
 {
     // Continue to contend for packet
     rxAckRound++;
-    activeBackoff = new CSMATxRemainderReciprocalBackoff(this, activeRadio, energyStorage, J(0), ackTxWaitDuration,
-            minimumContentionWindow);
+    activeBackoff = new CSMATxRemainderReciprocalBackoff(this, activeRadio,
+            ackTxWaitDuration, minimumContentionWindow);
     activeBackoff->delayCarrierSense(uniform(0, initialContentionDuration));
     rxState = RxState::ACK;
 }
@@ -721,8 +724,8 @@ void WakeUpMacLayer::stateTxEnterDataWait()
     updateTxState(TxDataState::DATA_WAIT);
     // use activeBackoff for backoff state machine
     ASSERT(activeBackoff == nullptr);
-    activeBackoff = new CSMATxUniformBackoff(this, activeRadio, energyStorage,
-            J(0.0), 0.0, ackWaitDuration/3);
+    activeBackoff = new CSMATxUniformBackoff(this, activeRadio,
+            0.0, ackWaitDuration/3);
     if(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER){
         activeBackoff->startTxOrBackoff();
     }
@@ -984,11 +987,8 @@ bool WakeUpMacLayer::setupTransmission() {
         return false;
     }
 
-    activeBackoff = new CSMATxUniformBackoff(this, activeRadio, energyStorage, transmissionStartMinEnergy,
-            0, txWakeUpWaitDuration);
-    const simtime_t delayIfBusy = txWakeUpWaitDuration + dataListeningDuration;
-    if (activeBackoff->startTxOrDelay(delayIfBusy)) {
-        // Backoff or transition to listening has started
+    if(energyStorage->getResidualEnergyCapacity() >= transmissionStartMinEnergy){
+        // Enough energy to start
         return true;
     }
     else{

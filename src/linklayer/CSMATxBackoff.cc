@@ -37,12 +37,8 @@ void CSMATxBackoffBase::startTxOrBackoff(){
 
 }
 
-bool CSMATxBackoffBase::startCold(){
-    if(energyStorage->getResidualEnergyCapacity() < transmissionStartMinEnergy){
-        return false;
-    }
+void CSMATxBackoffBase::startCold(){
     process(EV_START);
-    return true;
 }
 
 void CSMATxBackoffBase::delayCarrierSense(simtime_t delay)
@@ -54,11 +50,7 @@ void CSMATxBackoffBase::delayCarrierSense(simtime_t delay)
     state = BO_WAIT;
 }
 
-bool CSMATxBackoffBase::startTxOrDelay(simtime_t minDelay, simtime_t maxDelay){
-    if(energyStorage->getResidualEnergyCapacity() < transmissionStartMinEnergy){
-        return false;
-    }
-
+void CSMATxBackoffBase::startTxOrDelay(simtime_t minDelay, simtime_t maxDelay){
     if( isCarrierFree() ){
         //Start the transmission state machine
         activeRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
@@ -68,8 +60,6 @@ bool CSMATxBackoffBase::startTxOrDelay(simtime_t minDelay, simtime_t maxDelay){
         if(minDelay == maxDelay) delayCarrierSense(minDelay);
         else delayCarrierSense( parent->uniform(minDelay, maxDelay) );
     }
-
-    return true;
 }
 
 CSMATxBackoffBase::t_backoff_state CSMATxBackoffBase::process(const t_backoff_ev& event){
