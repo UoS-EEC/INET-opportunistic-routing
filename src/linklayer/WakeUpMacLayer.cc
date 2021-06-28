@@ -295,6 +295,13 @@ void WakeUpMacLayer::handleSelfMessage(cMessage* const msg) {
     }
 }
 
+void WakeUpMacLayer::stateTxEnter()
+{
+    dataMinExpectedCost = EqDC(25.5);
+    updateTxState(TxDataState::WAKE_UP_WAIT);
+    updateMacState(S_TRANSMIT);
+}
+
 void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg) {
     if(event == EV_DATA_RECEIVED){
         // TODO: Update neighbor tables
@@ -323,8 +330,7 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
                     activeBackoff = new CSMATxUniformBackoff(this, activeRadio,
                             minimumBackoff, maximumBackoff);
                     activeBackoff->startTxOrDelay(minimumBackoff, maximumBackoff);
-                    updateTxState(TxDataState::WAKE_UP_WAIT);
-                    updateMacState(S_TRANSMIT);
+                    stateTxEnter();
                 }
                 else{
                     // Schedule switch to replenishment state, after small wait for other packets
@@ -352,8 +358,7 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
                         0, txWakeUpWaitDuration);
                 const simtime_t delayIfBusy = txWakeUpWaitDuration + dataListeningDuration;
                 activeBackoff->startTxOrDelay(delayIfBusy);
-                updateTxState(TxDataState::WAKE_UP_WAIT);
-                updateMacState(S_TRANSMIT);
+                stateTxEnter();
             }
             else{
                 // Schedule switch to replenishment state, after small wait for other packets
@@ -695,7 +700,6 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
         break;
     case TxDataState::END:
         // End transmission by turning the radio off and start listening on wake-up radio
-        dataMinExpectedCost = EqDC(25.5);
         changeActiveRadio(wakeUpRadio);
         wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
         scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
@@ -825,7 +829,6 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
                 // Try transmitting wake-up again after standard ack backoff
                 scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
                 // Break into "transitionToIdle()" (see TX_END)
-                dataMinExpectedCost = EqDC(25.5);
                 changeActiveRadio(wakeUpRadio);
                 wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
                 scheduleAt(simTime(), replenishmentTimer);
