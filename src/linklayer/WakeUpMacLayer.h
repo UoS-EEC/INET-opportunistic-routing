@@ -242,9 +242,7 @@ protected:
     void stateWakeUpWaitExitToListening();
     void stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
     void stateWakeUpProcess(const t_mac_event& event, cMessage *msg);
-    void updateWuState(const WuWaitState& newWuState){
-        wuState = newWuState;
-    };
+
     /** @brief Receiving and acknowledgement **/
     cMessage *currentRxFrame;
     void dropCurrentRxFrame(PacketDropDetails& details);

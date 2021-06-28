@@ -1106,7 +1106,6 @@ void WakeUpMacLayer::decapsulate(Packet* const pkt) const{ // From CsmaCaMac
 void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
     // complete unfinished reception
     completePacketReception();
-    updateWuState(WuWaitState::IDLE);
     updateTxState(TX_WAKEUP_WAIT);
     stateWakeUpIdleEnterStartListening();
     interfaceEntry->setState(InterfaceEntry::State::UP);
