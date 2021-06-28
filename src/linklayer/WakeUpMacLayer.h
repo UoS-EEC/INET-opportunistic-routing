@@ -97,13 +97,13 @@ protected:
         S_TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
     };
 
-    enum t_tx_state {
-        TX_WAKEUP_WAIT, // Tx wake-up when radio ready and CSMA finished
-        TX_WAKEUP, // Tx Wake-up in progress
-        TX_DATA_WAIT, // Wait for receivers to wake-up
-        TX_DATA, // Send data when radio ready
-        TX_ACK_WAIT, // TODO: Listen for node acknowledging
-        TX_END // Reset
+    enum class TxDataState {
+        WAKE_UP_WAIT, // Tx wake-up when radio ready and CSMA finished
+        WAKE_UP, // Tx Wake-up in progress
+        DATA_WAIT, // Wait for receivers to wake-up
+        DATA, // Send data when radio ready
+        ACK_WAIT, // Listen for node acknowledging
+        END // Reset
     };
 
     enum class WuWaitState{
@@ -221,7 +221,7 @@ protected:
     Packet* buildAck(const Packet* subject) const;
     void updateMacState(const t_mac_state& newMacState){ macState = newMacState; };
     /** @brief Transmitter State Machine **/
-    t_tx_state txState;
+    TxDataState txDataState;
     void stateTxEnterDataWait();
     void stateTxProcess(const t_mac_event& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
@@ -234,7 +234,7 @@ protected:
     ExpectedCost dataMinExpectedCost = EqDC(25.5);
     simtime_t dataTransmissionDelay = 0;
     virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);
-    void updateTxState(const t_tx_state& newTxState){ txState = newTxState; };
+    void updateTxState(const TxDataState& newTxState){ txDataState = newTxState; };
 
     /** @brief Wake-up listening State Machine **/
     WuWaitState wuState;
