@@ -225,7 +225,6 @@ protected:
     void stateTxProcess(const t_mac_event& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
     const int requiredForwarders = 1;
-    const int maxForwarders = 4;
     int acknowledgedForwarders = 0;
     int acknowledgmentRound = 1;
     int maxWakeUpTries = 1;

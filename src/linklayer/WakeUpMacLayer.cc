@@ -766,15 +766,6 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             emit(expectedEncounterSignal, 1.0/acknowledgmentRound, &details);
 
             acknowledgedForwarders++;
-            if(acknowledgedForwarders>=maxForwarders){
-                // Skip listening for any more and send data again to reduce forwarders
-                updateTxState(TX_DATA);
-                scheduleAt(simTime(), wakeUpBackoffTimer);
-                cancelEvent(ackBackoffTimer);
-            }
-            else{
-                updateTxState(TX_ACK_WAIT);
-            }
             // If acknowledging node is packet destination
             // Set MinExpectedCost to 0 for the next data packet
             // This stops nodes other than the destination participating
