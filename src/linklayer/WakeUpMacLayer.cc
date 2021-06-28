@@ -656,28 +656,18 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
             // Wake-up transmission has ended, start wait backoff for neighbors to wake-up
             changeActiveRadio(dataRadio);
             dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
-            updateTxState(TX_DATA_WAIT);
             scheduleAt(simTime() + txWakeUpWaitDuration, wakeUpBackoffTimer);
             EV_DEBUG << "TX SM: TX_WAKEUP_WAIT --> TX_DATA_WAIT";
             // Reset statistic variable counting ack rounds (from transmitter perspective)
             acknowledgmentRound = 0;
         }
+        else if(event==EV_WAKEUP_BACKOFF){
+            stateTxEnterDataWait();
+        }
         break;
     case TX_DATA_WAIT:
         if(activeBackoff != nullptr){
             backoffResult = stepBackoffSM(event);
-        }
-        else if(event==EV_WAKEUP_BACKOFF){
-            // use activeBackoff for backoff state machine
-            ASSERT(activeBackoff == nullptr);
-            activeBackoff = new CSMATxUniformBackoff(this, activeRadio, energyStorage,
-                    J(0.0), 0.0, ackWaitDuration/3);
-            if(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER){
-                activeBackoff->startTxOrBackoff();
-            }
-            else{
-                activeBackoff->startCold();
-            }
         }
         if(backoffResult == CSMATxBackoffBase::BO_FINISHED){
             Packet* dataFrame = currentTxFrame->dup();
@@ -726,6 +716,21 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
     }
 }
 
+void WakeUpMacLayer::stateTxEnterDataWait()
+{
+    updateTxState(TX_DATA_WAIT);
+    // use activeBackoff for backoff state machine
+    ASSERT(activeBackoff == nullptr);
+    activeBackoff = new CSMATxUniformBackoff(this, activeRadio, energyStorage,
+            J(0.0), 0.0, ackWaitDuration/3);
+    if(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER){
+        activeBackoff->startTxOrBackoff();
+    }
+    else{
+        activeBackoff->startCold();
+    }
+}
+
 void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const msg) {
     if(event == EV_TX_END){
         delete activeBackoff;
@@ -763,7 +768,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             EncounterDetails details;
             details.setEncountered(receivedAck->getTransmitterAddress());
             details.setCurrentEqDC(receivedAck->getExpectedCostInd());
-            emit(expectedEncounterSignal, 1.0/acknowledgmentRound, &details);
+            emit(expectedEncounterSignal, 0.8/acknowledgmentRound, &details);
 
             acknowledgedForwarders++;
             // If acknowledging node is packet destination
@@ -808,10 +813,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         }
         else if(supplementaryForwarders > 0){
             // Go straight to immediate data retransmission to reduce forwarders
-            updateTxState(TX_DATA_WAIT);
-            scheduleAt(simTime(), wakeUpBackoffTimer);
-            acknowledgmentRound++;
-            updateMacState(S_TRANSMIT);
+            stateTxEnterDataWait();
         }
         else{
             txInProgressForwarders = txInProgressForwarders+acknowledgedForwarders; // TODO: Check forwarders uniqueness

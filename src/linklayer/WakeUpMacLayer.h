@@ -222,6 +222,7 @@ protected:
     void updateMacState(const t_mac_state& newMacState){ macState = newMacState; };
     /** @brief Transmitter State Machine **/
     t_tx_state txState;
+    void stateTxEnterDataWait();
     void stateTxProcess(const t_mac_event& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
     const int requiredForwarders = 1;
