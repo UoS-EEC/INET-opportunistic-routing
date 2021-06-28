@@ -556,7 +556,7 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
             stateReceiveEnterFinishDropReceived(PacketDropReason::OTHER_PACKET_DROP);
         }
         else{
-            //TODO: Make Opportunisitic Acceptance Decision
+            //TODO: Make Opportunistic Acceptance Decision
             auto acceptThresholdTag = incomingFrame->findTag<EqDCReq>();
             EqDC newAcceptThreshold = acceptThresholdTag!=nullptr ? acceptThresholdTag->getEqDC() : EqDC(25.5);
             // If better EqDC threshold, update
@@ -575,17 +575,13 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
         // Delete the existing currentRxFrame
         delete currentRxFrame;
 
-        // Sometimes the new data comes while in the Ack State
-        if(rxState == RxState::ACK)
-            stateReceiveExitAck();
-        else
-            stateReceiveExitDataWait();
-
+        stateReceiveExitDataWait();
         // Store the new received packet
         currentRxFrame = incomingFrame;
 
+
         // TODO: Make Opportunistic Contention Decision
-        //        Containing Make Opportunisitic Acceptance Decision
+        //        Containing Make Opportunistic Acceptance Decision
         // Check if the retransmitted packet still accepted
         // Packet will change if transmitter receives ack from the final destination
         // to improve the chances that only the data destination responds.
@@ -620,6 +616,20 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
         delete incomingFrame;
     }
 }
+
+void WakeUpMacLayer::stateReceiveAckProcessDataReceived(cMessage* msg)
+{
+    Packet* incomingFrame = check_and_cast<Packet*>(msg);
+    auto incomingMacData = incomingFrame->peekAtFront<WakeUpGram>();
+    Packet* storedFrame = check_and_cast_nullable<Packet*>(currentRxFrame);
+    if(incomingMacData->getType()==WU_DATA/* && currentRxFrame != nullptr*/
+            && storedFrame->peekAtFront<WakeUpGram>()->getTransmitterAddress() == incomingMacData->getTransmitterAddress() ){
+        stateReceiveExitAck();
+        stateReceiveEnterFinishDropReceived(PacketDropReason::DUPLICATE_DETECTED);
+    }
+    delete msg;
+}
+
 
 void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const msg) {
     // Needed for S_TRANSMIT backoff in switch
@@ -805,7 +815,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             // Data, possibly ACK or contending wake-up still in progress
             scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
         }
-        else if(supplementaryForwarders>0){
+        else if(supplementaryForwarders > 0){
             // Go straight to immediate data retransmission to reduce forwarders
             updateTxState(TX_DATA_WAIT);
             scheduleAt(simTime(), wakeUpBackoffTimer);

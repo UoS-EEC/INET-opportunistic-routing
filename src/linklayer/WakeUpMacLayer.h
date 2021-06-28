@@ -214,6 +214,7 @@ protected:
     void handleCoincidentalOverheardData(inet::Packet* receivedData);
     void handleOverheardAckInDataReceiveState(const Packet * const msg);
     void stateReceiveDataWaitProcessDataReceived(cMessage *msg);
+    void stateReceiveAckProcessDataReceived(cMessage *msg);
     void completePacketReception();
 
   protected:
