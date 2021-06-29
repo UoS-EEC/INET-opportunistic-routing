@@ -404,10 +404,15 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
     }
 }
 
-void WakeUpMacLayer::stateWakeUpIdleEnterStartListening()
+void WakeUpMacLayer::stateWakeUpIdleEnterAlreadyListening()
 {
     updateMacState(S_WAKE_UP_IDLE);
     changeActiveRadio(wakeUpRadio);
+}
+
+void WakeUpMacLayer::stateWakeUpIdleEnterStartListening()
+{
+    stateWakeUpIdleEnterAlreadyListening();
     //Transition to receiver will trigger packets in Queue to be sent
     wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
 }
@@ -638,6 +643,13 @@ void WakeUpMacLayer::stateReceiveAckProcessDataReceived(cMessage* msg)
     delete msg;
 }
 
+void WakeUpMacLayer::stateTxEnterEnd()
+{
+    //The Radio Receive->Sleep triggers next SM transition
+    updateTxState(TxDataState::END);
+    dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
+    wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+}
 
 void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const msg) {
     // Needed for S_TRANSMIT backoff in switch
@@ -681,12 +693,9 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
             Packet* dataFrame = currentTxFrame->dup();
             if(datagramPostRoutingHook(dataFrame)!=INetfilter::IHook::Result::ACCEPT){
                 EV_ERROR << "Aborted transmission of data is unimplemented." << endl;
-                // Taken from TX_END
-                changeActiveRadio(wakeUpRadio);
-                wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-                scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
-                updateMacState(S_WAKE_UP_IDLE);
-                updateTxState(TxDataState::WAKE_UP_WAIT);
+
+                txInProgressTries = maxWakeUpTries;
+                stateTxEnterEnd();
                 break;
             }
             encapsulate(dataFrame);
@@ -699,22 +708,29 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
         stepTxAckProcess(event, msg);
         break;
     case TxDataState::END:
-        // End transmission by turning the radio off and start listening on wake-up radio
-        changeActiveRadio(wakeUpRadio);
-        wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-        scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
-        updateMacState(S_WAKE_UP_IDLE);
-        updateTxState(TxDataState::WAKE_UP_WAIT);
-        emit(transmissionEndedSignal, true);
-        if(txInProgressForwarders<=0){
-            PacketDropDetails details;
-            // This reason could also justifiably be LIFETIME_EXPIRED
-            details.setReason(PacketDropReason::NO_ROUTE_FOUND);
-            dropCurrentTxFrame(details);
+        if(event == EV_ACK_TIMEOUT){
+            // Reschedule, because radio transition not finished
+            scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
         }
-        else {
-            deleteCurrentTxFrame();
-            emit(transmissionTriesSignal, txInProgressTries);
+        else if(event == EV_DATA_RX_IDLE){
+            bool sufficientForwarders = txInProgressForwarders >= requiredForwarders
+                    || currentTxFrame->findTag<EqDCBroadcast>();
+            if (sufficientForwarders) {
+                deleteCurrentTxFrame();
+            }
+            else if(txInProgressTries>=maxWakeUpTries){
+                // not sufficient forwarders and retry limit reached and
+                PacketDropDetails details;
+                // This reason could also justifiably be LIFETIME_EXPIRED
+                details.setReason(PacketDropReason::NO_ROUTE_FOUND);
+                dropCurrentTxFrame(details);
+            }
+            emit(transmissionEndedSignal, true);
+            stateWakeUpIdleEnterAlreadyListening();
+
+            if(not ackBackoffTimer->isScheduled()){
+                scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
+            }
         }
         break;
     default:
@@ -748,7 +764,6 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         acknowledgmentRound++;
         // Schedule acknowledgement wait timeout
         scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
-        updateMacState(S_TRANSMIT);
         updateTxState(TxDataState::ACK_WAIT);
         dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
 
@@ -769,7 +784,6 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         EV_DEBUG << "Data Ack Received";
         auto receivedData = check_and_cast<Packet* >(msg);
         auto receivedAck = receivedData->peekAtFront<WakeUpGram>();
-        updateMacState(S_TRANSMIT);
         if(receivedAck->getType() == WU_ACK &&
                 receivedAck->getReceiverAddress() == interfaceEntry->getMacAddress() ){
             EncounterDetails details;
@@ -792,7 +806,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         }
         else{
             handleCoincidentalOverheardData(receivedData);
-            updateTxState(TxDataState::ACK_WAIT);
+            updateTxState(TxDataState::ACK_WAIT); // TODO: Remove
             EV_DEBUG <<  "Discarding overheard data as busy transmitting" << endl;
             delete receivedData;
         }
@@ -809,10 +823,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         const int supplementaryForwarders = acknowledgedForwarders - requiredForwarders;
         if(broadcastTag != nullptr){
             // Don't resend data, broadcasts only get sent once
-            updateTxState(TxDataState::END);
-            updateMacState(S_TRANSMIT);
-            //The Radio Receive->Sleep triggers next SM transition
-            dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
+            stateTxEnterEnd();
         }
         else if( activeRadio->getReceptionState() != IRadio::RECEPTION_STATE_IDLE ){
             // Data, possibly ACK or contending wake-up still in progress
@@ -826,21 +837,10 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             txInProgressForwarders = txInProgressForwarders+acknowledgedForwarders; // TODO: Check forwarders uniqueness
             emit(ackContentionRoundsSignal, acknowledgmentRound);
             if(txInProgressForwarders<requiredForwarders && txInProgressTries<maxWakeUpTries){
-                // Try transmitting wake-up again after standard ack backoff
+                // Try transmitting again after standard ack backoff
                 scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
-                // Break into "transitionToIdle()" (see TX_END)
-                changeActiveRadio(wakeUpRadio);
-                wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-                scheduleAt(simTime(), replenishmentTimer);
-                updateMacState(S_WAKE_UP_IDLE);
-                updateTxState(TxDataState::WAKE_UP_WAIT);
             }
-            else{
-                updateTxState(TxDataState::END);
-                updateMacState(S_TRANSMIT);
-                //The Radio Receive->Sleep triggers next SM transition
-                dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
-            }
+            stateTxEnterEnd();
         }
     }
 }
@@ -1109,7 +1109,6 @@ void WakeUpMacLayer::decapsulate(Packet* const pkt) const{ // From CsmaCaMac
 void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
     // complete unfinished reception
     completePacketReception();
-    updateTxState(TxDataState::WAKE_UP_WAIT);
     stateWakeUpIdleEnterStartListening();
     interfaceEntry->setState(InterfaceEntry::State::UP);
     interfaceEntry->setCarrier(true);
@@ -1127,7 +1126,6 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
             details.setReason(INTERFACE_DOWN);
             // Packet has been received by a forwarder
             dropCurrentTxFrame(details);
-            emit(transmissionEndedSignal, true);
         }
     }
     else if(currentRxFrame != nullptr){

@@ -196,6 +196,7 @@ protected:
     /** @brief Execute a step in the MAC state machine */
     void stateProcess(const t_mac_event& event, cMessage *msg);
     void stateWakeUpIdleEnterStartListening();
+    void stateWakeUpIdleEnterAlreadyListening();
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
     RxState rxState;
@@ -224,6 +225,7 @@ protected:
     TxDataState txDataState;
     void stateTxEnter();
     void stateTxEnterDataWait();
+    void stateTxEnterEnd();
     void stateTxProcess(const t_mac_event& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
     const int requiredForwarders = 1;
@@ -260,6 +262,12 @@ protected:
     void dropCurrentTxFrame(inet::PacketDropDetails& details) override{
         MacProtocolBase::dropCurrentTxFrame(details);
         emit(transmissionTriesSignal, txInProgressTries);
+        emit(transmissionEndedSignal, true);
+    }
+    void deleteCurrentTxFrame(){
+        MacProtocolBase::deleteCurrentTxFrame();
+        emit(transmissionTriesSignal, txInProgressTries);
+        emit(transmissionEndedSignal, true);
     }
 };
 
