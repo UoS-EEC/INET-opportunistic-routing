@@ -225,6 +225,8 @@ protected:
     TxDataState txDataState;
     void stateTxEnter();
     void stateTxEnterDataWait();
+    void stateTxDataWaitExitEnterAckWait();
+    void stateTxWakeUpWaitExit();
     void stateTxEnterEnd();
     void stateTxProcess(const t_mac_event& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;

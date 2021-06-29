@@ -319,7 +319,7 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
             handleCoincidentalOverheardData(check_and_cast<Packet*>(msg));
             stateWakeUpWaitApproveWaitEnter(msg);
         }
-        else if((event == EV_ACK_TIMEOUT || event == EV_DATA_RX_READY) && !ackBackoffTimer->isScheduled()){
+        else if(event == EV_ACK_TIMEOUT || event == EV_DATA_RX_READY){
             // EV_ACK_TIMEOUT triggered by need for retry of packet
             // but check ackBackoffTimer in case of longer backoff before transmission
             // Perform carrier sense if there is a currentTxFrame
@@ -353,6 +353,7 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
                     scheduleAt(simTime() + wuApproveResponseLimit, wakeUpBackoffTimer);
                 }
             }
+
             else if(setupTransmission()){
                 activeBackoff = new CSMATxUniformBackoff(this, activeRadio,
                         0, txWakeUpWaitDuration);
@@ -651,24 +652,41 @@ void WakeUpMacLayer::stateTxEnterEnd()
     wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
 }
 
+void WakeUpMacLayer::stateTxDataWaitExitEnterAckWait()
+{
+    delete activeBackoff;
+    activeBackoff = nullptr;
+    Packet* dataFrame = currentTxFrame->dup();
+    if(datagramPostRoutingHook(dataFrame)!=INetfilter::IHook::Result::ACCEPT){
+        EV_ERROR << "Aborted transmission of data is unimplemented." << endl;
+    }
+    encapsulate(dataFrame);
+    sendDown(dataFrame);
+    updateTxState(TxDataState::DATA);
+}
+
+void WakeUpMacLayer::stateTxWakeUpWaitExit()
+{
+    delete activeBackoff;
+    activeBackoff = nullptr;
+}
+
 void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const msg) {
     // Needed for S_TRANSMIT backoff in switch
     auto backoffResult = CSMATxBackoffBase::BO_WAIT;
+    if(activeBackoff != nullptr){
+        backoffResult = stepBackoffSM(event);
+    }
 
     switch (txDataState){
     case TxDataState::WAKE_UP_WAIT:
-        if(activeBackoff != nullptr){
-            backoffResult = stepBackoffSM(event);
-        }
-        if(backoffResult == CSMATxBackoffBase::BO_FINISHED){
+        if(event==EV_TX_READY){
             // TODO: Change this to a short WU packet
             cMessage* const currentTxWakeUp = check_and_cast<cMessage*>(buildWakeUp(currentTxFrame, txInProgressTries));
             send(currentTxWakeUp, wakeUpRadioOutGateId);
             txInProgressTries++;
             updateTxState(TxDataState::WAKE_UP);
-            delete activeBackoff;
-            activeBackoff = nullptr;
-            EV_DEBUG << "TX SM in WAKE_UP_WAIT";
+            stateTxWakeUpWaitExit();
         }
         break;
     case TxDataState::WAKE_UP:
@@ -686,21 +704,8 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
         }
         break;
     case TxDataState::DATA_WAIT:
-        if(activeBackoff != nullptr){
-            backoffResult = stepBackoffSM(event);
-        }
-        if(backoffResult == CSMATxBackoffBase::BO_FINISHED){
-            Packet* dataFrame = currentTxFrame->dup();
-            if(datagramPostRoutingHook(dataFrame)!=INetfilter::IHook::Result::ACCEPT){
-                EV_ERROR << "Aborted transmission of data is unimplemented." << endl;
-
-                txInProgressTries = maxWakeUpTries;
-                stateTxEnterEnd();
-                break;
-            }
-            encapsulate(dataFrame);
-            sendDown(dataFrame);
-            updateTxState(TxDataState::DATA);
+        if(event==EV_TX_READY){
+            stateTxDataWaitExitEnterAckWait();
         }
         break;
     case TxDataState::DATA:
@@ -756,8 +761,6 @@ void WakeUpMacLayer::stateTxEnterDataWait()
 
 void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const msg) {
     if(event == EV_TX_END){
-        delete activeBackoff;
-        activeBackoff = nullptr;
         //reset confirmed forwarders count
         acknowledgedForwarders = 0;
         // Increase acknowledgment round value
