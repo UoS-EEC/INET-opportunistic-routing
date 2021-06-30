@@ -49,7 +49,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOppo
   public:
     WakeUpMacLayer()
       : MacProtocolBase(),
-        wakeUpBackoffTimer(nullptr),
+        transmitBackoffTimer(nullptr),
         wuTimeout(nullptr),
         dataRadio(nullptr),
         wakeUpRadio(nullptr),
@@ -123,7 +123,7 @@ protected:
     /** @brief MAC state machine events.*/
     enum t_mac_event {
         EV_QUEUE_SEND,
-        EV_WAKEUP_BACKOFF,
+        EV_TX_START,
         EV_CSMA_BACKOFF,
         EV_TX_READY,
         EV_TX_END,
@@ -154,7 +154,7 @@ protected:
 
     /** @name Protocol timer messages */
     /*@{*/
-    cMessage *wakeUpBackoffTimer;
+    cMessage *transmitBackoffTimer;
     cMessage *ackBackoffTimer;
     cMessage *wuTimeout;
     /*@}*/

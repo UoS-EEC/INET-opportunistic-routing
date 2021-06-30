@@ -51,7 +51,7 @@ void WakeUpMacLayer::initialize(int const stage) {
         wakeUpRadioOutGateId = findGate("wakeUpRadioOut");
 
         //Create timer messages
-        wakeUpBackoffTimer = new cMessage("wake-up backoff");
+        transmitBackoffTimer = new cMessage("transmit backoff");
         wuTimeout = new cMessage("wake-up wait timer");
         ackBackoffTimer = new cMessage("ack wait timer");
         replenishmentTimer = new cMessage("replenishment check timeout");
@@ -267,8 +267,8 @@ void WakeUpMacLayer::receiveSignal(cComponent* const source, simsignal_t const s
 }
 
 void WakeUpMacLayer::handleSelfMessage(cMessage* const msg) {
-    if(msg == wakeUpBackoffTimer){
-        stateProcess(EV_WAKEUP_BACKOFF, msg);
+    if(msg == transmitBackoffTimer){
+        stateProcess(EV_TX_START, msg);
     }
     else if(msg == wuTimeout){
         stateProcess(EV_WU_TIMEOUT, msg);
@@ -340,7 +340,7 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
             }
             // Else do nothing, wait for packet from upper or wake-up
         }
-        else if(event == EV_QUEUE_SEND || event == EV_WAKEUP_BACKOFF){
+        else if(event == EV_QUEUE_SEND || event == EV_TX_START){
             // EV_WAKEUP_BACKOFF triggered by wait before transmit when busy rxing or txing
             // Check if there are packets to send and if so, send them
             if(txQueue->isEmpty()){
@@ -349,8 +349,8 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
             }
             else if(wakeUpRadio->getRadioMode() == IRadio::RADIO_MODE_SWITCHING){
                 // Schedule timer to start backoff after short time if nothing in currentTxFrame buffer
-                if( currentTxFrame == nullptr  && !wakeUpBackoffTimer->isScheduled() ){
-                    scheduleAt(simTime() + wuApproveResponseLimit, wakeUpBackoffTimer);
+                if( currentTxFrame == nullptr  && !transmitBackoffTimer->isScheduled() ){
+                    scheduleAt(simTime() + wuApproveResponseLimit, transmitBackoffTimer);
                 }
             }
 
@@ -945,14 +945,14 @@ void WakeUpMacLayer::configureInterfaceEntry() {
 
 void WakeUpMacLayer::cancelAllTimers()
 {
-    cancelEvent(wakeUpBackoffTimer);
+    cancelEvent(transmitBackoffTimer);
     cancelEvent(ackBackoffTimer);
     cancelEvent(wuTimeout);
     cancelEvent(replenishmentTimer);
 }
 
 void WakeUpMacLayer::deleteAllTimers(){
-    delete wakeUpBackoffTimer;
+    delete transmitBackoffTimer;
     delete ackBackoffTimer;
     delete wuTimeout;
     delete replenishmentTimer;
@@ -975,7 +975,7 @@ void WakeUpMacLayer::changeActiveRadio(physicallayer::IRadio* const newActiveRad
 
 bool WakeUpMacLayer::setupTransmission() {
     //Cancel transmission timers
-    cancelEvent(wakeUpBackoffTimer);
+    cancelEvent(transmitBackoffTimer);
     cancelEvent(ackBackoffTimer);
     cancelEvent(wuTimeout);
     cancelEvent(replenishmentTimer);
