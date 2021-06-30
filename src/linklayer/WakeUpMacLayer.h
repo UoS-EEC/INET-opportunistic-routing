@@ -49,7 +49,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOppo
   public:
     WakeUpMacLayer()
       : MacProtocolBase(),
-        transmitBackoffTimer(nullptr),
+        transmitStartDelay(nullptr),
         wuTimeout(nullptr),
         dataRadio(nullptr),
         wakeUpRadio(nullptr),
@@ -94,6 +94,7 @@ protected:
         S_WAKE_UP_IDLE, // WuRx listening
         S_WAKE_UP_WAIT, // WuRx receiving or processing
         S_RECEIVE, // Data radio listening, receiving and ack following wake-up or initial data
+        S_AWAIT_TRANSMIT, // DATA radio listening but with packet waiting to be transmitted
         S_TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
     };
 
@@ -154,7 +155,7 @@ protected:
 
     /** @name Protocol timer messages */
     /*@{*/
-    cMessage *transmitBackoffTimer;
+    cMessage *transmitStartDelay;
     cMessage *ackBackoffTimer;
     cMessage *wuTimeout;
     /*@}*/
@@ -195,6 +196,9 @@ protected:
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     void stateProcess(const t_mac_event& event, cMessage *msg);
+    void stateListeningEnterAlreadyListening();
+    void stateAwaitTransmitEnterStartListening();
+    void stateAwaitTransmitEnterAlreadyListening();
     void stateWakeUpIdleEnterStartListening();
     void stateWakeUpIdleEnterAlreadyListening();
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
@@ -271,6 +275,8 @@ protected:
         emit(transmissionTriesSignal, txInProgressTries);
         emit(transmissionEndedSignal, true);
     }
+
+    void completePacketTransmission();
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
