@@ -52,7 +52,7 @@ void WakeUpMacLayer::initialize(int const stage) {
 
         //Create timer messages
         wakeUpBackoffTimer = new cMessage("wake-up backoff");
-        wuTimeout = new cMessage("wake-up accept timeout");
+        wuTimeout = new cMessage("wake-up wait timer");
         ackBackoffTimer = new cMessage("ack wait timer");
         replenishmentTimer = new cMessage("replenishment check timeout");
         dataListeningDuration = par("dataListeningDuration");
@@ -694,12 +694,12 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
             // Wake-up transmission has ended, start wait backoff for neighbors to wake-up
             changeActiveRadio(dataRadio);
             dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
-            scheduleAt(simTime() + txWakeUpWaitDuration, wakeUpBackoffTimer);
+            scheduleAt(simTime() + txWakeUpWaitDuration, wuTimeout);
             EV_DEBUG << "TX SM: WAKE_UP_WAIT --> DATA_WAIT";
             // Reset statistic variable counting ack rounds (from transmitter perspective)
             acknowledgmentRound = 0;
         }
-        else if(event==EV_WAKEUP_BACKOFF){
+        else if(event==EV_WU_TIMEOUT){
             stateTxEnterDataWait();
         }
         break;
