@@ -328,11 +328,10 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
                 stateListeningEnterAlreadyListening();
             }
             else if(transmissionStartEnergyCheck()){
-                auto minimumBackoff = txWakeUpWaitDuration;
-                auto maximumBackoff = txWakeUpWaitDuration + dataListeningDuration;
                 activeBackoff = new CSMATxUniformBackoff(this, activeRadio,
-                        minimumBackoff, maximumBackoff);
-                activeBackoff->startTxOrDelay(minimumBackoff, maximumBackoff);
+                        0, txWakeUpWaitDuration);
+                const simtime_t delayIfBusy = txWakeUpWaitDuration + dataListeningDuration;
+                activeBackoff->startTxOrDelay(delayIfBusy);
                 stateTxEnter();
             }
             else{
@@ -897,7 +896,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
             emit(ackContentionRoundsSignal, acknowledgmentRound);
             if(txInProgressForwarders<requiredForwarders && txInProgressTries<maxWakeUpTries){
                 // Try transmitting again after standard ack backoff
-                scheduleAt(simTime() + uniform(0,ackWaitDuration), transmitStartDelay);
+                scheduleAt(simTime() + ackWaitDuration, transmitStartDelay);
             }
             stateTxEnterEnd();
         }
