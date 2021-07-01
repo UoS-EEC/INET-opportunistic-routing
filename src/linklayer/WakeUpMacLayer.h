@@ -197,6 +197,7 @@ protected:
     /** @brief Execute a step in the MAC state machine */
     void stateProcess(const t_mac_event& event, cMessage *msg);
     void stateListeningEnterAlreadyListening();
+    void stateListeningEnter();
     void stateAwaitTransmitEnterStartListening();
     void stateAwaitTransmitEnterAlreadyListening();
     void stateWakeUpIdleEnterStartListening();
@@ -257,7 +258,7 @@ protected:
     void dropCurrentRxFrame(PacketDropDetails& details);
     void encapsulate(Packet* msg) const;
     void decapsulate(Packet* msg) const;
-    bool setupTransmission(); // Return false if immediate transmission is not possible
+    void setupTransmission();
 
     // OperationalBase:
     virtual void handleStartOperation(LifecycleOperation *operation) override;
@@ -277,6 +278,7 @@ protected:
     }
 
     void completePacketTransmission();
+    bool transmissionStartEnergyCheck();
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
