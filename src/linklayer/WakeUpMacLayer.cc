@@ -682,10 +682,12 @@ void WakeUpMacLayer::stateTxWakeUpWaitExit()
 
 void WakeUpMacLayer::completePacketTransmission()
 {
+    emit(ackContentionRoundsSignal, acknowledgmentRound);
     bool sufficientForwarders = txInProgressForwarders >= requiredForwarders
             || currentTxFrame->findTag<EqDCBroadcast>();
     if (sufficientForwarders) {
         deleteCurrentTxFrame();
+        emit(transmissionEndedSignal, true);
     }
     else if (txInProgressTries >= maxWakeUpTries) {
         // not sufficient forwarders and retry limit reached and
@@ -693,9 +695,8 @@ void WakeUpMacLayer::completePacketTransmission()
         // This reason could also justifiably be LIFETIME_EXPIRED
         details.setReason(PacketDropReason::NO_ROUTE_FOUND);
         dropCurrentTxFrame(details);
+        emit(transmissionEndedSignal, true);
     }
-
-    emit(transmissionEndedSignal, true);
 }
 
 void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const msg) {
@@ -745,7 +746,6 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
             scheduleAt(simTime() + ackWaitDuration, transmitStartDelay);
         }
         else if(event == EV_DATA_RX_IDLE){
-            completePacketTransmission();
             stateListeningEnterAlreadyListening();
         }
         break;
@@ -772,26 +772,25 @@ void WakeUpMacLayer::stateTxEnterDataWait()
 
 void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const msg) {
     if(event == EV_TX_END){
-        //reset confirmed forwarders count
-        acknowledgedForwarders = 0;
-        // Increase acknowledgment round value
-        acknowledgmentRound++;
-        // Schedule acknowledgement wait timeout
-        scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
-        updateTxState(TxDataState::ACK_WAIT);
-        dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
 
 
         if (skipDirectTxFinalAck && dataMinExpectedCost == EqDC(0)) {
             // Only the final dest will Ack when expectedCost=0 (A DirectTx)
-            // therefore do not retransmit dataPacketAgain
+            // therefore do not retransmit dataPacketAgain go straight to end
             // Even if destination does not Ack again.
-            // This is the same as a broadcast transmission, so tag it as such
             currentTxFrame->addTagIfAbsent<EqDCBroadcast>();
-
-            //Reduce time spent waiting for ack
-            cancelEvent(ackBackoffTimer);
-            scheduleAt(simTime() + initialContentionDuration, ackBackoffTimer);
+            completePacketTransmission();
+            stateTxEnterEnd();
+        }
+        else{//Ack required
+            //reset confirmed forwarders count
+            acknowledgedForwarders = 0;
+            // Increase acknowledgment round value
+            acknowledgmentRound++;
+            // Schedule acknowledgement wait timeout
+            scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
+            txDataState = TxDataState::ACK_WAIT;
+            dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
         }
     }
     else if(event == EV_DATA_RECEIVED){
@@ -820,7 +819,6 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         }
         else{
             handleCoincidentalOverheardData(receivedData);
-            updateTxState(TxDataState::ACK_WAIT); // TODO: Remove
             EV_DEBUG <<  "Discarding overheard data as busy transmitting" << endl;
             delete receivedData;
         }
@@ -837,6 +835,7 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         const int supplementaryForwarders = acknowledgedForwarders - requiredForwarders;
         if(broadcastTag != nullptr){
             // Don't resend data, broadcasts only get sent once
+            completePacketTransmission();
             stateTxEnterEnd();
         }
         else if( activeRadio->getReceptionState() != IRadio::RECEPTION_STATE_IDLE ){
@@ -849,8 +848,8 @@ void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const
         }
         else{
             txInProgressForwarders = txInProgressForwarders+acknowledgedForwarders; // TODO: Check forwarders uniqueness
-            emit(ackContentionRoundsSignal, acknowledgmentRound);
-            if(txInProgressForwarders<requiredForwarders && txInProgressTries<maxWakeUpTries){
+            completePacketTransmission();
+            if(currentTxFrame){//Not complete yet
                 // Try transmitting again after standard ack backoff
                 scheduleAt(simTime() + ackWaitDuration, transmitStartDelay);
             }
