@@ -200,6 +200,7 @@ protected:
     void stateListeningEnter();
     void stateAwaitTransmitEnterStartListening();
     void stateAwaitTransmitEnterAlreadyListening();
+    void stateAwaitTransmitEnterWithReplenishmentTimeout();
     void stateWakeUpIdleEnterStartListening();
     void stateWakeUpIdleEnterAlreadyListening();
     EqDC acceptDataEqDCThreshold = EqDC(25.5);

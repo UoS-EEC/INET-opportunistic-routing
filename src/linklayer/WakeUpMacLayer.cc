@@ -299,6 +299,13 @@ void WakeUpMacLayer::stateTxEnter()
     updateMacState(S_TRANSMIT);
 }
 
+void WakeUpMacLayer::stateAwaitTransmitEnterWithReplenishmentTimeout()
+{
+    // Schedule switch to replenishment state, after small wait for other packets
+    scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
+    updateMacState(S_AWAIT_TRANSMIT);
+}
+
 void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg) {
     if(event == EV_DATA_RECEIVED){
         // TODO: Update neighbor tables
@@ -329,9 +336,7 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
                 stateTxEnter();
             }
             else{
-                // Schedule switch to replenishment state, after small wait for other packets
-                scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
-                updateMacState(S_AWAIT_TRANSMIT);
+                stateAwaitTransmitEnterWithReplenishmentTimeout();
             }
         }
         break;
@@ -361,9 +366,7 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
                 stateTxEnter();
             }
             else{
-                // Schedule switch to replenishment state, after small wait for other packets
-                scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
-                updateMacState(S_AWAIT_TRANSMIT);
+                stateAwaitTransmitEnterWithReplenishmentTimeout();
             }
         }
         else if(event == EV_TX_START){
@@ -387,9 +390,7 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
                 stateTxEnter();
             }
             else{
-                // Schedule switch to replenishment state, after small wait for other packets
-                scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
-                updateMacState(S_AWAIT_TRANSMIT);
+                stateAwaitTransmitEnterWithReplenishmentTimeout();
             }
         }
         else if(event == EV_REPLENISH_TIMEOUT){
