@@ -240,7 +240,7 @@ protected:
     int txInProgressTries = 0;
     ExpectedCost dataMinExpectedCost = EqDC(25.5);
     simtime_t dataTransmissionDelay = 0;
-    virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);
+    virtual void stateTxAckWaitProcess(const t_mac_event& event, cMessage *msg);
     void updateTxState(const TxDataState& newTxState){ txDataState = newTxState; };
 
     /** @brief Wake-up listening State Machine **/

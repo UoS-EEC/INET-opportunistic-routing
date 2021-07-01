@@ -737,8 +737,29 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
         }
         break;
     case TxDataState::DATA:
+        if(event == EV_TX_END){
+            if (skipDirectTxFinalAck && dataMinExpectedCost == EqDC(0)) {
+                // Only the final dest will Ack when expectedCost=0 (A DirectTx)
+                // therefore do not retransmit dataPacketAgain go straight to end
+                // Even if destination does not Ack again.
+                currentTxFrame->addTagIfAbsent<EqDCBroadcast>();
+                completePacketTransmission();
+                stateTxEnterEnd();
+            }
+            else{//Ack required
+                //reset confirmed forwarders count
+                acknowledgedForwarders = 0;
+                // Increase acknowledgment round value
+                acknowledgmentRound++;
+                // Schedule acknowledgement wait timeout
+                scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
+                txDataState = TxDataState::ACK_WAIT;
+                dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
+            }
+        }
+        break;
     case TxDataState::ACK_WAIT:
-        stepTxAckProcess(event, msg);
+        stateTxAckWaitProcess(event, msg);
         break;
     case TxDataState::END:
         if(event == EV_TX_START){
@@ -770,30 +791,8 @@ void WakeUpMacLayer::stateTxEnterDataWait()
     }
 }
 
-void WakeUpMacLayer::stepTxAckProcess(const t_mac_event& event, cMessage * const msg) {
-    if(event == EV_TX_END){
-
-
-        if (skipDirectTxFinalAck && dataMinExpectedCost == EqDC(0)) {
-            // Only the final dest will Ack when expectedCost=0 (A DirectTx)
-            // therefore do not retransmit dataPacketAgain go straight to end
-            // Even if destination does not Ack again.
-            currentTxFrame->addTagIfAbsent<EqDCBroadcast>();
-            completePacketTransmission();
-            stateTxEnterEnd();
-        }
-        else{//Ack required
-            //reset confirmed forwarders count
-            acknowledgedForwarders = 0;
-            // Increase acknowledgment round value
-            acknowledgmentRound++;
-            // Schedule acknowledgement wait timeout
-            scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
-            txDataState = TxDataState::ACK_WAIT;
-            dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-        }
-    }
-    else if(event == EV_DATA_RECEIVED){
+void WakeUpMacLayer::stateTxAckWaitProcess(const t_mac_event& event, cMessage * const msg) {
+    if(event == EV_DATA_RECEIVED){
         EV_DEBUG << "Data Ack Received";
         auto receivedData = check_and_cast<Packet* >(msg);
         auto receivedAck = receivedData->peekAtFront<WakeUpGram>();
