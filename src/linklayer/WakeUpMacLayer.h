@@ -198,9 +198,6 @@ protected:
     void stateProcess(const t_mac_event& event, cMessage *msg);
     void stateListeningEnterAlreadyListening();
     void stateListeningEnter();
-    void stateAwaitTransmitEnterStartListening();
-    void stateAwaitTransmitEnterAlreadyListening();
-    void stateWakeUpIdleEnterStartListening();
     void stateWakeUpIdleEnterAlreadyListening();
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;

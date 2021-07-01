@@ -423,29 +423,10 @@ void WakeUpMacLayer::stateListeningEnter(){
     stateListeningEnterAlreadyListening();
 }
 
-void WakeUpMacLayer::stateAwaitTransmitEnterAlreadyListening(){
-    updateMacState(S_AWAIT_TRANSMIT);
-    changeActiveRadio(wakeUpRadio);
-}
-
-void WakeUpMacLayer::stateAwaitTransmitEnterStartListening()
-{
-    stateAwaitTransmitEnterAlreadyListening();
-    //Transition to receiver will trigger packets in Queue to be sent
-    wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-}
-
 void WakeUpMacLayer::stateWakeUpIdleEnterAlreadyListening()
 {
     updateMacState(S_WAKE_UP_IDLE);
     changeActiveRadio(wakeUpRadio);
-}
-
-void WakeUpMacLayer::stateWakeUpIdleEnterStartListening()
-{
-    stateWakeUpIdleEnterAlreadyListening();
-    //Transition to receiver will trigger packets in Queue to be sent
-    wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
 }
 
 void WakeUpMacLayer::stateReceiveAckEnterReceiveDataWait()
