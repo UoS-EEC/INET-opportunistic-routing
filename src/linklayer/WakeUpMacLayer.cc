@@ -315,7 +315,6 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
 
     switch (macState){
     case S_WAKE_UP_IDLE:
-        cancelEvent(replenishmentTimer);
         if(event == EV_WU_START){
             // Start the wake-up state machine
             handleCoincidentalOverheardData(check_and_cast<Packet*>(msg));
@@ -787,10 +786,6 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
         else if(event == EV_DATA_RX_IDLE){
             completePacketTransmission();
             stateListeningEnterAlreadyListening();
-
-            if(not transmitStartDelay->isScheduled()){
-                scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
-            }
         }
         break;
     default:
@@ -1037,7 +1032,6 @@ void WakeUpMacLayer::setupTransmission() {
     cancelEvent(transmitStartDelay);
     cancelEvent(ackBackoffTimer);
     cancelEvent(wuTimeout);
-    cancelEvent(replenishmentTimer);
     //Reset progress counters
     txInProgressForwarders = 0;
 
