@@ -299,13 +299,6 @@ void WakeUpMacLayer::stateTxEnter()
     updateMacState(S_TRANSMIT);
 }
 
-void WakeUpMacLayer::stateAwaitTransmitEnterWithReplenishmentTimeout()
-{
-    // Schedule switch to replenishment state, after small wait for other packets
-    scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
-    updateMacState(S_AWAIT_TRANSMIT);
-}
-
 void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg) {
     if(event == EV_DATA_RECEIVED){
         // TODO: Update neighbor tables
@@ -323,32 +316,31 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
         else if(event == EV_QUEUE_SEND){
             ASSERT(currentTxFrame == nullptr);
             setupTransmission();
-            if(wuRadioMode == IRadio::RADIO_MODE_SWITCHING){
+            if(wuRadioMode == IRadio::RADIO_MODE_SWITCHING || !transmissionStartEnergyCheck()){
                 stateListeningEnterAlreadyListening();
             }
-            else if(transmissionStartEnergyCheck()){
+            else{
                 activeBackoff = new CSMATxUniformBackoff(this, activeRadio,
                         0, txWakeUpWaitDuration);
                 const simtime_t delayIfBusy = txWakeUpWaitDuration + dataListeningDuration;
                 activeBackoff->startTxOrDelay(delayIfBusy);
                 stateTxEnter();
             }
-            else{
-                stateAwaitTransmitEnterWithReplenishmentTimeout();
-            }
         }
         break;
     case S_AWAIT_TRANSMIT:
-        cancelEvent(replenishmentTimer);
         ASSERT(wuRadioMode == IRadio::RADIO_MODE_RECEIVER
                 || wuRadioMode == IRadio::RADIO_MODE_SWITCHING);
         if(event == EV_WU_START){
             cancelEvent(transmitStartDelay);
+            cancelEvent(replenishmentTimer);
             // Start the wake-up state machine
             handleCoincidentalOverheardData(check_and_cast<Packet*>(msg));
             stateWakeUpWaitApproveWaitEnter(msg);
         }
-        else if(event == EV_DATA_RX_READY && not transmitStartDelay->isScheduled()){
+        else if(event == EV_DATA_RX_READY
+                && not transmitStartDelay->isScheduled()
+                && not replenishmentTimer->isScheduled()){
             // EV_DATA_RX_READY triggered by transmitting ending but with packet ready
             // Perform carrier sense if there is a currentTxFrame
             if(not txQueue->isEmpty()){
@@ -357,43 +349,28 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
             }
             auto minimumBackoff = txWakeUpWaitDuration;
             auto maximumBackoff = txWakeUpWaitDuration + dataListeningDuration;
-            if(transmissionStartEnergyCheck()){
-                activeBackoff = new CSMATxUniformBackoff(this, activeRadio,
-                        minimumBackoff, maximumBackoff);
-                activeBackoff->startTxOrDelay(minimumBackoff, maximumBackoff);
-                stateTxEnter();
-            }
-            else{
-                stateAwaitTransmitEnterWithReplenishmentTimeout();
-            }
+            activeBackoff = new CSMATxUniformBackoff(this, activeRadio,
+                    minimumBackoff, maximumBackoff);
+            activeBackoff->startTxOrDelay(minimumBackoff, maximumBackoff);
+            stateTxEnter();
         }
-        else if(event == EV_TX_START){
+        else if(event == EV_TX_START
+                && not replenishmentTimer->isScheduled()){
             // EV_TX_START triggered by wait before transmit after rxing or txing
             // Check if there are packets to send and if so, send them
             if(currentTxFrame == nullptr){
                 ASSERT(not txQueue->isEmpty());
                 setupTransmission();
             }
-            if(wakeUpRadio->getRadioMode() == IRadio::RADIO_MODE_SWITCHING){
-                // Schedule timer to start backoff after short time if nothing in currentTxFrame buffer
-                if( currentTxFrame == nullptr  && !transmitStartDelay->isScheduled() ){
-                    scheduleAt(simTime() + wuApproveResponseLimit, transmitStartDelay);
-                }
-            }
-            else if(transmissionStartEnergyCheck()){
-                activeBackoff = new CSMATxUniformBackoff(this, activeRadio,
-                        0, txWakeUpWaitDuration);
-                const simtime_t delayIfBusy = txWakeUpWaitDuration + dataListeningDuration;
-                activeBackoff->startTxOrDelay(delayIfBusy);
-                stateTxEnter();
-            }
-            else{
-                stateAwaitTransmitEnterWithReplenishmentTimeout();
-            }
+            activeBackoff = new CSMATxUniformBackoff(this, activeRadio,
+                    0, txWakeUpWaitDuration);
+            const simtime_t delayIfBusy = txWakeUpWaitDuration + dataListeningDuration;
+            activeBackoff->startTxOrDelay(delayIfBusy);
+            stateTxEnter();
         }
         else if(event == EV_REPLENISH_TIMEOUT){
             // Check if there is enough energy. If not, replenish to maintain above tx threshold
-            if(energyStorage->getResidualEnergyCapacity() < transmissionStartMinEnergy){
+            if(not transmissionStartEnergyCheck()){
                 // Turn off and let the SimpleEpEnergyManager turn back on at the on threshold
                 LifecycleOperation::StringMap params;
                 auto *operation = new ModuleStopOperation();
@@ -430,6 +407,9 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
 void WakeUpMacLayer::stateListeningEnterAlreadyListening(){
     if(currentTxFrame || not txQueue->isEmpty()){
         // Data is waiting in the tx queue
+        // Schedule replenishment timer if insufficient stored energy
+        if(!transmissionStartEnergyCheck())
+            scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
         updateMacState(S_AWAIT_TRANSMIT);
         changeActiveRadio(wakeUpRadio);
     }
