@@ -201,7 +201,8 @@ protected:
     void stateProcess(const t_mac_event& event, cMessage *msg);
     void stateListeningEnterAlreadyListening();
     void stateListeningEnter();
-    void stateWakeUpIdleEnterAlreadyListening();
+    void stateListeningIdleEnterAlreadyListening();
+    void stateAwaitTransmitEnterAlreadyListening();
     void stateWakeUpIdleProcess(const t_mac_event& event, omnetpp::cMessage* const msg);
     void stateAwaitTransmitProcess(const t_mac_event& event, omnetpp::cMessage* const msg);
     EqDC acceptDataEqDCThreshold = EqDC(25.5);

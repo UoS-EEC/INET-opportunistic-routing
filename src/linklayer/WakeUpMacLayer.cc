@@ -320,17 +320,22 @@ void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg
     }
 }
 
+void WakeUpMacLayer::stateAwaitTransmitEnterAlreadyListening()
+{
+    updateMacState(S_AWAIT_TRANSMIT);
+    changeActiveRadio(wakeUpRadio);
+}
+
 void WakeUpMacLayer::stateListeningEnterAlreadyListening(){
     if(currentTxFrame || not txQueue->isEmpty()){
         // Data is waiting in the tx queue
         // Schedule replenishment timer if insufficient stored energy
         if(!transmissionStartEnergyCheck())
             scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
-        updateMacState(S_AWAIT_TRANSMIT);
-        changeActiveRadio(wakeUpRadio);
+        stateAwaitTransmitEnterAlreadyListening();
     }
     else{
-        stateWakeUpIdleEnterAlreadyListening();
+        stateListeningIdleEnterAlreadyListening();
     }
 }
 
@@ -339,7 +344,7 @@ void WakeUpMacLayer::stateListeningEnter(){
     stateListeningEnterAlreadyListening();
 }
 
-void WakeUpMacLayer::stateWakeUpIdleEnterAlreadyListening()
+void WakeUpMacLayer::stateListeningIdleEnterAlreadyListening()
 {
     updateMacState(S_WAKE_UP_IDLE);
     changeActiveRadio(wakeUpRadio);
@@ -1133,7 +1138,6 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
             // Send packet up upon restart by leaving in memory
         }
     }
-    stateListeningEnterAlreadyListening();
 
     cancelAllTimers();
     if(activeBackoff != nullptr){
