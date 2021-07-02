@@ -49,8 +49,8 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOppo
   public:
     WakeUpMacLayer()
       : MacProtocolBase(),
-        wakeUpBackoffTimer(nullptr),
-        wuTimeout(nullptr),
+        transmitStartDelay(nullptr),
+        receiveTimeout(nullptr),
         dataRadio(nullptr),
         wakeUpRadio(nullptr),
         activeRadio(nullptr),
@@ -91,39 +91,40 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOppo
 protected:
     /** @brief MAC high level states */
     enum t_mac_state {
-        S_REPLENISH, // No listening, to charge storage
-        S_IDLE, // WuRx listening
-        S_WAKEUP_LSN, // WuRx receiving or processing
-        S_RECEIVE, // Data radio listening
-        S_TRANSMIT, // Transmitting (Wake-up, pause, transmit and wait for ack)
-        S_ACK // Transmitting ACK after receiving
+        S_WAKE_UP_IDLE, // WuRx listening
+        S_WAKE_UP_WAIT, // WuRx receiving or processing
+        S_RECEIVE, // Data radio listening, receiving and ack following wake-up or initial data
+        S_AWAIT_TRANSMIT, // DATA radio listening but with packet waiting to be transmitted
+        S_TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
     };
 
-    enum t_tx_state {
-        TX_WAKEUP_WAIT, // Tx wake-up when radio ready and CSMA finished
-        TX_WAKEUP, // Tx Wake-up in progress
-        TX_DATA_WAIT, // Wait for receivers to wake-up
-        TX_DATA, // Send data when radio ready
-        TX_ACK_WAIT, // TODO: Listen for node acknowledging
-        TX_END // Reset
+    enum class TxDataState {
+        WAKE_UP_WAIT, // Tx wake-up when radio ready and CSMA finished
+        WAKE_UP, // Tx Wake-up in progress
+        DATA_WAIT, // Wait for receivers to wake-up
+        DATA, // Send data when radio ready
+        ACK_WAIT, // Listen for node acknowledging
+        END // Reset
     };
 
-    enum t_wu_state{
-        WU_IDLE, // WuRx listening
-        WU_APPROVE_WAIT, // Wait for approval for wake-up (call to net layer)
-        WU_WAKEUP_WAIT, // Wait for the data radio to start
-        WU_ABORT // Shutdown data radio and restart wake-up radio
+    enum class WuWaitState{
+        IDLE, // WuRx listening
+        APPROVE_WAIT, // Wait for approval for wake-up (call to net layer)
+        DATA_RADIO_WAIT, // Wait for the data radio to start
+        ABORT // Shutdown data radio and restart wake-up radio
     };
 
-    enum t_rx_state{
-        RX_IDLE,
-        RX_RECEIVE,
+    enum class RxState{
+        IDLE,
+        DATA_WAIT,
+        ACK, // Transmitting ACK after receiving
+        FINISH // Immediately set timeout and enter main sm idle
     };
 
     /** @brief MAC state machine events.*/
     enum t_mac_event {
         EV_QUEUE_SEND,
-        EV_WAKEUP_BACKOFF,
+        EV_TX_START,
         EV_CSMA_BACKOFF,
         EV_TX_READY,
         EV_TX_END,
@@ -131,7 +132,7 @@ protected:
         EV_WU_START,
         EV_WU_APPROVE,
         EV_WU_REJECT,
-        EV_WU_TIMEOUT,
+        EV_DATA_TIMEOUT,
         EV_DATA_RX_IDLE,
         EV_DATA_RX_READY,
         EV_DATA_RECEIVED,
@@ -140,6 +141,9 @@ protected:
 
     // Translate WakeUpMacLayer Events to BackoffBase Events
     CSMATxBackoffBase::t_backoff_state stepBackoffSM(const t_mac_event event){
+        if(activeBackoff == nullptr){
+            return CSMATxBackoffBase::BO_WAIT;
+        }
         switch(event){
             case EV_TX_READY:
                 return activeBackoff->process(CSMATxBackoffBase::EV_TX_READY);
@@ -154,9 +158,9 @@ protected:
 
     /** @name Protocol timer messages */
     /*@{*/
-    cMessage *wakeUpBackoffTimer;
+    cMessage *transmitStartDelay;
     cMessage *ackBackoffTimer;
-    cMessage *wuTimeout;
+    cMessage *receiveTimeout;
     /*@}*/
     CSMATxBackoffBase* activeBackoff;
 
@@ -194,23 +198,47 @@ protected:
   protected:
     t_mac_state macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
-    void stepMacSM(const t_mac_event& event, cMessage *msg);
+    void stateProcess(const t_mac_event& event, cMessage *msg);
+    void stateListeningEnterAlreadyListening();
+    void stateListeningEnter();
+    void stateListeningIdleEnterAlreadyListening();
+    void stateAwaitTransmitEnterAlreadyListening();
+    void stateWakeUpIdleProcess(const t_mac_event& event, omnetpp::cMessage* const msg);
+    void stateAwaitTransmitProcess(const t_mac_event& event, omnetpp::cMessage* const msg);
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
-    virtual void stepRxAckProcess(const t_mac_event& event, cMessage *msg);
+    RxState rxState;
+    void StateReceiveEnter();
+    void StateReceiveEnterDataWait();
+    void stateReceiveAckEnterReceiveDataWait();
+    void stateReceiveEnterFinishDropReceived(const inet::PacketDropReason reason);
+    void stateReceiveEnterFinish();
+    void stateReceiveProcessDataTimeout();
+    void stateReceiveEnterAck();
+    void stateReceiveExitAck();
+    void stateReceiveAckProcessBackoff(const t_mac_event& event);
+    void stateReceiveExitDataWait();
+    virtual void stateReceiveProcess(const t_mac_event& event, cMessage *msg);
   private:
-    void handleDataReceivedInAckState(cMessage *msg);
+    void handleCoincidentalOverheardData(inet::Packet* receivedData);
+    void handleOverheardAckInDataReceiveState(const Packet * const msg);
+    void stateReceiveDataWaitProcessDataReceived(cMessage *msg);
+    void stateReceiveAckProcessDataReceived(cMessage *msg);
     void completePacketReception();
 
   protected:
     Packet* buildAck(const Packet* subject) const;
     void updateMacState(const t_mac_state& newMacState){ macState = newMacState; };
     /** @brief Transmitter State Machine **/
-    t_tx_state txState;
-    void stepTxSM(const t_mac_event& event, cMessage* msg);
+    TxDataState txDataState;
+    void stateTxEnter();
+    void stateTxEnterDataWait();
+    void stateTxDataWaitExitEnterAckWait();
+    void stateTxWakeUpWaitExit();
+    void stateTxEnterEnd();
+    void stateTxProcess(const t_mac_event& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
     const int requiredForwarders = 1;
-    const int maxForwarders = 4;
     int acknowledgedForwarders = 0;
     int acknowledgmentRound = 1;
     int maxWakeUpTries = 1;
@@ -218,34 +246,43 @@ protected:
     int txInProgressTries = 0;
     ExpectedCost dataMinExpectedCost = EqDC(25.5);
     simtime_t dataTransmissionDelay = 0;
-    virtual void stepTxAckProcess(const t_mac_event& event, cMessage *msg);
-    void updateTxState(const t_tx_state& newTxState){ txState = newTxState; };
-    /** @brief Wake-up listening State Machine **/
+    virtual void stateTxAckWaitProcess(const t_mac_event& event, cMessage *msg);
 
-    bool wuStateChange = false;
-    t_wu_state wuState;
-    void stepWuSM(const t_mac_event& event, cMessage *msg);
-    void updateWuState(const t_wu_state& newWuState){
-        wuStateChange = true;
-        wuState = newWuState;
-    };
+    /** @brief Wake-up listening State Machine **/
+    WuWaitState wuState;
+    void stateWakeUpWaitEnter();
+    void stateWakeUpWaitExitToListening();
+    void stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
+    void stateWakeUpProcess(const t_mac_event& event, cMessage *msg);
+
     /** @brief Receiving and acknowledgement **/
     cMessage *currentRxFrame;
     void dropCurrentRxFrame(PacketDropDetails& details);
     void encapsulate(Packet* msg) const;
     void decapsulate(Packet* msg) const;
-    bool setupTransmission(); // Return false if immediate transmission is not possible
+    void setupTransmission();
 
     // OperationalBase:
     virtual void handleStartOperation(LifecycleOperation *operation) override;
     virtual void handleStopOperation(LifecycleOperation *operation) override;
     virtual void handleCrashOperation(LifecycleOperation *operation) override;
+
+    /** @brief Packet management **/
     void setBeaconFieldsFromTags(const inet::Packet* subject,
             const inet::Ptr<WakeUpBeacon>& wuHeader) const;
-    void dropCurrentTxFrame(inet::PacketDropDetails details){
+    void dropCurrentTxFrame(inet::PacketDropDetails& details) override{
         MacProtocolBase::dropCurrentTxFrame(details);
         emit(transmissionTriesSignal, txInProgressTries);
-    };
+        emit(transmissionEndedSignal, true);
+    }
+    void deleteCurrentTxFrame(){
+        MacProtocolBase::deleteCurrentTxFrame();
+        emit(transmissionTriesSignal, txInProgressTries);
+        emit(transmissionEndedSignal, true);
+    }
+
+    void completePacketTransmission();
+    bool transmissionStartEnergyCheck();
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);

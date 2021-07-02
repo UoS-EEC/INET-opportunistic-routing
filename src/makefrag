@@ -1,2 +1,2 @@
 MSGC:=$(MSGC) --msg6
-CFLAGS:= $(CFLAGS) -Wall
+CFLAGS:= $(CFLAGS) -Wall -Wimplicit-fallthrough

@@ -1,0 +1,44 @@
+TRANSMIT{
+  initial,
+  TRANSMIT_WAKE_UP{
+    WAKE_UP_WAIT : enter/startBackoff
+                   exit/deleteBackoff,
+    WAKE_UP : enter/sendDown;
+  },
+  TRANSMIT_DATA{
+    DATA_WAIT : enter/startBackoff
+                exit/endBackoff,
+    ACK_WAIT : enter/setAckWaitDuration
+    exit/cancelAckWaitDuration,
+    DATA : enter/sendDown;
+    WAKE_UP_WAIT => WAKE_UP : TX_READY;
+    WAKE_UP => WAKE_UP: TX_END
+              /startDataRadio
+    /scheduleWakeUpWait;
+    ACK_WAIT => final : ACK_TIMEOUT
+    [noForwarderSelected];
+    WAKE_UP => DATA_WAIT : WAKEUP_BACKOFF;
+    DATA_WAIT => DATA : TX_READY;
+    DATA => ACK_WAIT: TX_END [ackRequired];
+    DATA => final : TX_END
+    [acceptNoAck]
+    /packetDelivered;
+
+    ACK_WAIT => final : ACK_TIMEOUT
+    [forwarderSelected]
+    /packetDelivered;
+    ACK_WAIT => DATA_WAIT : ACK_TIMEOUT
+    [tooManyForwarders];
+    ACK_WAIT => ACK_WAIT: DATA_RECEIVED
+    [destinationReplied]
+    /set ackMinCost=0;
+  };
+  initial => WAKE_UP_WAIT : QUEUE_SEND [hasWuRx]
+  /StartWuTxORBo;
+  initial => DATA_WAIT : QUEUE_SEND [noWuRx]
+  /StartDataTxORBo;
+  initial => WAKE_UP_WAIT : RX_READY [hasWuRx]
+  /delayWuStart;
+  initial => DATA_WAIT : RX_READY [noWuRx]
+  /delayDataStart;
+};
