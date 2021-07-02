@@ -486,15 +486,13 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
             }
             break;
         case RxState::ACK:
+            stateReceiveAckProcessBackoff(event);
             if(event == EV_TX_END){
                 stateReceiveExitAck();
                 stateReceiveAckEnterReceiveDataWait();
             }
             else if(event == EV_DATA_RECEIVED){
                 stateReceiveDataWaitProcessDataReceived(msg);
-            }
-            if(activeBackoff){
-                stateReceiveAckProcessBackoff(event);
             }
             break;
         case RxState::FINISH:
@@ -709,14 +707,9 @@ void WakeUpMacLayer::completePacketTransmission()
 }
 
 void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const msg) {
-    // Needed for S_TRANSMIT backoff in switch
-    auto backoffResult = CSMATxBackoffBase::BO_WAIT;
-    if(activeBackoff != nullptr){
-        backoffResult = stepBackoffSM(event);
-    }
-
     switch (txDataState){
     case TxDataState::WAKE_UP_WAIT:
+        stepBackoffSM(event);
         if(event==EV_TX_READY){
             // TODO: Change this to a short WU packet
             cMessage* const currentTxWakeUp = check_and_cast<cMessage*>(buildWakeUp(currentTxFrame, txInProgressTries));
@@ -741,6 +734,7 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
         }
         break;
     case TxDataState::DATA_WAIT:
+        stepBackoffSM(event);
         if(event==EV_TX_READY){
             stateTxDataWaitExitEnterAckWait();
         }

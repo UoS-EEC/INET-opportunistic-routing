@@ -141,6 +141,9 @@ protected:
 
     // Translate WakeUpMacLayer Events to BackoffBase Events
     CSMATxBackoffBase::t_backoff_state stepBackoffSM(const t_mac_event event){
+        if(activeBackoff == nullptr){
+            return CSMATxBackoffBase::BO_WAIT;
+        }
         switch(event){
             case EV_TX_READY:
                 return activeBackoff->process(CSMATxBackoffBase::EV_TX_READY);
