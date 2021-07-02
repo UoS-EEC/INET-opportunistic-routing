@@ -665,7 +665,6 @@ void WakeUpMacLayer::stateTxEnterEnd()
     //The Radio Receive->Sleep triggers next SM transition
     txDataState = TxDataState::END;
     dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
-    wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
 }
 
 void WakeUpMacLayer::stateTxDataWaitExitEnterAckWait()
@@ -770,7 +769,7 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
             scheduleAt(simTime() + ackWaitDuration, transmitStartDelay);
         }
         else if(event == EV_DATA_RX_IDLE){
-            stateListeningEnterAlreadyListening();
+            stateListeningEnter();
         }
         break;
     default:
