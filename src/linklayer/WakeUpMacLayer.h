@@ -50,7 +50,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOppo
     WakeUpMacLayer()
       : MacProtocolBase(),
         transmitStartDelay(nullptr),
-        wuTimeout(nullptr),
+        receiveTimeout(nullptr),
         dataRadio(nullptr),
         wakeUpRadio(nullptr),
         activeRadio(nullptr),
@@ -157,7 +157,7 @@ protected:
     /*@{*/
     cMessage *transmitStartDelay;
     cMessage *ackBackoffTimer;
-    cMessage *wuTimeout;
+    cMessage *receiveTimeout;
     /*@}*/
     CSMATxBackoffBase* activeBackoff;
 
@@ -199,6 +199,8 @@ protected:
     void stateListeningEnterAlreadyListening();
     void stateListeningEnter();
     void stateWakeUpIdleEnterAlreadyListening();
+    void stateWakeUpIdleProcess(const t_mac_event& event, omnetpp::cMessage* const msg);
+    void stateAwaitTransmitProcess(const t_mac_event& event, omnetpp::cMessage* const msg);
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
     RxState rxState;
@@ -241,7 +243,6 @@ protected:
     ExpectedCost dataMinExpectedCost = EqDC(25.5);
     simtime_t dataTransmissionDelay = 0;
     virtual void stateTxAckWaitProcess(const t_mac_event& event, cMessage *msg);
-    void updateTxState(const TxDataState& newTxState){ txDataState = newTxState; };
 
     /** @brief Wake-up listening State Machine **/
     WuWaitState wuState;
@@ -261,6 +262,8 @@ protected:
     virtual void handleStartOperation(LifecycleOperation *operation) override;
     virtual void handleStopOperation(LifecycleOperation *operation) override;
     virtual void handleCrashOperation(LifecycleOperation *operation) override;
+
+    /** @brief Packet management **/
     void setBeaconFieldsFromTags(const inet::Packet* subject,
             const inet::Ptr<WakeUpBeacon>& wuHeader) const;
     void dropCurrentTxFrame(inet::PacketDropDetails& details) override{
