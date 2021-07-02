@@ -132,7 +132,7 @@ protected:
         EV_WU_START,
         EV_WU_APPROVE,
         EV_WU_REJECT,
-        EV_WU_TIMEOUT,
+        EV_DATA_TIMEOUT,
         EV_DATA_RX_IDLE,
         EV_DATA_RX_READY,
         EV_DATA_RECEIVED,

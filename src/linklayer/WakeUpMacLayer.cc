@@ -268,7 +268,7 @@ void WakeUpMacLayer::handleSelfMessage(cMessage* const msg) {
         stateProcess(EV_TX_START, msg);
     }
     else if(msg == receiveTimeout){
-        stateProcess(EV_WU_TIMEOUT, msg);
+        stateProcess(EV_DATA_TIMEOUT, msg);
     }
     else if(msg == ackBackoffTimer){
         stateProcess(EV_ACK_TIMEOUT, msg);
@@ -472,7 +472,7 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
 
     switch(rxState){
         case RxState::DATA_WAIT:
-            if(event == EV_WU_TIMEOUT){
+            if(event == EV_DATA_TIMEOUT){
                 // The receiving has timed out, optionally process received packet
                 stateReceiveProcessDataTimeout();
             }
@@ -498,7 +498,7 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
             }
             break;
         case RxState::FINISH:
-            if(event == EV_WU_TIMEOUT){
+            if(event == EV_DATA_TIMEOUT){
                 // The receiving has timed out, optionally process received packet
                 stateReceiveProcessDataTimeout();
             }
@@ -736,7 +736,7 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
             // Reset statistic variable counting ack rounds (from transmitter perspective)
             acknowledgmentRound = 0;
         }
-        else if(event==EV_WU_TIMEOUT){
+        else if(event==EV_DATA_TIMEOUT){
             stateTxEnterDataWait();
         }
         break;
@@ -907,7 +907,7 @@ void WakeUpMacLayer::stateWakeUpProcess(const t_mac_event& event, cMessage * con
             // Cancel transmit packet backoff till receive is done
             cancelEvent(transmitStartDelay); // TODO: What problem does this solve?
         }
-        else if(event==EV_WU_TIMEOUT||event==EV_WU_REJECT){
+        else if(event==EV_DATA_TIMEOUT||event==EV_WU_REJECT){
             // Upper layer did not approve wake-up in time.
             // Will abort the wake-up when radio mode switches
             wuState = WuWaitState::ABORT;
@@ -1140,13 +1140,14 @@ void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
             // Send packet up upon restart by leaving in memory
         }
     }
+    stateListeningEnterAlreadyListening();
+
     cancelAllTimers();
     if(activeBackoff != nullptr){
         delete activeBackoff;
         activeBackoff = nullptr;
     }
     // Stop all signals from being interpreted
-    updateMacState(S_WAKE_UP_IDLE);
     interfaceEntry->setCarrier(false);
     interfaceEntry->setState(InterfaceEntry::State::DOWN);
 }
