@@ -1,0 +1,53 @@
+initial,
+WAKE_UP_IDLE,
+DATA_IDLE,
+AWAIT_TRANSMIT,
+WAKE_UP,
+RECEIVE,
+TRANSMIT,
+final;
+
+initial => DATA_IDLE : [no data waiting
+&& noWuRx];
+initial => AWAIT_TRANSMIT : [data waiting]
+/startRadio;
+initial => WAKE_UP_IDLE : [no data waiting
+&& hasWuRx];
+
+AWAIT_TRANSMIT => RECEIVE : DATA_RECEIVED;
+AWAIT_TRANSMIT => TRANSMIT: RX_READY/delayBo;
+
+DATA_IDLE => RECEIVE : DATA_RECEIVED
+/jumpToRxAck;
+DATA_IDLE => TRANSMIT : QUEUE_SEND
+/startDataTxOrBo;
+
+/* TRANSMIT => final : ACK_TIMEOUT
+[not delivered
+&& not too many tries];
+TRANSMIT => final : ACK_TIMEOUT
+[delivered || too many tries]
+/delete data waiting; */
+TRANSMIT => final : ACK_TIMEOUT;
+TRANSMIT => RECEIVE : DATA_RECEIVED
+[state==DATA_WAIT];
+TRANSMIT => WAKE_UP : WU_START
+[state==WAKE_UP_WAIT];
+AWAIT_TRANSMIT => WAKE_UP : WU_START;
+
+RECEIVE => final : WU_TIMEOUT;
+
+DATA_IDLE => AWAIT_TRANSMIT : QUEUE_SEND
+[switching || lowEnergy];
+WAKE_UP_IDLE => AWAIT_TRANSMIT : QUEUE_SEND
+[switching || lowEnergy];
+
+WAKE_UP_IDLE => TRANSMIT : QUEUE_SEND
+/startDataTxOrBo;
+WAKE_UP_IDLE => WAKE_UP : WU_START;
+
+
+WAKE_UP => RECEIVE : DATA_RX_READY
+                      [wuState == ACCEPT];
+WAKE_UP => final : DATA_RX_READY
+[wuState == ABORT ];

@@ -94,11 +94,11 @@ void WakeUpMacLayer::initialize(int const stage) {
         auto dataReceiverModel = check_and_cast_nullable<const physicallayer::FlatReceiverBase*>(dataRadio->getReceiver());
         if(scalarNoiseModel && dataReceiverModel)
             if(scalarNoiseModel->getPower() > dataReceiverModel->getEnergyDetection())
-                cRuntimeError("Background noise power is greater than data radio energy detection threshold. Radio will always be \"Busy\"");
+                throw cRuntimeError("Background noise power is greater than data radio energy detection threshold. Radio will always be \"Busy\"");
         auto wakeUpReceiverModel = check_and_cast_nullable<const physicallayer::FlatReceiverBase*>(wakeUpRadio->getReceiver());
         if(scalarNoiseModel && wakeUpReceiverModel)
             if(scalarNoiseModel->getPower() > wakeUpReceiverModel->getEnergyDetection())
-                cRuntimeError("Background noise power is greater than wake up radio energy detection threshold. Radio will always be \"Busy\"");
+                throw cRuntimeError("Background noise power is greater than wake up radio energy detection threshold. Radio will always be \"Busy\"");
 
 
         /*
@@ -778,7 +778,7 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
         }
         break;
     default:
-        throw cRuntimeError("Unhandled State");
+        cRuntimeError("Unhandled State");
     }
 }
 
