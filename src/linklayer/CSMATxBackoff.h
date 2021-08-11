@@ -22,12 +22,13 @@ class CSMATxBackoffBase{
     inet::physicallayer::IRadio* activeRadio;
     simtime_t cumulativeAckBackoff = 0;
 
-    bool isCarrierFree();
+    bool isCarrierFree() const;
     void cancelBackoffTimer(){
         parent->cancelEvent(txBackoffTimer);
     }
   public:
-    bool isBackoffTimer(cMessage* msg){return msg == txBackoffTimer;};
+    bool isBackoffTimer(cMessage* msg) const{
+        return msg == txBackoffTimer;};
     enum t_backoff_state {
         BO_OFF,
         BO_WAIT,

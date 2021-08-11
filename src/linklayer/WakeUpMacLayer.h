@@ -66,6 +66,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOppo
     virtual void handleLowerPacket(Packet *packet) override;
     virtual void handleLowerCommand(cMessage *msg) override;
     virtual void handleSelfMessage(cMessage *msg) override;
+    using MacProtocolBase::receiveSignal;
     virtual void receiveSignal(cComponent* source, simsignal_t signalID, intval_t value, cObject* details) override;
 
   protected:
@@ -275,14 +276,14 @@ protected:
         emit(transmissionTriesSignal, txInProgressTries);
         emit(transmissionEndedSignal, true);
     }
-    void deleteCurrentTxFrame(){
+    void deleteCurrentTxFrame() override{
         MacProtocolBase::deleteCurrentTxFrame();
         emit(transmissionTriesSignal, txInProgressTries);
         emit(transmissionEndedSignal, true);
     }
 
     void completePacketTransmission();
-    bool transmissionStartEnergyCheck();
+    bool transmissionStartEnergyCheck() const;
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
