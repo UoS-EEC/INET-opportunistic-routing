@@ -1,2 +1,2 @@
 MSGC:=$(MSGC) --msg6
-CFLAGS:= $(CFLAGS) -Wall -Wimplicit-fallthrough
+CFLAGS:= $(CFLAGS) -std=c++17 -Wall -Wimplicit-fallthrough

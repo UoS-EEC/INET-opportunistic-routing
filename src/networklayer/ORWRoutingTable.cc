@@ -65,7 +65,7 @@ void ORWRoutingTable::initialize(int stage){
             if(wakeUpMacFilter)wakeUpMacFilter->registerHook(0, this);
         }
         if(netfilters.empty()){
-            throw cRuntimeError("No suitable Wake Up Mac found under: %s.mac", this->getFullPath());
+            throw cRuntimeError("No suitable Wake Up Mac found under: %s.mac", this->getFullPath().c_str());
         }
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
