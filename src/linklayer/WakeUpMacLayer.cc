@@ -436,7 +436,7 @@ void WakeUpMacLayer::stateReceiveAckEnterReceiveDataWait()
     // return to receive mode (via receive wait) when ack transmitted
     // For follow up packet
     cancelEvent(receiveTimeout);
-    StateReceiveEnterDataWait();
+    stateReceiveEnterDataWait();
 
     // From transmit mode
     dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
@@ -487,7 +487,7 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
             // Transition from ACK after TX_END
             else if(event == EV_DATA_RX_READY){
                 stateReceiveExitDataWait();
-                StateReceiveEnterDataWait();
+                stateReceiveEnterDataWait();
             }
             break;
         case RxState::ACK:
@@ -528,9 +528,9 @@ void WakeUpMacLayer::StateReceiveEnter()
 {
     updateMacState(S_RECEIVE);
     rxAckRound = 0;
-    StateReceiveEnterDataWait();
+    stateReceiveEnterDataWait();
 }
-void WakeUpMacLayer::StateReceiveEnterDataWait()
+void WakeUpMacLayer::stateReceiveEnterDataWait()
 {
     rxState = RxState::DATA_WAIT;
     scheduleAt(simTime() + dataListeningDuration, receiveTimeout);

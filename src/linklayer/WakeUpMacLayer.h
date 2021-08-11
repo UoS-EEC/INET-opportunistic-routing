@@ -152,9 +152,9 @@ protected:
                 return activeBackoff->process(CSMATxBackoffBase::EV_RX_READY);
             case EV_CSMA_BACKOFF:
                 return activeBackoff->process(CSMATxBackoffBase::EV_BACKOFF_TIMER);
-            default: break;
+            default:
+                return activeBackoff->process(CSMATxBackoffBase::EV_NULL);;
         }
-        return activeBackoff->process(CSMATxBackoffBase::EV_NULL);
     }
 
     /** @name Protocol timer messages */
@@ -210,7 +210,7 @@ protected:
     int rxAckRound = 0;
     RxState rxState;
     void StateReceiveEnter();
-    void StateReceiveEnterDataWait();
+    void stateReceiveEnterDataWait();
     void stateReceiveAckEnterReceiveDataWait();
     void stateReceiveEnterFinishDropReceived(const inet::PacketDropReason reason);
     void stateReceiveEnterFinish();
