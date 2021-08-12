@@ -201,7 +201,7 @@ protected:
     /** @brief Execute a step in the MAC state machine */
     void stateProcess(const MacEvent& event, cMessage *msg);
     State stateListeningEnterAlreadyListening();
-    void stateListeningEnter();
+    State stateListeningEnter();
     void stateListeningIdleEnterAlreadyListening();
     void stateAwaitTransmitEnterAlreadyListening();
     State stateWakeUpIdleProcess(const MacEvent& event, omnetpp::cMessage* const msg);
@@ -257,7 +257,7 @@ protected:
     /** @brief Wake-up listening State Machine **/
     WuWaitState wuState;
     void stateWakeUpWaitEnter();
-    void stateWakeUpWaitExitToListening();
+    State stateWakeUpWaitExitToListening();
     State stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
     void stateWakeUpProcess(const MacEvent& event, cMessage *msg);
 

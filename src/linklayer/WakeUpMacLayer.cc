@@ -314,7 +314,7 @@ void WakeUpMacLayer::stateProcess(const MacEvent& event, cMessage * const msg) {
         // Listen for a data packet after a wake-up and start timeout for ack
         if( stateReceiveProcess(event, msg) ){
             // State receive is therefore finished, enter listening
-            stateListeningEnter();
+            updateMacState( stateListeningEnter() );
         }
         break;
     default:
@@ -338,9 +338,9 @@ WakeUpMacLayer::State WakeUpMacLayer::stateListeningEnterAlreadyListening(){
     }
 }
 
-void WakeUpMacLayer::stateListeningEnter(){
+WakeUpMacLayer::State WakeUpMacLayer::stateListeningEnter(){
     wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-    updateMacState( stateListeningEnterAlreadyListening() );
+    return stateListeningEnterAlreadyListening();
 }
 
 WakeUpMacLayer::State WakeUpMacLayer::stateTxEnter()
@@ -771,7 +771,7 @@ void WakeUpMacLayer::stateTxProcess(const MacEvent& event, cMessage* const msg) 
             scheduleAt(simTime() + ackWaitDuration, transmitStartDelay);
         }
         else if(event == MacEvent::DATA_RX_IDLE){
-            stateListeningEnter();
+            updateMacState(stateListeningEnter());
         }
         break;
     default:
@@ -887,11 +887,11 @@ WakeUpMacLayer::State WakeUpMacLayer::stateWakeUpWaitApproveWaitEnter(cMessage* 
     return State::WAKE_UP_WAIT;
 }
 
-void WakeUpMacLayer::stateWakeUpWaitExitToListening()
+WakeUpMacLayer::State WakeUpMacLayer::stateWakeUpWaitExitToListening()
 {
     //Stop the timer if other event called it first
     emit(receptionDroppedSignal, true);
-    stateListeningEnter();
+    return stateListeningEnter();
 }
 
 void WakeUpMacLayer::stateWakeUpProcess(const MacEvent& event, cMessage * const msg) {
@@ -910,7 +910,7 @@ void WakeUpMacLayer::stateWakeUpProcess(const MacEvent& event, cMessage * const 
         }
         else if(event==MacEvent::DATA_RX_IDLE||event==MacEvent::DATA_RX_READY){
             //Stop the timer if other event called it first
-            stateWakeUpWaitExitToListening();
+            updateMacState(stateWakeUpWaitExitToListening());
         }
         break;
     case WuWaitState::DATA_RADIO_WAIT:
@@ -925,7 +925,7 @@ void WakeUpMacLayer::stateWakeUpProcess(const MacEvent& event, cMessage * const 
         break;
     case WuWaitState::ABORT:
         if(event==MacEvent::DATA_RX_IDLE||event==MacEvent::DATA_RX_READY){
-            stateWakeUpWaitExitToListening();
+            updateMacState( stateWakeUpWaitExitToListening() );
         }
         break;
     default:
@@ -1105,7 +1105,7 @@ void WakeUpMacLayer::decapsulate(Packet* const pkt) const{ // From CsmaCaMac
 void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
     // complete unfinished reception
     completePacketReception();
-    stateListeningEnter();
+    macState = stateListeningEnter();
     interfaceEntry->setState(InterfaceEntry::State::UP);
     interfaceEntry->setCarrier(true);
 }
