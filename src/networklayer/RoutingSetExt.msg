@@ -30,5 +30,5 @@ class RoutingSetExt extends inet::TlvOptionBase{
 
 cplusplus(RoutingSetExt) {{
     static const short extType = 241;
-	virtual short getLength() const; // Get the compressed length of the Extension
+	virtual short getLength() const override; // Get the compressed length of the Extension
 }}

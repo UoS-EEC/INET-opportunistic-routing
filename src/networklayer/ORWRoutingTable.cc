@@ -222,7 +222,6 @@ void ORWRoutingTable::increaseInteractionDenominator()
 INetfilter::IHook::Result ORWRoutingTable::datagramPreRoutingHook(Packet* datagram)
 {
     auto header = datagram->peekAtFront<WakeUpGram>();
-    bool approve = false;
     const auto destAddr = header->getReceiverAddress();
     // TODO: Use IInterfaceTable::findInterfaceByAddress( L3Address(destAddr) )
     // If packet addressed directly to interface, then accept it with zero cost.

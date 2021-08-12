@@ -22,30 +22,31 @@ class CSMATxBackoffBase{
     inet::physicallayer::IRadio* activeRadio;
     simtime_t cumulativeAckBackoff = 0;
 
-    bool isCarrierFree();
+    bool isCarrierFree() const;
     void cancelBackoffTimer(){
         parent->cancelEvent(txBackoffTimer);
     }
   public:
-    bool isBackoffTimer(cMessage* msg){return msg == txBackoffTimer;};
-    enum t_backoff_state {
-        BO_OFF,
-        BO_WAIT,
-        BO_SWITCHING,
-        BO_FINISHED,
+    bool isBackoffTimer(cMessage* msg) const{
+        return msg == txBackoffTimer;};
+    enum class State {
+        OFF,
+        WAIT,
+        SWITCHING,
+        FINISHED,
     };
-    enum t_backoff_ev {
-        EV_START,
-        EV_BACKOFF_TIMER,
-        EV_RX_READY,
-        EV_TX_READY,
-        EV_TX_ABORT,
-        EV_NULL
+    enum class Event {
+        START,
+        BACKOFF_TIMER,
+        RX_READY,
+        TX_READY,
+        TX_ABORT,
+        NONE
     };
   protected:
     cSimpleModule* parent;
-    virtual simtime_t calculateBackoff(t_backoff_ev& returnEv) = 0;
-    t_backoff_state state = BO_OFF;
+    virtual simtime_t calculateBackoff(Event& returnEv) = 0;
+    State state{State::OFF};
   public:
     CSMATxBackoffBase(cSimpleModule* _parent,
             inet::physicallayer::IRadio* _activeRadio):
@@ -58,7 +59,7 @@ class CSMATxBackoffBase{
     void startTxOrDelay(simtime_t minDelay, simtime_t maxDelay);
     void delayCarrierSense(simtime_t delay);
     void startCold();
-    t_backoff_state process(const t_backoff_ev& event);
+    State process(const Event& event);
 
     virtual ~CSMATxBackoffBase();
 };
@@ -74,7 +75,7 @@ public:
                 minBackoff(min_backoff),
                 maxBackoff(max_backoff){};
 protected:
-    virtual simtime_t calculateBackoff(t_backoff_ev& returnEv) override;
+    virtual simtime_t calculateBackoff(Event& returnEv) override;
 };
 
 class CSMATxRemainderReciprocalBackoff : public CSMATxBackoffBase{
@@ -90,7 +91,7 @@ public:
         ASSERT(minimumContentionWindow > 0);
     };
 protected:
-    virtual simtime_t calculateBackoff(t_backoff_ev& returnEv) override;
+    virtual simtime_t calculateBackoff(Event& returnEv) override;
 };
 
 } /* namespace oppostack */

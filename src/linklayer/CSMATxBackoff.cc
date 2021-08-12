@@ -11,7 +11,7 @@ namespace oppostack {
 using namespace inet;
 using namespace inet::physicallayer;
 
-bool CSMATxBackoffBase::isCarrierFree()
+bool CSMATxBackoffBase::isCarrierFree() const
 {
     IRadio::ReceptionState receptionState = activeRadio->getReceptionState();
     return (receptionState == IRadio::RECEPTION_STATE_IDLE)
@@ -22,13 +22,13 @@ void CSMATxBackoffBase::startTxOrBackoff(){
     if( isCarrierFree() ){
         //Start the transmission state machine
         activeRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
-        state = BO_SWITCHING;
+        state = State::SWITCHING;
     }
     else{
-        t_backoff_ev returnEv = EV_BACKOFF_TIMER;
+        Event returnEv = Event::BACKOFF_TIMER;
         const SimTime delay = calculateBackoff(returnEv);
-        if(returnEv == EV_TX_ABORT){
-            state = BO_OFF;
+        if(returnEv == Event::TX_ABORT){
+            state = State::OFF;
         }
         else{
             delayCarrierSense(delay);
@@ -38,7 +38,7 @@ void CSMATxBackoffBase::startTxOrBackoff(){
 }
 
 void CSMATxBackoffBase::startCold(){
-    process(EV_START);
+    process(Event::START);
 }
 
 void CSMATxBackoffBase::delayCarrierSense(simtime_t delay)
@@ -47,14 +47,14 @@ void CSMATxBackoffBase::delayCarrierSense(simtime_t delay)
 
     cumulativeAckBackoff += delay;
     parent->scheduleAt(simTime()+delay, txBackoffTimer);
-    state = BO_WAIT;
+    state = State::WAIT;
 }
 
 void CSMATxBackoffBase::startTxOrDelay(simtime_t minDelay, simtime_t maxDelay){
     if( isCarrierFree() ){
         //Start the transmission state machine
         activeRadio->setRadioMode(IRadio::RADIO_MODE_TRANSMITTER);
-        state = BO_SWITCHING;
+        state = State::SWITCHING;
     }
     else{
         if(minDelay == maxDelay) delayCarrierSense(minDelay);
@@ -62,28 +62,29 @@ void CSMATxBackoffBase::startTxOrDelay(simtime_t minDelay, simtime_t maxDelay){
     }
 }
 
-CSMATxBackoffBase::t_backoff_state CSMATxBackoffBase::process(const t_backoff_ev& event){
+CSMATxBackoffBase::State CSMATxBackoffBase::process(const Event& event){
     switch(state){
-        case BO_OFF:
-            if(event == EV_START){
+        case State::OFF:
+            if(event == Event::START){
                 activeRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-                state = BO_WAIT;
+                state = State::WAIT;
             }
-        case BO_WAIT:
-            if( (event == EV_RX_READY || event == EV_BACKOFF_TIMER) && !txBackoffTimer->isScheduled() ){
-                // EV_BACKOFF_TIMER triggered by need for retry of packet
-                // EV_RX_READY triggered when radio listening (after Rx->Listening transition)
+            break;
+        case State::WAIT:
+            if( (event == Event::RX_READY || event == Event::BACKOFF_TIMER) && !txBackoffTimer->isScheduled() ){
+                // Event::BACKOFF_TIMER triggered by need for retry of packet
+                // Event::RX_READY triggered when radio listening (after Rx->Listening transition)
                 // TODO: but check ackBackoffTimer as also triggered by (Rx->Listening)
                 // Perform carrier sense if there is a currentTxFrame
                 startTxOrBackoff();
             }
             break;
-        case BO_SWITCHING:
-            if( event == EV_TX_READY ){
-                state = BO_FINISHED;
+        case State::SWITCHING:
+            if( event == Event::TX_READY ){
+                state = State::FINISHED;
             }
             break;
-        case BO_FINISHED:
+        case State::FINISHED:
             break;
     }
     return state;
@@ -97,11 +98,11 @@ CSMATxBackoffBase::~CSMATxBackoffBase(){
     }
 }
 
-simtime_t CSMATxUniformBackoff::calculateBackoff(t_backoff_ev& returnEv){
+simtime_t CSMATxUniformBackoff::calculateBackoff(Event& returnEv){
     return parent->uniform(minBackoff, maxBackoff);
 }
 
-simtime_t CSMATxRemainderReciprocalBackoff::calculateBackoff(t_backoff_ev& returnEv){
+simtime_t CSMATxRemainderReciprocalBackoff::calculateBackoff(Event& returnEv){
     // Calculate backoff from remaining time
     const simtime_t delayWindow = (maxBackoff - cumulativeAckBackoff)/2;
     if(delayWindow > minimumContentionWindow){
@@ -110,7 +111,7 @@ simtime_t CSMATxRemainderReciprocalBackoff::calculateBackoff(t_backoff_ev& retur
         return delay;
     }
     else{
-        returnEv = EV_TX_ABORT;
+        returnEv = Event::TX_ABORT;
         return SimTime(-1, SimTimeUnit::SIMTIME_S);
     }
 }
