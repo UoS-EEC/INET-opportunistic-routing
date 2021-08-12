@@ -976,7 +976,7 @@ void WakeUpMacLayer::changeActiveRadio(physicallayer::IRadio* const newActiveRad
     }
 }
 
-bool WakeUpMacLayer::transmissionStartEnergyCheck()
+bool WakeUpMacLayer::transmissionStartEnergyCheck() const
 {
     return energyStorage->getResidualEnergyCapacity() >= transmissionStartMinEnergy;
 }
