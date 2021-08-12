@@ -165,12 +165,12 @@ void WakeUpMacLayer::handleLowerPacket(Packet* const packet) {
     // Process packet from the wake-up radio or delegate handler
     if (packet->getArrivalGateId() == wakeUpRadioInGateId){
         EV_DEBUG << "Received  wake-up packet" << endl;
-        stateProcess(EV_WU_START, packet);
+        stateProcess(MacEvent::WU_START, packet);
         delete packet;
     }
     else if(packet->getArrivalGateId() == lowerLayerInGateId){
         EV_DEBUG << "Received  main packet" << endl;
-        stateProcess(EV_DATA_RECEIVED, packet);
+        stateProcess(MacEvent::DATA_RECEIVED, packet);
     }
     else{
         MacProtocolBase::handleLowerCommand(packet);
@@ -195,7 +195,7 @@ void WakeUpMacLayer::handleUpperPacket(Packet* const packet) {
         addressRequest->setDestAddress(MacAddress::BROADCAST_ADDRESS);
     }
     txQueue->pushPacket(packet);
-    stateProcess(EV_QUEUE_SEND, packet);
+    stateProcess(MacEvent::QUEUE_SEND, packet);
 }
 void WakeUpMacLayer::handleUpperCommand(cMessage* const msg) {
     // TODO: Check for approval messages
@@ -216,7 +216,7 @@ void WakeUpMacLayer::receiveSignal(cComponent* const source, simsignal_t const s
             if (transmissionState == IRadio::TRANSMISSION_STATE_TRANSMITTING && newRadioTransmissionState == IRadio::TRANSMISSION_STATE_IDLE) {
                 // KLUDGE: we used to get a cMessage from the radio (the identity was not important)
                 auto msg = new cMessage("Transmission over");
-                stateProcess(EV_TX_END, msg);
+                stateProcess(MacEvent::TX_END, msg);
                 delete msg;
             }
             else if (transmissionState == IRadio::TRANSMISSION_STATE_UNDEFINED && newRadioTransmissionState == IRadio::TRANSMISSION_STATE_IDLE) {
@@ -236,7 +236,7 @@ void WakeUpMacLayer::receiveSignal(cComponent* const source, simsignal_t const s
                       || newRadioReceptionState == IRadio::RECEPTION_STATE_BUSY) ) {
                 // radio has finished switching to listening
                 auto msg = new cMessage("Reception ready");
-                stateProcess(EV_DATA_RX_READY, msg);
+                stateProcess(MacEvent::DATA_RX_READY, msg);
                 delete msg;
             }
             else {
@@ -249,12 +249,12 @@ void WakeUpMacLayer::receiveSignal(cComponent* const source, simsignal_t const s
             IRadio::RadioMode newRadioMode = static_cast<IRadio::RadioMode>(value);
             if (newRadioMode == IRadio::RADIO_MODE_SLEEP){
                 auto msg = new cMessage("Radio switched to sleep");
-                stateProcess(EV_DATA_RX_IDLE, msg);
+                stateProcess(MacEvent::DATA_RX_IDLE, msg);
                 delete msg;
             }
             else if(newRadioMode == IRadio::RADIO_MODE_TRANSMITTER){
                 auto msg = new cMessage("Transmitter Started");
-                stateProcess(EV_TX_READY, msg);
+                stateProcess(MacEvent::TX_READY, msg);
                 delete msg;
             }
             receptionState = IRadio::RECEPTION_STATE_UNDEFINED;
@@ -265,26 +265,26 @@ void WakeUpMacLayer::receiveSignal(cComponent* const source, simsignal_t const s
 
 void WakeUpMacLayer::handleSelfMessage(cMessage* const msg) {
     if(msg == transmitStartDelay){
-        stateProcess(EV_TX_START, msg);
+        stateProcess(MacEvent::TX_START, msg);
     }
     else if(msg == receiveTimeout){
-        stateProcess(EV_DATA_TIMEOUT, msg);
+        stateProcess(MacEvent::DATA_TIMEOUT, msg);
     }
     else if(msg == ackBackoffTimer){
-        stateProcess(EV_ACK_TIMEOUT, msg);
+        stateProcess(MacEvent::ACK_TIMEOUT, msg);
     }
     else if(msg == replenishmentTimer){
-        stateProcess(EV_REPLENISH_TIMEOUT, msg);
+        stateProcess(MacEvent::REPLENISH_TIMEOUT, msg);
     }
     else if( activeBackoff && activeBackoff->isBackoffTimer(msg) ){
-        stateProcess(EV_CSMA_BACKOFF, msg);
+        stateProcess(MacEvent::CSMA_BACKOFF, msg);
     }
     else if(msg->getKind() == WAKEUP_APPROVE){
-        stateProcess(EV_WU_APPROVE, msg);
+        stateProcess(MacEvent::WU_APPROVE, msg);
         delete msg;
     }
     else if(msg->getKind() == WAKEUP_REJECT){
-        stateProcess(EV_WU_REJECT, msg);
+        stateProcess(MacEvent::WU_REJECT, msg);
         delete msg;
     }
     else{
@@ -292,37 +292,37 @@ void WakeUpMacLayer::handleSelfMessage(cMessage* const msg) {
     }
 }
 
-void WakeUpMacLayer::stateProcess(const t_mac_event& event, cMessage * const msg) {
+void WakeUpMacLayer::stateProcess(const MacEvent& event, cMessage * const msg) {
     // Operate State machine based on current state and event
     switch (macState){
-    case S_WAKE_UP_IDLE:
+    case MacState::WAKE_UP_IDLE:
         stateWakeUpIdleProcess(event, msg);
         break;
-    case S_AWAIT_TRANSMIT:
+    case MacState::AWAIT_TRANSMIT:
         ASSERT(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER
                 || activeRadio->getRadioMode() == IRadio::RADIO_MODE_SWITCHING);
         stateAwaitTransmitProcess(event, msg);
         break;
-    case S_TRANSMIT:
+    case MacState::TRANSMIT:
         stateTxProcess(event, msg);
         break;
-    case S_WAKE_UP_WAIT:
+    case MacState::WAKE_UP_WAIT:
         // Process wake-up and wait for listening to start
         stateWakeUpProcess(event, msg);
         break;
-    case S_RECEIVE:
+    case MacState::RECEIVE:
         // Listen for a data packet after a wake-up and start timeout for ack
         stateReceiveProcess(event, msg);
         break;
     default:
         EV_WARN << "Wake-up MAC in unhandled state. Return to idle" << endl;
-        updateMacState(S_WAKE_UP_IDLE);
+        updateMacState(MacState::WAKE_UP_IDLE);
     }
 }
 
 void WakeUpMacLayer::stateAwaitTransmitEnterAlreadyListening()
 {
-    updateMacState(S_AWAIT_TRANSMIT);
+    updateMacState(MacState::AWAIT_TRANSMIT);
     changeActiveRadio(wakeUpRadio);
 }
 
@@ -346,7 +346,7 @@ void WakeUpMacLayer::stateListeningEnter(){
 
 void WakeUpMacLayer::stateListeningIdleEnterAlreadyListening()
 {
-    updateMacState(S_WAKE_UP_IDLE);
+    updateMacState(MacState::WAKE_UP_IDLE);
     changeActiveRadio(wakeUpRadio);
 }
 
@@ -354,18 +354,18 @@ void WakeUpMacLayer::stateTxEnter()
 {
     dataMinExpectedCost = EqDC(25.5);
     txDataState = TxDataState::WAKE_UP_WAIT;
-    updateMacState(S_TRANSMIT);
+    updateMacState(MacState::TRANSMIT);
 }
 
-void WakeUpMacLayer::stateWakeUpIdleProcess(const t_mac_event& event, cMessage* const msg)
+void WakeUpMacLayer::stateWakeUpIdleProcess(const MacEvent& event, cMessage* const msg)
 {
     const IRadio::RadioMode wuRadioMode = wakeUpRadio->getRadioMode();
-    if (event == EV_WU_START) {
+    if (event == MacEvent::WU_START) {
         // Start the wake-up state machine
         handleCoincidentalOverheardData(check_and_cast<Packet*>(msg));
         stateWakeUpWaitApproveWaitEnter(msg);
     }
-    else if (event == EV_QUEUE_SEND) {
+    else if (event == MacEvent::QUEUE_SEND) {
         ASSERT(currentTxFrame == nullptr);
         setupTransmission();
         if (wuRadioMode == IRadio::RADIO_MODE_SWITCHING || !transmissionStartEnergyCheck()) {
@@ -380,17 +380,17 @@ void WakeUpMacLayer::stateWakeUpIdleProcess(const t_mac_event& event, cMessage* 
     }
 }
 
-void WakeUpMacLayer::stateAwaitTransmitProcess(const t_mac_event& event, cMessage* const msg)
+void WakeUpMacLayer::stateAwaitTransmitProcess(const MacEvent& event, cMessage* const msg)
 {
-    if (event == EV_WU_START) {
+    if (event == MacEvent::WU_START) {
         cancelEvent(transmitStartDelay);
         cancelEvent(replenishmentTimer);
         // Start the wake-up state machine
         handleCoincidentalOverheardData(check_and_cast<Packet*>(msg));
         stateWakeUpWaitApproveWaitEnter(msg);
     }
-    else if (event == EV_DATA_RX_READY && !transmitStartDelay->isScheduled() && !replenishmentTimer->isScheduled()) {
-        // EV_DATA_RX_READY triggered by transmitting ending but with packet ready
+    else if (event == MacEvent::DATA_RX_READY && !transmitStartDelay->isScheduled() && !replenishmentTimer->isScheduled()) {
+        // MacEvent::DATA_RX_READY triggered by transmitting ending but with packet ready
         // Perform carrier sense if there is a currentTxFrame
         if (!txQueue->isEmpty()) {
             ASSERT(not txQueue->isEmpty());
@@ -402,8 +402,8 @@ void WakeUpMacLayer::stateAwaitTransmitProcess(const t_mac_event& event, cMessag
         activeBackoff->startTxOrDelay(minimumBackoff, maximumBackoff);
         stateTxEnter();
     }
-    else if (event == EV_TX_START && !replenishmentTimer->isScheduled()) {
-        // EV_TX_START triggered by wait before transmit after rxing or txing
+    else if (event == MacEvent::TX_START && !replenishmentTimer->isScheduled()) {
+        // MacEvent::TX_START triggered by wait before transmit after rxing or txing
         // Check if there are packets to send and if so, send them
         if (currentTxFrame == nullptr) {
             ASSERT(not txQueue->isEmpty());
@@ -414,7 +414,7 @@ void WakeUpMacLayer::stateAwaitTransmitProcess(const t_mac_event& event, cMessag
         activeBackoff->startTxOrDelay(delayIfBusy);
         stateTxEnter();
     }
-    else if (event == EV_REPLENISH_TIMEOUT) {
+    else if (event == MacEvent::REPLENISH_TIMEOUT) {
         // Check if there is enough energy. If not, replenish to maintain above tx threshold
         if (!transmissionStartEnergyCheck()) {
             // Turn off and let the SimpleEpEnergyManager turn back on at the on threshold
@@ -449,10 +449,10 @@ void WakeUpMacLayer::stateReceiveProcessDataTimeout()
     stateListeningEnter();
 }
 
-void WakeUpMacLayer::stateReceiveAckProcessBackoff(const t_mac_event& event)
+void WakeUpMacLayer::stateReceiveAckProcessBackoff(const MacEvent& event)
 {
     const auto backoffResult = stepBackoffSM(event);
-    if (event == EV_TX_READY) {
+    if (event == MacEvent::TX_READY) {
         // send acknowledgement packet when radio is ready
         sendDown(buildAck(check_and_cast<Packet*>(currentRxFrame)));
     }
@@ -465,8 +465,8 @@ void WakeUpMacLayer::stateReceiveAckProcessBackoff(const t_mac_event& event)
     }
 }
 // Receive acknowledgement process that can be overridden
-void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * const msg) {
-    if(event == EV_DATA_RECEIVED){
+void WakeUpMacLayer::stateReceiveProcess(const MacEvent& event, cMessage * const msg) {
+    if(event == MacEvent::DATA_RECEIVED){
         auto packet = check_and_cast<const Packet*>(msg);
         if(packet->peekAtFront<WakeUpGram>()->getType() == WU_ACK){
             handleOverheardAckInDataReceiveState(packet);
@@ -477,31 +477,31 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
 
     switch(rxState){
         case RxState::DATA_WAIT:
-            if(event == EV_DATA_TIMEOUT){
+            if(event == MacEvent::DATA_TIMEOUT){
                 // The receiving has timed out, optionally process received packet
                 stateReceiveProcessDataTimeout();
             }
-            else if(event == EV_DATA_RECEIVED){
+            else if(event == MacEvent::DATA_RECEIVED){
                 stateReceiveDataWaitProcessDataReceived(msg);
             }
             // Transition from ACK after TX_END
-            else if(event == EV_DATA_RX_READY){
+            else if(event == MacEvent::DATA_RX_READY){
                 stateReceiveExitDataWait();
                 stateReceiveEnterDataWait();
             }
             break;
         case RxState::ACK:
             stateReceiveAckProcessBackoff(event);
-            if(event == EV_TX_END){
+            if(event == MacEvent::TX_END){
                 stateReceiveExitAck();
                 stateReceiveAckEnterReceiveDataWait();
             }
-            else if(event == EV_DATA_RECEIVED){
+            else if(event == MacEvent::DATA_RECEIVED){
                 stateReceiveDataWaitProcessDataReceived(msg);
             }
             break;
         case RxState::FINISH:
-            if(event == EV_DATA_TIMEOUT){
+            if(event == MacEvent::DATA_TIMEOUT){
                 // The receiving has timed out, optionally process received packet
                 stateReceiveProcessDataTimeout();
             }
@@ -513,7 +513,7 @@ void WakeUpMacLayer::stateReceiveProcess(const t_mac_event& event, cMessage * co
 void WakeUpMacLayer::handleOverheardAckInDataReceiveState(const Packet * const msg){
     // Overheard Ack from neighbor
     EV_WARN << "Overheard Ack from neighbor is it worth sending own ACK?" << endl;
-    // Leave in current mac state which could be S_RECEIVE or S_ACK
+    // Leave in current mac state which could be MacState::RECEIVE or S_ACK
     // Only count coincidental ack in the first round to reduce double counting
     if(rxAckRound<=1){
         EncounterDetails details;
@@ -526,7 +526,7 @@ void WakeUpMacLayer::handleOverheardAckInDataReceiveState(const Packet * const m
 
 void WakeUpMacLayer::StateReceiveEnter()
 {
-    updateMacState(S_RECEIVE);
+    updateMacState(MacState::RECEIVE);
     rxAckRound = 0;
     stateReceiveEnterDataWait();
 }
@@ -630,7 +630,7 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
             bool destinationAckPersistance = recheckDataPacketEqDC && (acceptDataEqDCThreshold == EqDC(0.0) );
             if(destinationAckPersistance && skipDirectTxFinalAck){
                 // Received Direct Tx and so stop extra ack
-                // Send immediate wuTimeout to trigger EV_WU_TIMEOUT
+                // Send immediate wuTimeout to trigger MacEvent::WU_TIMEOUT
                 stateReceiveEnterFinish();
             }
             else if(destinationAckPersistance ||
@@ -710,11 +710,11 @@ void WakeUpMacLayer::completePacketTransmission()
     }
 }
 
-void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const msg) {
+void WakeUpMacLayer::stateTxProcess(const MacEvent& event, cMessage* const msg) {
     switch (txDataState){
     case TxDataState::WAKE_UP_WAIT:
         stepBackoffSM(event);
-        if(event==EV_TX_READY){
+        if(event==MacEvent::TX_READY){
             // TODO: Change this to a short WU packet
             cMessage* const currentTxWakeUp = check_and_cast<cMessage*>(buildWakeUp(currentTxFrame, txInProgressTries));
             send(currentTxWakeUp, wakeUpRadioOutGateId);
@@ -724,7 +724,7 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
         }
         break;
     case TxDataState::WAKE_UP:
-        if(event == EV_TX_END){
+        if(event == MacEvent::TX_END){
             // Wake-up transmission has ended, start wait backoff for neighbors to wake-up
             changeActiveRadio(dataRadio);
             dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
@@ -733,18 +733,18 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
             // Reset statistic variable counting ack rounds (from transmitter perspective)
             acknowledgmentRound = 0;
         }
-        else if(event==EV_DATA_TIMEOUT){
+        else if(event==MacEvent::DATA_TIMEOUT){
             stateTxEnterDataWait();
         }
         break;
     case TxDataState::DATA_WAIT:
         stepBackoffSM(event);
-        if(event==EV_TX_READY){
+        if(event==MacEvent::TX_READY){
             stateTxDataWaitExitEnterAckWait();
         }
         break;
     case TxDataState::DATA:
-        if(event == EV_TX_END){
+        if(event == MacEvent::TX_END){
             if (skipDirectTxFinalAck && dataMinExpectedCost == EqDC(0)) {
                 // Only the final dest will Ack when expectedCost=0 (A DirectTx)
                 // therefore do not retransmit dataPacketAgain go straight to end
@@ -769,11 +769,11 @@ void WakeUpMacLayer::stateTxProcess(const t_mac_event& event, cMessage* const ms
         stateTxAckWaitProcess(event, msg);
         break;
     case TxDataState::END:
-        if(event == EV_TX_START){
+        if(event == MacEvent::TX_START){
             // Reschedule, because radio transition not finished
             scheduleAt(simTime() + ackWaitDuration, transmitStartDelay);
         }
-        else if(event == EV_DATA_RX_IDLE){
+        else if(event == MacEvent::DATA_RX_IDLE){
             stateListeningEnter();
         }
         break;
@@ -797,8 +797,8 @@ void WakeUpMacLayer::stateTxEnterDataWait()
     }
 }
 
-void WakeUpMacLayer::stateTxAckWaitProcess(const t_mac_event& event, cMessage * const msg) {
-    if(event == EV_DATA_RECEIVED){
+void WakeUpMacLayer::stateTxAckWaitProcess(const MacEvent& event, cMessage * const msg) {
+    if(event == MacEvent::DATA_RECEIVED){
         EV_DEBUG << "Data Ack Received";
         auto receivedData = check_and_cast<Packet* >(msg);
         auto receivedAck = receivedData->peekAtFront<WakeUpGram>();
@@ -828,7 +828,7 @@ void WakeUpMacLayer::stateTxAckWaitProcess(const t_mac_event& event, cMessage * 
             delete receivedData;
         }
     }
-    else if(event == EV_ACK_TIMEOUT){
+    else if(event == MacEvent::ACK_TIMEOUT){
         if(acknowledgmentRound <= 1){
             // At the end of the first ack round, notify of expecting encounters
             emit(listenForEncountersEndedSignal, (double)acknowledgedForwarders);
@@ -868,7 +868,7 @@ void WakeUpMacLayer::stateWakeUpWaitEnter()
     changeActiveRadio(dataRadio);
     dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
     emit(receptionStartedSignal, true);
-    updateMacState(S_WAKE_UP_WAIT);
+    updateMacState(MacState::WAKE_UP_WAIT);
 }
 
 void WakeUpMacLayer::handleCoincidentalOverheardData(Packet* receivedData)
@@ -896,37 +896,37 @@ void WakeUpMacLayer::stateWakeUpWaitExitToListening()
     emit(receptionDroppedSignal, true);
 }
 
-void WakeUpMacLayer::stateWakeUpProcess(const t_mac_event& event, cMessage * const msg) {
+void WakeUpMacLayer::stateWakeUpProcess(const MacEvent& event, cMessage * const msg) {
     switch(wuState){
     case WuWaitState::APPROVE_WAIT:
-        if(event==EV_WU_APPROVE){
+        if(event==MacEvent::WU_APPROVE){
             wuState = WuWaitState::DATA_RADIO_WAIT;
             cancelEvent(receiveTimeout);
             // Cancel transmit packet backoff till receive is done
             cancelEvent(transmitStartDelay); // TODO: What problem does this solve?
         }
-        else if(event==EV_DATA_TIMEOUT||event==EV_WU_REJECT){
+        else if(event==MacEvent::DATA_TIMEOUT||event==MacEvent::WU_REJECT){
             // Upper layer did not approve wake-up in time.
             // Will abort the wake-up when radio mode switches
             wuState = WuWaitState::ABORT;
         }
-        else if(event==EV_DATA_RX_IDLE||event==EV_DATA_RX_READY){
+        else if(event==MacEvent::DATA_RX_IDLE||event==MacEvent::DATA_RX_READY){
             //Stop the timer if other event called it first
             stateWakeUpWaitExitToListening();
         }
         break;
     case WuWaitState::DATA_RADIO_WAIT:
-        if(event==EV_DATA_RX_IDLE){
+        if(event==MacEvent::DATA_RX_IDLE){
             dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
         }
-        else if(event==EV_DATA_RX_READY){
+        else if(event==MacEvent::DATA_RX_READY){
             // data radio now listening
             wuState = WuWaitState::IDLE;
             StateReceiveEnter();
         }
         break;
     case WuWaitState::ABORT:
-        if(event==EV_DATA_RX_IDLE||event==EV_DATA_RX_READY){
+        if(event==MacEvent::DATA_RX_IDLE||event==MacEvent::DATA_RX_READY){
             stateWakeUpWaitExitToListening();
         }
         break;

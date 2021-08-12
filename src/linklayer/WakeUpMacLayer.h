@@ -91,12 +91,12 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOppo
     bool skipDirectTxFinalAck = false;
 protected:
     /** @brief MAC high level states */
-    enum t_mac_state {
-        S_WAKE_UP_IDLE, // WuRx listening
-        S_WAKE_UP_WAIT, // WuRx receiving or processing
-        S_RECEIVE, // Data radio listening, receiving and ack following wake-up or initial data
-        S_AWAIT_TRANSMIT, // DATA radio listening but with packet waiting to be transmitted
-        S_TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
+    enum class MacState {
+        WAKE_UP_IDLE, // WuRx listening
+        WAKE_UP_WAIT, // WuRx receiving or processing
+        RECEIVE, // Data radio listening, receiving and ack following wake-up or initial data
+        AWAIT_TRANSMIT, // DATA radio listening but with packet waiting to be transmitted
+        TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
     };
 
     enum class TxDataState {
@@ -123,34 +123,34 @@ protected:
     };
 
     /** @brief MAC state machine events.*/
-    enum t_mac_event {
-        EV_QUEUE_SEND,
-        EV_TX_START,
-        EV_CSMA_BACKOFF,
-        EV_TX_READY,
-        EV_TX_END,
-        EV_ACK_TIMEOUT,
-        EV_WU_START,
-        EV_WU_APPROVE,
-        EV_WU_REJECT,
-        EV_DATA_TIMEOUT,
-        EV_DATA_RX_IDLE,
-        EV_DATA_RX_READY,
-        EV_DATA_RECEIVED,
-        EV_REPLENISH_TIMEOUT
+    enum class MacEvent {
+        QUEUE_SEND,
+        TX_START,
+        CSMA_BACKOFF,
+        TX_READY,
+        TX_END,
+        ACK_TIMEOUT,
+        WU_START,
+        WU_APPROVE,
+        WU_REJECT,
+        DATA_TIMEOUT,
+        DATA_RX_IDLE,
+        DATA_RX_READY,
+        DATA_RECEIVED,
+        REPLENISH_TIMEOUT
     };
 
     // Translate WakeUpMacLayer Events to BackoffBase Events
-    CSMATxBackoffBase::t_backoff_state stepBackoffSM(const t_mac_event event){
+    CSMATxBackoffBase::t_backoff_state stepBackoffSM(const MacEvent event){
         if(activeBackoff == nullptr){
             return CSMATxBackoffBase::BO_WAIT;
         }
         switch(event){
-            case EV_TX_READY:
+            case MacEvent::TX_READY:
                 return activeBackoff->process(CSMATxBackoffBase::EV_TX_READY);
-            case EV_DATA_RX_READY:
+            case MacEvent::DATA_RX_READY:
                 return activeBackoff->process(CSMATxBackoffBase::EV_RX_READY);
-            case EV_CSMA_BACKOFF:
+            case MacEvent::CSMA_BACKOFF:
                 return activeBackoff->process(CSMATxBackoffBase::EV_BACKOFF_TIMER);
             default:
                 return activeBackoff->process(CSMATxBackoffBase::EV_NULL);;
@@ -197,15 +197,15 @@ protected:
 
 
   protected:
-    t_mac_state macState; //Record the current state of the MAC State machine
+    MacState macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
-    void stateProcess(const t_mac_event& event, cMessage *msg);
+    void stateProcess(const MacEvent& event, cMessage *msg);
     void stateListeningEnterAlreadyListening();
     void stateListeningEnter();
     void stateListeningIdleEnterAlreadyListening();
     void stateAwaitTransmitEnterAlreadyListening();
-    void stateWakeUpIdleProcess(const t_mac_event& event, omnetpp::cMessage* const msg);
-    void stateAwaitTransmitProcess(const t_mac_event& event, omnetpp::cMessage* const msg);
+    void stateWakeUpIdleProcess(const MacEvent& event, omnetpp::cMessage* const msg);
+    void stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg);
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
     RxState rxState;
@@ -217,9 +217,9 @@ protected:
     void stateReceiveProcessDataTimeout();
     void stateReceiveEnterAck();
     void stateReceiveExitAck();
-    void stateReceiveAckProcessBackoff(const t_mac_event& event);
+    void stateReceiveAckProcessBackoff(const MacEvent& event);
     void stateReceiveExitDataWait();
-    virtual void stateReceiveProcess(const t_mac_event& event, cMessage *msg);
+    virtual void stateReceiveProcess(const MacEvent& event, cMessage *msg);
   private:
     void handleCoincidentalOverheardData(inet::Packet* receivedData);
     void handleOverheardAckInDataReceiveState(const Packet * const msg);
@@ -229,7 +229,7 @@ protected:
 
   protected:
     Packet* buildAck(const Packet* subject) const;
-    void updateMacState(const t_mac_state& newMacState){ macState = newMacState; };
+    void updateMacState(const MacState& newMacState){ macState = newMacState; };
     /** @brief Transmitter State Machine **/
     TxDataState txDataState;
     void stateTxEnter();
@@ -237,7 +237,7 @@ protected:
     void stateTxDataWaitExitEnterAckWait();
     void stateTxWakeUpWaitExit();
     void stateTxEnterEnd();
-    void stateTxProcess(const t_mac_event& event, cMessage* msg);
+    void stateTxProcess(const MacEvent& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
     const int requiredForwarders = 1;
     int acknowledgedForwarders = 0;
@@ -247,14 +247,14 @@ protected:
     int txInProgressTries = 0;
     ExpectedCost dataMinExpectedCost = EqDC(25.5);
     simtime_t dataTransmissionDelay = 0;
-    virtual void stateTxAckWaitProcess(const t_mac_event& event, cMessage *msg);
+    virtual void stateTxAckWaitProcess(const MacEvent& event, cMessage *msg);
 
     /** @brief Wake-up listening State Machine **/
     WuWaitState wuState;
     void stateWakeUpWaitEnter();
     void stateWakeUpWaitExitToListening();
     void stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
-    void stateWakeUpProcess(const t_mac_event& event, cMessage *msg);
+    void stateWakeUpProcess(const MacEvent& event, cMessage *msg);
 
     /** @brief Receiving and acknowledgement **/
     cMessage *currentRxFrame;
