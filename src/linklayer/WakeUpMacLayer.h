@@ -219,7 +219,12 @@ protected:
     void stateReceiveExitAck();
     void stateReceiveAckProcessBackoff(const MacEvent& event);
     void stateReceiveExitDataWait();
-    virtual void stateReceiveProcess(const MacEvent& event, cMessage *msg);
+    /*
+     * Member to process events when in the Receive state
+     * Overridable by inheriting classes for other reciever behavior
+     * @ return Is receiveState finished
+     */
+    virtual bool stateReceiveProcess(const MacEvent& event, cMessage *msg);
   private:
     void handleCoincidentalOverheardData(inet::Packet* receivedData);
     void handleOverheardAckInDataReceiveState(const Packet * const msg);

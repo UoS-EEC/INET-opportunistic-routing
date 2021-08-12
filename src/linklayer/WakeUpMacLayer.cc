@@ -312,7 +312,10 @@ void WakeUpMacLayer::stateProcess(const MacEvent& event, cMessage * const msg) {
         break;
     case State::RECEIVE:
         // Listen for a data packet after a wake-up and start timeout for ack
-        stateReceiveProcess(event, msg);
+        if( stateReceiveProcess(event, msg) ){
+            // State receive is therefore finished, enter listening
+            stateListeningEnter();
+        }
         break;
     default:
         EV_WARN << "Wake-up MAC in unhandled state. Return to idle" << endl;
@@ -438,7 +441,6 @@ void WakeUpMacLayer::stateReceiveProcessDataTimeout()
 {
     // The receiving has timed out, if packet is received process
     completePacketReception();
-    stateListeningEnter();
 }
 
 void WakeUpMacLayer::stateReceiveAckProcessBackoff(const MacEvent& event)
@@ -457,13 +459,13 @@ void WakeUpMacLayer::stateReceiveAckProcessBackoff(const MacEvent& event)
     }
 }
 // Receive acknowledgement process that can be overridden
-void WakeUpMacLayer::stateReceiveProcess(const MacEvent& event, cMessage * const msg) {
+bool WakeUpMacLayer::stateReceiveProcess(const MacEvent& event, cMessage * const msg) {
     if(event == MacEvent::DATA_RECEIVED){
         auto packet = check_and_cast<const Packet*>(msg);
         if(packet->peekAtFront<WakeUpGram>()->getType() == WU_ACK){
             handleOverheardAckInDataReceiveState(packet);
             delete packet;
-            return;
+            return false;
         }
     }
 
@@ -472,6 +474,7 @@ void WakeUpMacLayer::stateReceiveProcess(const MacEvent& event, cMessage * const
             if(event == MacEvent::DATA_TIMEOUT){
                 // The receiving has timed out, optionally process received packet
                 stateReceiveProcessDataTimeout();
+                return true;
             }
             else if(event == MacEvent::DATA_RECEIVED){
                 stateReceiveDataWaitProcessDataReceived(msg);
@@ -496,10 +499,12 @@ void WakeUpMacLayer::stateReceiveProcess(const MacEvent& event, cMessage * const
             if(event == MacEvent::DATA_TIMEOUT){
                 // The receiving has timed out, optionally process received packet
                 stateReceiveProcessDataTimeout();
+                return true;
             }
             break;
         default: cRuntimeError("Unknown state");
     }
+    return false;
 }
 
 void WakeUpMacLayer::handleOverheardAckInDataReceiveState(const Packet * const msg){
@@ -885,8 +890,8 @@ WakeUpMacLayer::State WakeUpMacLayer::stateWakeUpWaitApproveWaitEnter(cMessage* 
 void WakeUpMacLayer::stateWakeUpWaitExitToListening()
 {
     //Stop the timer if other event called it first
-    stateListeningEnter();
     emit(receptionDroppedSignal, true);
+    stateListeningEnter();
 }
 
 void WakeUpMacLayer::stateWakeUpProcess(const MacEvent& event, cMessage * const msg) {
