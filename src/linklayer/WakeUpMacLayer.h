@@ -200,12 +200,12 @@ protected:
     State macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     void stateProcess(const MacEvent& event, cMessage *msg);
-    void stateListeningEnterAlreadyListening();
+    State stateListeningEnterAlreadyListening();
     void stateListeningEnter();
     void stateListeningIdleEnterAlreadyListening();
     void stateAwaitTransmitEnterAlreadyListening();
-    void stateWakeUpIdleProcess(const MacEvent& event, omnetpp::cMessage* const msg);
-    void stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg);
+    State stateWakeUpIdleProcess(const MacEvent& event, omnetpp::cMessage* const msg);
+    State stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg);
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
     RxState rxState;
@@ -232,7 +232,7 @@ protected:
     void updateMacState(const State& newMacState){ macState = newMacState; };
     /** @brief Transmitter State Machine **/
     TxDataState txDataState;
-    void stateTxEnter();
+    State stateTxEnter();
     void stateTxEnterDataWait();
     void stateTxDataWaitExitEnterAckWait();
     void stateTxWakeUpWaitExit();
@@ -253,7 +253,7 @@ protected:
     WuWaitState wuState;
     void stateWakeUpWaitEnter();
     void stateWakeUpWaitExitToListening();
-    void stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
+    State stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
     void stateWakeUpProcess(const MacEvent& event, cMessage *msg);
 
     /** @brief Receiving and acknowledgement **/
