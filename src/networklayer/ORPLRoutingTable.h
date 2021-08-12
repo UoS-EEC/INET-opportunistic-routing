@@ -37,7 +37,7 @@ private:
     int countDownwardNodes(const EqDC ownEqDCEstimate) const;
 
 protected:
-    void initialize(int stage);
+    void initialize(int stage) override;
     virtual void receiveSignal(cComponent *source, omnetpp::simsignal_t signalID, cObject* msg, cObject *details) override;
 public:
     // Like interfaces from IRoutingTable
@@ -59,7 +59,7 @@ public:
     void addToDownwardsWarmupSet(const inet::L3Address destination, const EqDC minimumEqDC);
 private:
     void printRoutingTable();
-    virtual void finish();
+    virtual void finish() override;
 };
 
 } /* namespace oppostack */
