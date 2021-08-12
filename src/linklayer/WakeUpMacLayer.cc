@@ -295,34 +295,34 @@ void WakeUpMacLayer::handleSelfMessage(cMessage* const msg) {
 void WakeUpMacLayer::stateProcess(const MacEvent& event, cMessage * const msg) {
     // Operate State machine based on current state and event
     switch (macState){
-    case MacState::WAKE_UP_IDLE:
+    case State::WAKE_UP_IDLE:
         stateWakeUpIdleProcess(event, msg);
         break;
-    case MacState::AWAIT_TRANSMIT:
+    case State::AWAIT_TRANSMIT:
         ASSERT(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER
                 || activeRadio->getRadioMode() == IRadio::RADIO_MODE_SWITCHING);
         stateAwaitTransmitProcess(event, msg);
         break;
-    case MacState::TRANSMIT:
+    case State::TRANSMIT:
         stateTxProcess(event, msg);
         break;
-    case MacState::WAKE_UP_WAIT:
+    case State::WAKE_UP_WAIT:
         // Process wake-up and wait for listening to start
         stateWakeUpProcess(event, msg);
         break;
-    case MacState::RECEIVE:
+    case State::RECEIVE:
         // Listen for a data packet after a wake-up and start timeout for ack
         stateReceiveProcess(event, msg);
         break;
     default:
         EV_WARN << "Wake-up MAC in unhandled state. Return to idle" << endl;
-        updateMacState(MacState::WAKE_UP_IDLE);
+        updateMacState(State::WAKE_UP_IDLE);
     }
 }
 
 void WakeUpMacLayer::stateAwaitTransmitEnterAlreadyListening()
 {
-    updateMacState(MacState::AWAIT_TRANSMIT);
+    updateMacState(State::AWAIT_TRANSMIT);
     changeActiveRadio(wakeUpRadio);
 }
 
@@ -346,7 +346,7 @@ void WakeUpMacLayer::stateListeningEnter(){
 
 void WakeUpMacLayer::stateListeningIdleEnterAlreadyListening()
 {
-    updateMacState(MacState::WAKE_UP_IDLE);
+    updateMacState(State::WAKE_UP_IDLE);
     changeActiveRadio(wakeUpRadio);
 }
 
@@ -354,7 +354,7 @@ void WakeUpMacLayer::stateTxEnter()
 {
     dataMinExpectedCost = EqDC(25.5);
     txDataState = TxDataState::WAKE_UP_WAIT;
-    updateMacState(MacState::TRANSMIT);
+    updateMacState(State::TRANSMIT);
 }
 
 void WakeUpMacLayer::stateWakeUpIdleProcess(const MacEvent& event, cMessage* const msg)
@@ -456,7 +456,7 @@ void WakeUpMacLayer::stateReceiveAckProcessBackoff(const MacEvent& event)
         // send acknowledgement packet when radio is ready
         sendDown(buildAck(check_and_cast<Packet*>(currentRxFrame)));
     }
-    else if (backoffResult == CSMATxBackoffBase::BO_OFF) {
+    else if (backoffResult == CSMATxBackoffBase::State::OFF) {
         // Backoff has been aborted
         // Drop packet and schedule immediate timeout
         EV_WARN << "Dropping packet because of channel congestion";
@@ -526,7 +526,7 @@ void WakeUpMacLayer::handleOverheardAckInDataReceiveState(const Packet * const m
 
 void WakeUpMacLayer::StateReceiveEnter()
 {
-    updateMacState(MacState::RECEIVE);
+    updateMacState(State::RECEIVE);
     rxAckRound = 0;
     stateReceiveEnterDataWait();
 }
@@ -868,7 +868,7 @@ void WakeUpMacLayer::stateWakeUpWaitEnter()
     changeActiveRadio(dataRadio);
     dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
     emit(receptionStartedSignal, true);
-    updateMacState(MacState::WAKE_UP_WAIT);
+    updateMacState(State::WAKE_UP_WAIT);
 }
 
 void WakeUpMacLayer::handleCoincidentalOverheardData(Packet* receivedData)

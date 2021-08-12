@@ -91,7 +91,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOppo
     bool skipDirectTxFinalAck = false;
 protected:
     /** @brief MAC high level states */
-    enum class MacState {
+    enum class State {
         WAKE_UP_IDLE, // WuRx listening
         WAKE_UP_WAIT, // WuRx receiving or processing
         RECEIVE, // Data radio listening, receiving and ack following wake-up or initial data
@@ -141,19 +141,19 @@ protected:
     };
 
     // Translate WakeUpMacLayer Events to BackoffBase Events
-    CSMATxBackoffBase::t_backoff_state stepBackoffSM(const MacEvent event){
+    CSMATxBackoffBase::State stepBackoffSM(const MacEvent event){
         if(activeBackoff == nullptr){
-            return CSMATxBackoffBase::BO_WAIT;
+            return CSMATxBackoffBase::State::WAIT;
         }
         switch(event){
             case MacEvent::TX_READY:
-                return activeBackoff->process(CSMATxBackoffBase::EV_TX_READY);
+                return activeBackoff->process(CSMATxBackoffBase::Event::TX_READY);
             case MacEvent::DATA_RX_READY:
-                return activeBackoff->process(CSMATxBackoffBase::EV_RX_READY);
+                return activeBackoff->process(CSMATxBackoffBase::Event::RX_READY);
             case MacEvent::CSMA_BACKOFF:
-                return activeBackoff->process(CSMATxBackoffBase::EV_BACKOFF_TIMER);
+                return activeBackoff->process(CSMATxBackoffBase::Event::BACKOFF_TIMER);
             default:
-                return activeBackoff->process(CSMATxBackoffBase::EV_NULL);;
+                return activeBackoff->process(CSMATxBackoffBase::Event::NONE);;
         }
     }
 
@@ -197,7 +197,7 @@ protected:
 
 
   protected:
-    MacState macState; //Record the current state of the MAC State machine
+    State macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     void stateProcess(const MacEvent& event, cMessage *msg);
     void stateListeningEnterAlreadyListening();
@@ -229,7 +229,7 @@ protected:
 
   protected:
     Packet* buildAck(const Packet* subject) const;
-    void updateMacState(const MacState& newMacState){ macState = newMacState; };
+    void updateMacState(const State& newMacState){ macState = newMacState; };
     /** @brief Transmitter State Machine **/
     TxDataState txDataState;
     void stateTxEnter();
