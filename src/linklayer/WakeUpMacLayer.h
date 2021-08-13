@@ -200,16 +200,16 @@ protected:
     State macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     void stateProcess(const MacEvent& event, cMessage *msg);
-    void stateListeningEnterAlreadyListening();
-    void stateListeningEnter();
+    State stateListeningEnterAlreadyListening();
+    State stateListeningEnter();
     void stateListeningIdleEnterAlreadyListening();
     void stateAwaitTransmitEnterAlreadyListening();
-    void stateWakeUpIdleProcess(const MacEvent& event, omnetpp::cMessage* const msg);
-    void stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg);
+    State stateWakeUpIdleProcess(const MacEvent& event, omnetpp::cMessage* const msg);
+    State stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg);
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     int rxAckRound = 0;
     RxState rxState;
-    void StateReceiveEnter();
+    State  stateReceiveEnter();
     void stateReceiveEnterDataWait();
     void stateReceiveAckEnterReceiveDataWait();
     void stateReceiveEnterFinishDropReceived(const inet::PacketDropReason reason);
@@ -219,7 +219,12 @@ protected:
     void stateReceiveExitAck();
     void stateReceiveAckProcessBackoff(const MacEvent& event);
     void stateReceiveExitDataWait();
-    virtual void stateReceiveProcess(const MacEvent& event, cMessage *msg);
+    /*
+     * Member to process events when in the Receive state
+     * Overridable by inheriting classes for other reciever behavior
+     * @ return Is receiveState finished
+     */
+    virtual bool stateReceiveProcess(const MacEvent& event, cMessage *msg);
   private:
     void handleCoincidentalOverheardData(inet::Packet* receivedData);
     void handleOverheardAckInDataReceiveState(const Packet * const msg);
@@ -229,15 +234,19 @@ protected:
 
   protected:
     Packet* buildAck(const Packet* subject) const;
-    void updateMacState(const State& newMacState){ macState = newMacState; };
     /** @brief Transmitter State Machine **/
     TxDataState txDataState;
-    void stateTxEnter();
+    State stateTxEnter();
     void stateTxEnterDataWait();
     void stateTxDataWaitExitEnterAckWait();
     void stateTxWakeUpWaitExit();
     void stateTxEnterEnd();
-    void stateTxProcess(const MacEvent& event, cMessage* msg);
+    /*
+     * Member to process events when in the Transmit state
+     * Overridable by inheriting classes for other trasmitter behavior
+     * @ return Is transmit State finished
+     */
+    virtual bool stateTxProcess(const MacEvent& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
     const int requiredForwarders = 1;
     int acknowledgedForwarders = 0;
@@ -252,9 +261,9 @@ protected:
     /** @brief Wake-up listening State Machine **/
     WuWaitState wuState;
     void stateWakeUpWaitEnter();
-    void stateWakeUpWaitExitToListening();
-    void stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
-    void stateWakeUpProcess(const MacEvent& event, cMessage *msg);
+    State stateWakeUpWaitExitToListening();
+    State stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
+    State stateWakeUpProcess(const MacEvent& event, cMessage *msg);
 
     /** @brief Receiving and acknowledgement **/
     cMessage *currentRxFrame;
