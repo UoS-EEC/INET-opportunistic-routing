@@ -91,18 +91,15 @@ CSMATxBackoffBase::State CSMATxBackoffBase::process(const Event& event){
 }
 
 CSMATxBackoffBase::~CSMATxBackoffBase(){
-    if(txBackoffTimer){
-        cancelBackoffTimer();
-        delete txBackoffTimer;
-        txBackoffTimer = nullptr;
-    }
+    cancelBackoffTimer();
+    delete txBackoffTimer;
 }
 
-simtime_t CSMATxUniformBackoff::calculateBackoff(Event& returnEv){
+simtime_t CSMATxUniformBackoff::calculateBackoff(Event& returnEv) const{
     return parent->uniform(minBackoff, maxBackoff);
 }
 
-simtime_t CSMATxRemainderReciprocalBackoff::calculateBackoff(Event& returnEv){
+simtime_t CSMATxRemainderReciprocalBackoff::calculateBackoff(Event& returnEv) const{
     // Calculate backoff from remaining time
     const simtime_t delayWindow = (maxBackoff - cumulativeAckBackoff)/2;
     if(delayWindow > minimumContentionWindow){

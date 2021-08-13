@@ -45,15 +45,14 @@ class CSMATxBackoffBase{
     };
   protected:
     cSimpleModule* parent;
-    virtual simtime_t calculateBackoff(Event& returnEv) = 0;
+    virtual simtime_t calculateBackoff(Event& returnEv) const = 0;
     State state{State::OFF};
   public:
     CSMATxBackoffBase(cSimpleModule* _parent,
             inet::physicallayer::IRadio* _activeRadio):
                 parent(_parent),
-                activeRadio(_activeRadio){
-        txBackoffTimer = new cMessage("tx backoff timer");
-    };
+                activeRadio(_activeRadio),
+                txBackoffTimer( new cMessage("tx backoff timer") ){};
     void startTxOrBackoff();
     void startTxOrDelay(simtime_t delay){ startTxOrDelay(delay, delay); };
     void startTxOrDelay(simtime_t minDelay, simtime_t maxDelay);
@@ -65,8 +64,8 @@ class CSMATxBackoffBase{
 };
 
 class CSMATxUniformBackoff : public CSMATxBackoffBase{
-    simtime_t minBackoff;
-    simtime_t maxBackoff;
+    const simtime_t minBackoff;
+    const simtime_t maxBackoff;
 public:
     CSMATxUniformBackoff(cSimpleModule* parent,
             inet::physicallayer::IRadio* activeRadio,
@@ -75,7 +74,7 @@ public:
                 minBackoff(min_backoff),
                 maxBackoff(max_backoff){};
 protected:
-    virtual simtime_t calculateBackoff(Event& returnEv) override;
+    virtual simtime_t calculateBackoff(Event& returnEv) const override;
 };
 
 class CSMATxRemainderReciprocalBackoff : public CSMATxBackoffBase{
@@ -91,7 +90,7 @@ public:
         ASSERT(minimumContentionWindow > 0);
     };
 protected:
-    virtual simtime_t calculateBackoff(Event& returnEv) override;
+    virtual simtime_t calculateBackoff(Event& returnEv) const override;
 };
 
 } /* namespace oppostack */
