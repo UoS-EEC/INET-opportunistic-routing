@@ -304,22 +304,25 @@ void WakeUpMacLayer::stateProcess(const MacEvent& event, cMessage * const msg) {
         macState = stateAwaitTransmitProcess(event, msg);
         break;
     case State::TRANSMIT:
-        stateTxProcess(event, msg);
+        if( stateTxProcess(event, msg) ){
+            // State transmit is therefore finished, enter listening
+            macState = stateListeningEnter();
+        }
         break;
     case State::WAKE_UP_WAIT:
         // Process wake-up and wait for listening to start
-        stateWakeUpProcess(event, msg);
+        macState = stateWakeUpProcess(event, msg);
         break;
     case State::RECEIVE:
         // Listen for a data packet after a wake-up and start timeout for ack
         if( stateReceiveProcess(event, msg) ){
             // State receive is therefore finished, enter listening
-            updateMacState( stateListeningEnter() );
+            macState = stateListeningEnter();
         }
         break;
     default:
         EV_WARN << "Wake-up MAC in unhandled state. Return to idle" << endl;
-        updateMacState(State::WAKE_UP_IDLE);
+        macState = State::WAKE_UP_IDLE;
     }
 }
 
@@ -521,11 +524,11 @@ void WakeUpMacLayer::handleOverheardAckInDataReceiveState(const Packet * const m
     }
 }
 
-void WakeUpMacLayer::StateReceiveEnter()
+WakeUpMacLayer::State WakeUpMacLayer::stateReceiveEnter()
 {
-    updateMacState(State::RECEIVE);
     rxAckRound = 0;
     stateReceiveEnterDataWait();
+    return State::RECEIVE;
 }
 void WakeUpMacLayer::stateReceiveEnterDataWait()
 {
@@ -707,7 +710,7 @@ void WakeUpMacLayer::completePacketTransmission()
     }
 }
 
-void WakeUpMacLayer::stateTxProcess(const MacEvent& event, cMessage* const msg) {
+bool WakeUpMacLayer::stateTxProcess(const MacEvent& event, cMessage* const msg) {
     switch (txDataState){
     case TxDataState::WAKE_UP_WAIT:
         stepBackoffSM(event);
@@ -771,12 +774,13 @@ void WakeUpMacLayer::stateTxProcess(const MacEvent& event, cMessage* const msg) 
             scheduleAt(simTime() + ackWaitDuration, transmitStartDelay);
         }
         else if(event == MacEvent::DATA_RX_IDLE){
-            updateMacState(stateListeningEnter());
+            return true;
         }
         break;
     default:
         cRuntimeError("Unhandled State");
     }
+    return false;
 }
 
 void WakeUpMacLayer::stateTxEnterDataWait()
@@ -894,7 +898,7 @@ WakeUpMacLayer::State WakeUpMacLayer::stateWakeUpWaitExitToListening()
     return stateListeningEnter();
 }
 
-void WakeUpMacLayer::stateWakeUpProcess(const MacEvent& event, cMessage * const msg) {
+WakeUpMacLayer::State WakeUpMacLayer::stateWakeUpProcess(const MacEvent& event, cMessage * const msg) {
     switch(wuState){
     case WuWaitState::APPROVE_WAIT:
         if(event==MacEvent::WU_APPROVE){
@@ -910,7 +914,7 @@ void WakeUpMacLayer::stateWakeUpProcess(const MacEvent& event, cMessage * const 
         }
         else if(event==MacEvent::DATA_RX_IDLE||event==MacEvent::DATA_RX_READY){
             //Stop the timer if other event called it first
-            updateMacState(stateWakeUpWaitExitToListening());
+            return stateWakeUpWaitExitToListening();
         }
         break;
     case WuWaitState::DATA_RADIO_WAIT:
@@ -920,17 +924,18 @@ void WakeUpMacLayer::stateWakeUpProcess(const MacEvent& event, cMessage * const 
         else if(event==MacEvent::DATA_RX_READY){
             // data radio now listening
             wuState = WuWaitState::IDLE;
-            StateReceiveEnter();
+            return stateReceiveEnter();
         }
         break;
     case WuWaitState::ABORT:
         if(event==MacEvent::DATA_RX_IDLE||event==MacEvent::DATA_RX_READY){
-            updateMacState( stateWakeUpWaitExitToListening() );
+            return stateWakeUpWaitExitToListening();
         }
         break;
     default:
         cRuntimeError("unhandled state");
     }
+    return macState;
 }
 
 void WakeUpMacLayer::configureInterfaceEntry() {
