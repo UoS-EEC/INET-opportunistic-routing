@@ -71,7 +71,7 @@ std::pair<const L3Address ,int > ORPLRoutingTable::getRoute(int k)
             }
         }
     }
-    cRuntimeError("Unknown route requested");
+    throw cRuntimeError("Unknown route requested");
 }
 
 

@@ -42,6 +42,6 @@ short RoutingSetExt::getLength() const{
         return std::ceil(maxNodeCount/8*1.0);
     }
     else{
-        omnetpp::cRuntimeError("Higher proportions should be handled by inverting bitmap");
+        throw omnetpp::cRuntimeError("Higher proportions should be handled by inverting bitmap");
     }
 }
