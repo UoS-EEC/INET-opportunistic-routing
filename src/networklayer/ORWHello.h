@@ -35,7 +35,7 @@ public:
 protected:
     virtual void initialize(int stage) override;
 
-    virtual inet::L3Address chooseDestAddr();
+    virtual inet::L3Address chooseDestAddr() override;
     virtual void sendPacket();
 
     virtual void handleStartOperation(inet::LifecycleOperation* op) override;
