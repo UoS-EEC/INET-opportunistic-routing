@@ -42,7 +42,7 @@ using namespace oppostack;
 Define_Module(WakeUpMacLayer);
 
 void WakeUpMacLayer::initialize(int const stage) {
-    MacProtocolBase::initialize(stage);
+    ORWMac::initialize(stage);
 //    // Allow serialization to better represent conflicting radio protocols
 //    Chunk::enableImplicitChunkSerialization = true;
     if (stage == INITSTAGE_LOCAL) {
@@ -52,8 +52,6 @@ void WakeUpMacLayer::initialize(int const stage) {
 
         //Create timer messages
         transmitStartDelay = new cMessage("transmit backoff");
-        receiveTimeout = new cMessage("wake-up wait timer");
-        ackBackoffTimer = new cMessage("ack wait timer");
         replenishmentTimer = new cMessage("replenishment check timeout");
         dataListeningDuration = par("dataListeningDuration");
         txWakeUpWaitDuration = par("txWakeUpWaitDuration");
@@ -951,16 +949,13 @@ void WakeUpMacLayer::configureInterfaceEntry() {
 
 void WakeUpMacLayer::cancelAllTimers()
 {
+    ORWMac::cancelAllTimers();
     cancelEvent(transmitStartDelay);
-    cancelEvent(ackBackoffTimer);
-    cancelEvent(receiveTimeout);
     cancelEvent(replenishmentTimer);
 }
 
 void WakeUpMacLayer::deleteAllTimers(){
     delete transmitStartDelay;
-    delete ackBackoffTimer;
-    delete receiveTimeout;
     delete replenishmentTimer;
 }
 

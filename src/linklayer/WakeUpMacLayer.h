@@ -20,8 +20,6 @@
 #define __WAKEUPMAC_WAKEUPMACLAYER_H_
 
 #include <omnetpp.h>
-#include <inet/linklayer/base/MacProtocolBase.h>
-#include <inet/linklayer/contract/IMacProtocol.h>
 #include <inet/physicallayer/contract/packetlevel/IRadio.h>
 #include <inet/power/contract/IEpEnergyStorage.h>
 #include <inet/common/lifecycle/LifecycleController.h>
@@ -32,8 +30,7 @@
 #include "common/Units.h"
 #include "WakeUpGram_m.h"
 #include "CSMATxBackoff.h"
-#include "IOpportunisticLinkLayer.h"
-#include "IObservableMac.h"
+#include "ORWMac.h"
 
 namespace oppostack{
 
@@ -44,13 +41,12 @@ using namespace inet;
  * WakeUpMacLayer - Implements two stage message transmission of
  * high power wake up followed by the data message
  */
-class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOpportunisticLinkLayer, public IObservableMac
+class WakeUpMacLayer : public ORWMac
 {
   public:
     WakeUpMacLayer()
-      : MacProtocolBase(),
+      : ORWMac(),
         transmitStartDelay(nullptr),
-        receiveTimeout(nullptr),
         dataRadio(nullptr),
         wakeUpRadio(nullptr),
         activeRadio(nullptr),
@@ -60,7 +56,7 @@ class WakeUpMacLayer : public MacProtocolBase, public IMacProtocol, public IOppo
         currentRxFrame(nullptr),
         activeBackoff(nullptr)
       {}
-    virtual ~WakeUpMacLayer();
+    ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
     virtual void handleUpperCommand(cMessage *msg) override;
     virtual void handleLowerPacket(Packet *packet) override;
@@ -160,8 +156,6 @@ protected:
     /** @name Protocol timer messages */
     /*@{*/
     cMessage *transmitStartDelay;
-    cMessage *ackBackoffTimer;
-    cMessage *receiveTimeout;
     /*@}*/
     CSMATxBackoffBase* activeBackoff;
 
@@ -185,8 +179,8 @@ protected:
     cMessage* replenishmentTimer;
 
     virtual void initialize(int stage) override;
-    virtual void cancelAllTimers();
-    virtual void deleteAllTimers();
+    virtual void cancelAllTimers() override;
+    void deleteAllTimers();
     void changeActiveRadio(physicallayer::IRadio*);
     // Check if message comes from lower gate or wake-up radio
     virtual bool isLowerMessage(cMessage* msg) override{
