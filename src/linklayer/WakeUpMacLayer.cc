@@ -59,7 +59,6 @@ void WakeUpMacLayer::initialize(int const stage) {
         initialContentionDuration = ackWaitDuration/3;
         wuApproveResponseLimit = par("wuApproveResponseLimit");
         candiateRelayContentionProbability = par("candiateRelayContentionProbability");
-        transmissionStartMinEnergy = J(par("transmissionStartMinEnergy"));
 
         maxWakeUpTries = par("maxWakeUpTries");
 
@@ -70,9 +69,6 @@ void WakeUpMacLayer::initialize(int const stage) {
         radioModule = getModuleByPath(wakeUpRadioModulePath);
         wakeUpRadio = check_and_cast<IRadio *>(radioModule);
 
-        const char* energyStoragePath = par("energyStorage");
-        cModule* storageModule = getModuleByPath(energyStoragePath);
-        energyStorage = check_and_cast<inet::power::IEpEnergyStorage*>(storageModule);
         const char* networkNodePath = par("networkNode");
         networkNode = getModuleByPath(networkNodePath);
 
@@ -936,17 +932,6 @@ WakeUpMacLayer::State WakeUpMacLayer::stateWakeUpProcess(const MacEvent& event, 
     return macState;
 }
 
-void WakeUpMacLayer::configureInterfaceEntry() {
-    // generate a link-layer address to be used as interface token for IPv6
-    auto lengthPrototype = makeShared<WakeUpDatagram>();
-    const B interfaceMtu = phyMtu-B(lengthPrototype->getChunkLength());
-    ASSERT2(interfaceMtu >= B(80), "The interface MTU available to the net layer is too small (under 80 bytes)");
-    interfaceEntry->setMtu(interfaceMtu.get());
-    interfaceEntry->setMulticast(true);
-    interfaceEntry->setBroadcast(true);
-    interfaceEntry->setPointToPoint(false);
-}
-
 void WakeUpMacLayer::cancelAllTimers()
 {
     ORWMac::cancelAllTimers();
@@ -971,27 +956,6 @@ void WakeUpMacLayer::changeActiveRadio(physicallayer::IRadio* const newActiveRad
         activeRadio = newActiveRadio;
         transmissionState = activeRadio->getTransmissionState();
         receptionState = activeRadio->getReceptionState();
-    }
-}
-
-bool WakeUpMacLayer::transmissionStartEnergyCheck() const
-{
-    return energyStorage->getResidualEnergyCapacity() >= transmissionStartMinEnergy;
-}
-
-void WakeUpMacLayer::setupTransmission() {
-    //Cancel transmission timers
-    //Reset progress counters
-    txInProgressForwarders = 0;
-
-    if(currentTxFrame!=nullptr){
-        PacketDropDetails details;
-        details.setReason(PacketDropReason::QUEUE_OVERFLOW);
-        dropCurrentTxFrame(details);
-    }
-    popTxQueue();
-    if(datagramLocalOutHook(currentTxFrame)!=INetfilter::IHook::Result::ACCEPT){
-        throw cRuntimeError("Unhandled rejection of packet at transmission setup");
     }
 }
 

@@ -14,7 +14,7 @@
 // 
 
 #include "common/oppDefs.h"
-#include "linklayer/WakeUpMacLayer.h"
+#include "linklayer/ORWMac.h"
 #include "PacketConsumptionTracking.h"
 #include "PacketConsumptionTag_m.h"
 #include "networklayer/OpportunisticRoutingHeader_m.h"
@@ -27,7 +27,7 @@ Define_Module(PacketConsumptionTracking);
 void PacketConsumptionTracking::initialize()
 {
     routingTable = check_and_cast<ORWRoutingTable*>(getCModuleFromPar(par("routingTable"), this));
-    macLayer = check_and_cast<WakeUpMacLayer*>(getCModuleFromPar(par("wakeUpMacModule"),this));
+    macLayer = check_and_cast<ORWMac*>(getCModuleFromPar(par("wakeUpMacModule"),this));
     macEnergyMonitor = check_and_cast<WuMacEnergyMonitor*>(getCModuleFromPar(par("wakeUpMacMonitorModule"), this));
     macLayer->registerHook(0, this);
 }

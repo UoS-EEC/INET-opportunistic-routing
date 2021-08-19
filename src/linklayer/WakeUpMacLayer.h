@@ -21,14 +21,12 @@
 
 #include <omnetpp.h>
 #include <inet/physicallayer/contract/packetlevel/IRadio.h>
-#include <inet/power/contract/IEpEnergyStorage.h>
 #include <inet/common/lifecycle/LifecycleController.h>
 #include <inet/common/lifecycle/NodeStatus.h>
 #include <inet/common/Protocol.h>
 
 #include "../networklayer/ORWRouting.h"
 #include "common/Units.h"
-#include "WakeUpGram_m.h"
 #include "CSMATxBackoff.h"
 #include "ORWMac.h"
 
@@ -50,7 +48,6 @@ class WakeUpMacLayer : public ORWMac
         dataRadio(nullptr),
         wakeUpRadio(nullptr),
         activeRadio(nullptr),
-        energyStorage(nullptr),
         networkNode(nullptr),
         replenishmentTimer(nullptr),
         currentRxFrame(nullptr),
@@ -76,7 +73,6 @@ class WakeUpMacLayer : public ORWMac
     const int WAKEUP_APPROVE = 502;
     const int WAKEUP_REJECT = 503;
     double candiateRelayContentionProbability = 0.7;
-    inet::B phyMtu = B(255);
 
     /** @brief Calculated (in initialize) parameters */
     simtime_t initialContentionDuration = 0;
@@ -169,12 +165,9 @@ protected:
     physicallayer::IRadio::TransmissionState transmissionState;
     physicallayer::IRadio::ReceptionState receptionState;
 
-    inet::power::IEpEnergyStorage* energyStorage;
     inet::LifecycleController lifecycleController;
     cModule* networkNode;
 
-    J lastEnergyStorageLevel = J(0.0);
-    J transmissionStartMinEnergy = J(0.0);
     simtime_t replenishmentCheckRate = SimTime(1, SimTimeUnit::SIMTIME_S);
     cMessage* replenishmentTimer;
 
@@ -186,7 +179,6 @@ protected:
     virtual bool isLowerMessage(cMessage* msg) override{
         return MacProtocolBase::isLowerMessage(msg) || msg->getArrivalGateId() == wakeUpRadioInGateId;
     };
-    virtual void configureInterfaceEntry() override;
     void queryWakeupRequest(Packet* wakeUp);
 
 
@@ -246,7 +238,6 @@ protected:
     int acknowledgedForwarders = 0;
     int acknowledgmentRound = 1;
     int maxWakeUpTries = 1;
-    int txInProgressForwarders = 0;
     int txInProgressTries = 0;
     ExpectedCost dataMinExpectedCost = EqDC(25.5);
     simtime_t dataTransmissionDelay = 0;
@@ -264,7 +255,6 @@ protected:
     void dropCurrentRxFrame(PacketDropDetails& details);
     void encapsulate(Packet* msg) const;
     void decapsulate(Packet* msg) const;
-    void setupTransmission();
 
     // OperationalBase:
     virtual void handleStartOperation(LifecycleOperation *operation) override;
@@ -286,7 +276,6 @@ protected:
     }
 
     void completePacketTransmission();
-    bool transmissionStartEnergyCheck() const;
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);

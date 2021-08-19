@@ -18,6 +18,7 @@
 
 #include <inet/networklayer/contract/INetfilter.h>
 
+#include "linklayer/ORWMac.h"
 #include "../networklayer/ORWRoutingTable.h"
 #include "linklayer/WuMacEnergyMonitor.h"
 #include "PacketConsumptionTag_m.h"
@@ -36,7 +37,7 @@ protected:
     virtual void initialize() override;
     WuMacEnergyMonitor* macEnergyMonitor;
     ORWRoutingTable* routingTable; // TODO: Replace with IRoutingTable
-    WakeUpMacLayer* macLayer;
+    ORWMac* macLayer;
 
 public:
     virtual inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};

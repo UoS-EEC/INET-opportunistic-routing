@@ -16,10 +16,15 @@
 #ifndef LINKLAYER_ORWMAC_H_
 #define LINKLAYER_ORWMAC_H_
 
+// Class base
 #include <inet/linklayer/contract/IMacProtocol.h>
 #include <inet/linklayer/base/MacProtocolBase.h>
 #include "IOpportunisticLinkLayer.h"
 #include "IObservableMac.h"
+
+// Variables within class
+#include <inet/power/contract/IEpEnergyStorage.h>
+#include "WakeUpGram_m.h"
 
 namespace oppostack {
 
@@ -38,11 +43,27 @@ protected:
     inet::cMessage *receiveTimeout{nullptr};
     inet::cMessage *ackBackoffTimer{nullptr};
     /*@}*/
-protected:
+
+    /** @brief Calculated (in initialize) parameters */
+    /*@{*/
+    inet::B phyMtu{255};
+    /*@}*/
+
+    inet::power::IEpEnergyStorage* energyStorage{nullptr};
+
     virtual void initialize(int stage) override;
+    virtual void configureInterfaceEntry() override;
     virtual void cancelAllTimers();
     void deleteAllTimers();
     ~ORWMac();
+
+    /** @name Transmit functions and variables */
+    /*@{*/
+    inet::J transmissionStartMinEnergy{0.0};
+    int txInProgressForwarders{0};
+    void setupTransmission();
+    bool transmissionStartEnergyCheck() const;
+    /*@}*/
 };
 
 } /* namespace oppostack */
