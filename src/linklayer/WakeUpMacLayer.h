@@ -20,8 +20,8 @@
 #define __WAKEUPMAC_WAKEUPMACLAYER_H_
 
 #include <omnetpp.h>
-#include <inet/physicallayer/contract/packetlevel/IRadio.h>
 #include <inet/common/lifecycle/LifecycleController.h>
+#include <inet/physicallayer/contract/packetlevel/IRadio.h>
 #include <inet/common/lifecycle/NodeStatus.h>
 #include <inet/common/Protocol.h>
 
@@ -45,7 +45,6 @@ class WakeUpMacLayer : public ORWMac
     WakeUpMacLayer()
       : ORWMac(),
         transmitStartDelay(nullptr),
-        dataRadio(nullptr),
         wakeUpRadio(nullptr),
         activeRadio(nullptr),
         networkNode(nullptr),
@@ -65,19 +64,12 @@ class WakeUpMacLayer : public ORWMac
   protected:
     /** @brief User Configured parameters */
     simtime_t txWakeUpWaitDuration = 0;
-    simtime_t ackWaitDuration = 0;
-    simtime_t dataListeningDuration = 0;
     simtime_t wuApproveResponseLimit = 0;
 
     // TODO: Replace by type to represent accept, reject messages
     const int WAKEUP_APPROVE = 502;
     const int WAKEUP_REJECT = 503;
     double candiateRelayContentionProbability = 0.7;
-
-    /** @brief Calculated (in initialize) parameters */
-    simtime_t initialContentionDuration = 0;
-    simtime_t ackTxWaitDuration = 0;
-    simtime_t minimumContentionWindow = 0;
 
     bool recheckDataPacketEqDC;
     bool skipDirectTxFinalAck = false;
@@ -159,7 +151,6 @@ protected:
     int wakeUpRadioOutGateId = -1;
 
     /** @brief The radio. */
-    physicallayer::IRadio *dataRadio;
     physicallayer::IRadio *wakeUpRadio;
     physicallayer::IRadio *activeRadio;
     physicallayer::IRadio::TransmissionState transmissionState;
@@ -234,7 +225,6 @@ protected:
      */
     virtual bool stateTxProcess(const MacEvent& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
-    const int requiredForwarders = 1;
     int acknowledgedForwarders = 0;
     int acknowledgmentRound = 1;
     int maxWakeUpTries = 1;

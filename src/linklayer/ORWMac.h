@@ -24,6 +24,7 @@
 
 // Variables within class
 #include <inet/power/contract/IEpEnergyStorage.h>
+#include <inet/physicallayer/contract/packetlevel/IRadio.h>
 #include "WakeUpGram_m.h"
 
 namespace oppostack {
@@ -44,9 +45,20 @@ protected:
     inet::cMessage *ackBackoffTimer{nullptr};
     /*@}*/
 
+    /** @brief The radio. */
+    inet::physicallayer::IRadio *dataRadio{nullptr};
+
+    /** @brief User Configured parameters */
+    omnetpp::simtime_t dataListeningDuration{0};
+    omnetpp::simtime_t ackWaitDuration{0};
+
     /** @brief Calculated (in initialize) parameters */
     /*@{*/
+    const int requiredForwarders{1};
     inet::B phyMtu{255};
+    omnetpp::simtime_t initialContentionDuration{0};
+    omnetpp::simtime_t ackTxWaitDuration{0};
+    omnetpp::simtime_t minimumContentionWindow{0};
     /*@}*/
 
     inet::power::IEpEnergyStorage* energyStorage{nullptr};

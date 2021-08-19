@@ -25,7 +25,12 @@ module ORWMac extends MacProtocolBase like IMacProtocol, IOpportunisticLinkLayer
     parameters:
         @class(ORWMac);
         // Assumes MAC layer is within an interface
+        string dataRadioModule = default("^.dataRadio");   // The path to the Radio module
         string energyStorage = default("^.^.energyStorage");
+        
         double transmissionStartMinEnergy @unit(J) = 0.004345J; // Don't start transmitting unless there is at least this in storage
+        double radioTurnaroundTime @unit(s) = default(50us);
+        double dataListeningDuration @unit(s) = default(0.0085 s); // How long to listen after a wake-up
+        double ackWaitDuration @unit(s) = default(0.0024 s); // Must be bigger than radio Rx -> Tx
         
 }

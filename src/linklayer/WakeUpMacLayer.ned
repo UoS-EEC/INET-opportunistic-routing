@@ -43,13 +43,9 @@ module WakeUpMacLayer extends ORWMac
     parameters:
         @class(WakeUpMacLayer);
         // Assumes MAC layer is within an interface
-        string dataRadioModule = default("^.dataRadio");   // The path to the Radio module
         string wakeUpRadioModule = default("^.wakeUpRadio");   // The path to the Wake up radio
         string networkNode = default("^.^");
         double txWakeUpWaitDuration @unit(s) = default(0.0006 s); // Must be bigger than radio OFF -> idle
-        double ackWaitDuration @unit(s) = default(0.0024 s); // Must be bigger than radio Rx -> Tx
-        double radioTurnaroundTime @unit(s) = default(50us);
-        double dataListeningDuration @unit(s) = default(0.0085 s); // How long to listen after a wake-up
         double wuApproveResponseLimit @unit(s) = default(1000ns);
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
         int maxWakeUpTries = default(4);

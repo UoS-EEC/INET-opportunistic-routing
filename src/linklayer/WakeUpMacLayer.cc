@@ -21,7 +21,6 @@
 #include <inet/common/ModuleAccess.h>
 #include <inet/common/ProtocolGroup.h>
 #include <inet/common/ProtocolTag_m.h>
-#include <inet/physicallayer/base/packetlevel/FlatTransmitterBase.h>
 #include <inet/physicallayer/contract/packetlevel/IRadioMedium.h>
 #include <inet/physicallayer/backgroundnoise/IsotropicScalarBackgroundNoise.h>
 #include <inet/physicallayer/base/packetlevel/FlatReceiverBase.h>
@@ -36,7 +35,6 @@
 
 using namespace inet;
 using physicallayer::IRadio;
-using physicallayer::FlatTransmitterBase;
 using namespace oppostack;
 
 Define_Module(WakeUpMacLayer);
@@ -53,20 +51,14 @@ void WakeUpMacLayer::initialize(int const stage) {
         //Create timer messages
         transmitStartDelay = new cMessage("transmit backoff");
         replenishmentTimer = new cMessage("replenishment check timeout");
-        dataListeningDuration = par("dataListeningDuration");
         txWakeUpWaitDuration = par("txWakeUpWaitDuration");
-        ackWaitDuration = par("ackWaitDuration");
-        initialContentionDuration = ackWaitDuration/3;
         wuApproveResponseLimit = par("wuApproveResponseLimit");
         candiateRelayContentionProbability = par("candiateRelayContentionProbability");
 
         maxWakeUpTries = par("maxWakeUpTries");
 
-        const char *radioModulePath = par("dataRadioModule");
-        cModule *radioModule = getModuleByPath(radioModulePath);
-        dataRadio = check_and_cast<IRadio *>(radioModule);
         const char* wakeUpRadioModulePath = par("wakeUpRadioModule");
-        radioModule = getModuleByPath(wakeUpRadioModulePath);
+        cModule *radioModule = getModuleByPath(wakeUpRadioModulePath);
         wakeUpRadio = check_and_cast<IRadio *>(radioModule);
 
         const char* networkNodePath = par("networkNode");
@@ -94,64 +86,13 @@ void WakeUpMacLayer::initialize(int const stage) {
             if(scalarNoiseModel->getPower() > wakeUpReceiverModel->getEnergyDetection())
                 throw cRuntimeError("Background noise power is greater than wake up radio energy detection threshold. Radio will always be \"Busy\"");
 
-
-        /*
-         * Calculation of invalid parameter combinations at the receiver
-         * - MAC Layer requires tight timing during a communication negotiation
-         * - Incorrect timing increases the collision and duplication probability
-         * After the wake-up contention to receive and forward occurs
-         * The physical MTU is limited by the time spent dataListening after sending an ACK
-         * If an ACK is sent at the start of the ACK period, the data may not be fully
-         * received until remainder of ack period + 1/5(ack period)
-         */
-        auto lengthPrototype = makeShared<WakeUpDatagram>();
-        const b ackBits = b(lengthPrototype->getChunkLength());
-        auto dataTransmitter = check_and_cast<const FlatTransmitterBase *>(dataRadio->getTransmitter());
-        const bps bitrate = dataTransmitter->getBitrate();
-        const int maxAckCount = std::floor(ackWaitDuration.dbl()*bitrate.get()/ackBits.get());
-        ASSERT2(maxAckCount > requiredForwarders + 2, "Ack wait duration is too small for multiple forwarders.");
-        ASSERT(maxAckCount < 20);
-        const double remainingAckProportion = (double)(maxAckCount-1)/(double)(maxAckCount);
-        ASSERT(remainingAckProportion < 1 && remainingAckProportion > 0);
-        // 0.2*ackWaitDuration currently Hardcoded into TX_DATA state
-        const b phyMaxBits = b( std::floor( (dataListeningDuration.dbl() - (remainingAckProportion+0.2)*ackWaitDuration.dbl())*bitrate.get() ) );
-        phyMtu = B(phyMaxBits.get()/8); // Integer division implicitly (and correctly) rounds down
-
-        /*
-         * Calculation of Ack contention parameters
-         * - The entire ack message must be sent within the ackWaitDuration.
-         *   So must start by ackWaitDuration - ackDuration
-         * - If the ack wait duration is too close to the "turnaround" (Rx->Tx)
-         *   of the data radio, then collision probability is high,
-         *   for 4 responding nodes, expect 2 must be uninterrupted
-         *   So collision prob must be under 25%
-         * - If the radio is still contending for an ack near the end of the
-         *   ackWaitDuration, set a minimumContentionWindow so contention
-         *   probability is < 50%
-         */
-        const simtime_t turnaroundTime = par("radioTurnaroundTime");
-        const simtime_t ackDuration = SimTime(ackBits.get()/bitrate.get());
-        ackTxWaitDuration = ackWaitDuration - ackDuration;
-        const double initialCollisionProbability = 1 - std::exp(-4.0*turnaroundTime.dbl()/initialContentionDuration.dbl());
-        minimumContentionWindow = 2.0/std::log(2)*turnaroundTime;
-        ASSERT(initialContentionDuration > minimumContentionWindow);
-        ASSERT(initialCollisionProbability < 0.25);
-
     }
     else if (stage == INITSTAGE_LINK_LAYER) {
         // Register signals for handling radio mode changes
-        cModule* const dataCMod = check_and_cast<cModule*>(dataRadio);
-        dataCMod->subscribe(IRadio::radioModeChangedSignal, this);
-        dataCMod->subscribe(IRadio::transmissionStateChangedSignal, this);
-        dataCMod->subscribe(IRadio::receptionStateChangedSignal, this);
-
         cModule* const wakeUpCMod = check_and_cast<cModule*>(wakeUpRadio);
         wakeUpCMod->subscribe(IRadio::radioModeChangedSignal, this);
         wakeUpCMod->subscribe(IRadio::transmissionStateChangedSignal, this);
         wakeUpCMod->subscribe(IRadio::receptionStateChangedSignal, this);
-
-        // Initial state handled by handleStartOperation()
-
     }
 }
 
