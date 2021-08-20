@@ -181,7 +181,7 @@ protected:
     /*@}*/
 };
 
-const inet::Protocol WuMacProtocol("WuMac", "WuMac", inet::Protocol::LinkLayer);
+const inet::Protocol ORWProtocol("ORWMac", "ORWMac", inet::Protocol::LinkLayer);
 
 } /* namespace oppostack */
 

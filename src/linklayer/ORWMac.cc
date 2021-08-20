@@ -193,7 +193,7 @@ void ORWMac::encapsulate(Packet* const pkt) const{ // From CsmaCaMac
     }
 
     pkt->insertAtFront(macHeader);
-    pkt->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
+    pkt->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&ORWProtocol);
 }
 
 void ORWMac::completePacketTransmission()
@@ -237,9 +237,9 @@ Packet* ORWMac::buildAck(const Packet* receivedFrame) const{
         ackPacket->setExpectedCostInd(costIndTag->getEqDC());
     else
         cRuntimeError("ORWMac must respond with a cost");
-    auto frame = new Packet("CsmaAck");
+    auto frame = new Packet("ORWAck");
     frame->insertAtFront(ackPacket);
-    frame->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
+    frame->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&ORWProtocol);
     return frame;
 }
 

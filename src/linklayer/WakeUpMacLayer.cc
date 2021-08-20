@@ -893,7 +893,7 @@ Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount)
     auto wuHeader = makeShared<WakeUpBeacon>();
     setBeaconFieldsFromTags(subject, wuHeader);
     auto frame = new Packet("wake-up", wuHeader);
-    frame->addTag<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
+    frame->addTag<PacketProtocolTag>()->setProtocol(&ORWProtocol);
     return frame;
 }
 
