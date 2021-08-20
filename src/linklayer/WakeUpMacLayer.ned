@@ -48,7 +48,7 @@ module WakeUpMacLayer extends ORWMac
         double txWakeUpWaitDuration @unit(s) = default(0.0006 s); // Must be bigger than radio OFF -> idle
         double wuApproveResponseLimit @unit(s) = default(1000ns);
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
-        int maxWakeUpTries = default(4);
+        int maxTxTries = default(4);
 
         // After receiving wake-up, recheck the data before sending ack and accepting
         bool recheckDataPacketEqDC = default(true);

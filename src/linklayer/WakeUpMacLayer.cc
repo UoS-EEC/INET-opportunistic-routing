@@ -53,7 +53,7 @@ void WakeUpMacLayer::initialize(int const stage) {
         wuApproveResponseLimit = par("wuApproveResponseLimit");
         candiateRelayContentionProbability = par("candiateRelayContentionProbability");
 
-        maxWakeUpTries = par("maxWakeUpTries");
+        maxTxTries = par("maxTxTries");
 
         const char* wakeUpRadioModulePath = par("wakeUpRadioModule");
         cModule *radioModule = getModuleByPath(wakeUpRadioModulePath);
@@ -598,25 +598,6 @@ void WakeUpMacLayer::stateTxWakeUpWaitExit()
 {
     delete activeBackoff;
     activeBackoff = nullptr;
-}
-
-void WakeUpMacLayer::completePacketTransmission()
-{
-    emit(ackContentionRoundsSignal, acknowledgmentRound);
-    bool sufficientForwarders = txInProgressForwarders >= requiredForwarders
-            || currentTxFrame->findTag<EqDCBroadcast>();
-    if (sufficientForwarders) {
-        deleteCurrentTxFrame();
-        emit(transmissionEndedSignal, true);
-    }
-    else if (txInProgressTries >= maxWakeUpTries) {
-        // not sufficient forwarders and retry limit reached and
-        PacketDropDetails details;
-        // This reason could also justifiably be LIFETIME_EXPIRED
-        details.setReason(PacketDropReason::NO_ROUTE_FOUND);
-        dropCurrentTxFrame(details);
-        emit(transmissionEndedSignal, true);
-    }
 }
 
 bool WakeUpMacLayer::stateTxProcess(const MacEvent& event, cMessage* const msg) {

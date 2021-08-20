@@ -54,7 +54,7 @@ class WakeUpMacLayer : public ORWMac
     virtual void handleUpperPacket(Packet *packet) override;
     virtual void handleLowerPacket(Packet *packet) override;
     virtual void handleSelfMessage(cMessage *msg) override;
-    using MacProtocolBase::receiveSignal;
+    using ORWMac::receiveSignal;
     virtual void receiveSignal(cComponent* source, simsignal_t signalID, intval_t value, cObject* details) override;
 
   protected:
@@ -103,7 +103,7 @@ protected:
     void changeActiveRadio(physicallayer::IRadio*);
     // Check if message comes from lower gate or wake-up radio
     virtual bool isLowerMessage(cMessage* msg) override{
-        return MacProtocolBase::isLowerMessage(msg) || msg->getArrivalGateId() == wakeUpRadioInGateId;
+        return ORWMac::isLowerMessage(msg) || msg->getArrivalGateId() == wakeUpRadioInGateId;
     };
     void queryWakeupRequest(Packet* wakeUp);
 
@@ -160,10 +160,6 @@ protected:
      */
     virtual bool stateTxProcess(const MacEvent& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
-    int acknowledgedForwarders = 0;
-    int acknowledgmentRound = 1;
-    int maxWakeUpTries = 1;
-    int txInProgressTries = 0;
     ExpectedCost dataMinExpectedCost = EqDC(25.5);
     simtime_t dataTransmissionDelay = 0;
     virtual void stateTxAckWaitProcess(const MacEvent& event, cMessage *msg);
@@ -189,18 +185,6 @@ protected:
     /** @brief Packet management **/
     void setBeaconFieldsFromTags(const inet::Packet* subject,
             const inet::Ptr<WakeUpBeacon>& wuHeader) const;
-    void dropCurrentTxFrame(inet::PacketDropDetails& details) override{
-        MacProtocolBase::dropCurrentTxFrame(details);
-        emit(transmissionTriesSignal, txInProgressTries);
-        emit(transmissionEndedSignal, true);
-    }
-    void deleteCurrentTxFrame() override{
-        MacProtocolBase::deleteCurrentTxFrame();
-        emit(transmissionTriesSignal, txInProgressTries);
-        emit(transmissionEndedSignal, true);
-    }
-
-    void completePacketTransmission();
 };
 
 const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);

@@ -145,8 +145,23 @@ protected:
     /*@{*/
     inet::J transmissionStartMinEnergy{0.0};
     int txInProgressForwarders{0};
+    int maxTxTries = 1;
+    int txInProgressTries = 0;
+    int acknowledgedForwarders = 0;
+    int acknowledgmentRound = 1;
     void setupTransmission();
     bool transmissionStartEnergyCheck() const;
+    void dropCurrentTxFrame(inet::PacketDropDetails& details) override{
+        MacProtocolBase::dropCurrentTxFrame(details);
+        emit(transmissionTriesSignal, txInProgressTries);
+        emit(transmissionEndedSignal, true);
+    }
+    void deleteCurrentTxFrame() override{
+        MacProtocolBase::deleteCurrentTxFrame();
+        emit(transmissionTriesSignal, txInProgressTries);
+        emit(transmissionEndedSignal, true);
+    }
+    void completePacketTransmission();
     /*@}*/
 };
 

@@ -19,6 +19,7 @@
 #include <inet/physicallayer/backgroundnoise/IsotropicScalarBackgroundNoise.h>
 #include <inet/physicallayer/base/packetlevel/FlatReceiverBase.h>
 #include <inet/common/ModuleAccess.h>
+#include "common/EqDCTag_m.h"
 
 using namespace oppostack;
 using namespace inet;
@@ -160,5 +161,24 @@ void ORWMac::setupTransmission() {
     popTxQueue();
     if(datagramLocalOutHook(currentTxFrame)!=INetfilter::IHook::Result::ACCEPT){
         throw cRuntimeError("Unhandled rejection of packet at transmission setup");
+    }
+}
+
+void ORWMac::completePacketTransmission()
+{
+    emit(ackContentionRoundsSignal, acknowledgmentRound);
+    bool sufficientForwarders = txInProgressForwarders >= requiredForwarders
+            || currentTxFrame->findTag<EqDCBroadcast>();
+    if (sufficientForwarders) {
+        deleteCurrentTxFrame();
+        emit(transmissionEndedSignal, true);
+    }
+    else if (txInProgressTries >= maxTxTries) {
+        // not sufficient forwarders and retry limit reached and
+        PacketDropDetails details;
+        // This reason could also justifiably be LIFETIME_EXPIRED
+        details.setReason(PacketDropReason::NO_ROUTE_FOUND);
+        dropCurrentTxFrame(details);
+        emit(transmissionEndedSignal, true);
     }
 }
