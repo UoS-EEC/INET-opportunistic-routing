@@ -21,12 +21,10 @@
 #include <inet/common/ModuleAccess.h>
 #include <inet/common/ProtocolGroup.h>
 #include <inet/common/ProtocolTag_m.h>
-#include <inet/physicallayer/contract/packetlevel/IRadioMedium.h>
-#include <inet/physicallayer/backgroundnoise/IsotropicScalarBackgroundNoise.h>
-#include <inet/physicallayer/base/packetlevel/FlatReceiverBase.h>
 #include <inet/linklayer/common/InterfaceTag_m.h>
 #include <inet/linklayer/common/MacAddressTag_m.h>
 #include <inet/common/packet/chunk/Chunk.h>
+#include <inet/physicallayer/base/packetlevel/FlatReceiverBase.h>
 
 #include "../networklayer/ORWRouting.h"
 #include "WakeUpGram_m.h"
@@ -70,22 +68,12 @@ void WakeUpMacLayer::initialize(int const stage) {
         recheckDataPacketEqDC = par("recheckDataPacketEqDC");
         skipDirectTxFinalAck = recheckDataPacketEqDC && par("skipDirectTxFinalAck");
 
-
-        /*
-         * Warning of noise in radio medium exceeding energy detection threshold
-         */
-        auto medium = getModuleFromPar<physicallayer::IRadioMedium>(radioModule->par("radioMediumModule"), radioModule);
-        auto noiseModel = medium->getBackgroundNoise();
-        auto scalarNoiseModel = check_and_cast_nullable<const physicallayer::IsotropicScalarBackgroundNoise*>(noiseModel);
+        // Validation
         auto dataReceiverModel = check_and_cast_nullable<const physicallayer::FlatReceiverBase*>(dataRadio->getReceiver());
-        if(scalarNoiseModel && dataReceiverModel)
-            if(scalarNoiseModel->getPower() > dataReceiverModel->getEnergyDetection())
-                throw cRuntimeError("Background noise power is greater than data radio energy detection threshold. Radio will always be \"Busy\"");
         auto wakeUpReceiverModel = check_and_cast_nullable<const physicallayer::FlatReceiverBase*>(wakeUpRadio->getReceiver());
-        if(scalarNoiseModel && wakeUpReceiverModel)
-            if(scalarNoiseModel->getPower() > wakeUpReceiverModel->getEnergyDetection())
-                throw cRuntimeError("Background noise power is greater than wake up radio energy detection threshold. Radio will always be \"Busy\"");
-
+        if(dataReceiverModel && wakeUpReceiverModel)
+            if(wakeUpReceiverModel->getEnergyDetection() > wakeUpReceiverModel->getEnergyDetection())
+                throw cRuntimeError("Wake-up radio is more sensitive than the data radio. There may be background noise issues");
     }
     else if (stage == INITSTAGE_LINK_LAYER) {
         // Register signals for handling radio mode changes
@@ -108,17 +96,7 @@ void WakeUpMacLayer::handleLowerPacket(Packet* const packet) {
         stateProcess(MacEvent::DATA_RECEIVED, packet);
     }
     else{
-        MacProtocolBase::handleLowerCommand(packet);
-    }
-}
-
-void WakeUpMacLayer::handleLowerCommand(cMessage* const msg) {
-    // Process command from the wake-up radio or delegate handler
-    if (msg->getArrivalGateId() == wakeUpRadioInGateId){
-        EV_DEBUG << "Received  wake-up command" << endl;
-    }
-    else{
-        MacProtocolBase::handleLowerCommand(msg);
+        ORWMac::handleLowerCommand(packet);
     }
 }
 
@@ -131,10 +109,6 @@ void WakeUpMacLayer::handleUpperPacket(Packet* const packet) {
     }
     txQueue->pushPacket(packet);
     stateProcess(MacEvent::QUEUE_SEND, packet);
-}
-void WakeUpMacLayer::handleUpperCommand(cMessage* const msg) {
-    // TODO: Check for approval messages
-    EV_WARN << "Unhandled Upper Command" << endl;
 }
 
 void WakeUpMacLayer::receiveSignal(cComponent* const source, simsignal_t const signalID,

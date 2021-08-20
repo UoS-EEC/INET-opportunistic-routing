@@ -27,7 +27,6 @@
 
 #include "../networklayer/ORWRouting.h"
 #include "common/Units.h"
-#include "CSMATxBackoff.h"
 #include "ORWMac.h"
 
 namespace oppostack{
@@ -49,14 +48,11 @@ class WakeUpMacLayer : public ORWMac
         activeRadio(nullptr),
         networkNode(nullptr),
         replenishmentTimer(nullptr),
-        currentRxFrame(nullptr),
-        activeBackoff(nullptr)
+        currentRxFrame(nullptr)
       {}
     ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
-    virtual void handleUpperCommand(cMessage *msg) override;
     virtual void handleLowerPacket(Packet *packet) override;
-    virtual void handleLowerCommand(cMessage *msg) override;
     virtual void handleSelfMessage(cMessage *msg) override;
     using MacProtocolBase::receiveSignal;
     virtual void receiveSignal(cComponent* source, simsignal_t signalID, intval_t value, cObject* details) override;
@@ -74,24 +70,6 @@ class WakeUpMacLayer : public ORWMac
     bool recheckDataPacketEqDC;
     bool skipDirectTxFinalAck = false;
 protected:
-    /** @brief MAC high level states */
-    enum class State {
-        WAKE_UP_IDLE, // WuRx listening
-        WAKE_UP_WAIT, // WuRx receiving or processing
-        RECEIVE, // Data radio listening, receiving and ack following wake-up or initial data
-        AWAIT_TRANSMIT, // DATA radio listening but with packet waiting to be transmitted
-        TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
-    };
-
-    enum class TxDataState {
-        WAKE_UP_WAIT, // Tx wake-up when radio ready and CSMA finished
-        WAKE_UP, // Tx Wake-up in progress
-        DATA_WAIT, // Wait for receivers to wake-up
-        DATA, // Send data when radio ready
-        ACK_WAIT, // Listen for node acknowledging
-        END // Reset
-    };
-
     enum class WuWaitState{
         IDLE, // WuRx listening
         APPROVE_WAIT, // Wait for approval for wake-up (call to net layer)
@@ -99,53 +77,10 @@ protected:
         ABORT // Shutdown data radio and restart wake-up radio
     };
 
-    enum class RxState{
-        IDLE,
-        DATA_WAIT,
-        ACK, // Transmitting ACK after receiving
-        FINISH // Immediately set timeout and enter main sm idle
-    };
-
-    /** @brief MAC state machine events.*/
-    enum class MacEvent {
-        QUEUE_SEND,
-        TX_START,
-        CSMA_BACKOFF,
-        TX_READY,
-        TX_END,
-        ACK_TIMEOUT,
-        WU_START,
-        WU_APPROVE,
-        WU_REJECT,
-        DATA_TIMEOUT,
-        DATA_RX_IDLE,
-        DATA_RX_READY,
-        DATA_RECEIVED,
-        REPLENISH_TIMEOUT
-    };
-
-    // Translate WakeUpMacLayer Events to BackoffBase Events
-    CSMATxBackoffBase::State stepBackoffSM(const MacEvent event){
-        if(activeBackoff == nullptr){
-            return CSMATxBackoffBase::State::WAIT;
-        }
-        switch(event){
-            case MacEvent::TX_READY:
-                return activeBackoff->process(CSMATxBackoffBase::Event::TX_READY);
-            case MacEvent::DATA_RX_READY:
-                return activeBackoff->process(CSMATxBackoffBase::Event::RX_READY);
-            case MacEvent::CSMA_BACKOFF:
-                return activeBackoff->process(CSMATxBackoffBase::Event::BACKOFF_TIMER);
-            default:
-                return activeBackoff->process(CSMATxBackoffBase::Event::NONE);;
-        }
-    }
-
     /** @name Protocol timer messages */
     /*@{*/
     cMessage *transmitStartDelay;
     /*@}*/
-    CSMATxBackoffBase* activeBackoff;
 
     int wakeUpRadioInGateId = -1;
     int wakeUpRadioOutGateId = -1;

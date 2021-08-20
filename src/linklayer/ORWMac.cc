@@ -15,6 +15,10 @@
 
 #include "ORWMac.h"
 #include <inet/physicallayer/base/packetlevel/FlatTransmitterBase.h>
+#include <inet/physicallayer/contract/packetlevel/IRadioMedium.h>
+#include <inet/physicallayer/backgroundnoise/IsotropicScalarBackgroundNoise.h>
+#include <inet/physicallayer/base/packetlevel/FlatReceiverBase.h>
+#include <inet/common/ModuleAccess.h>
 
 using namespace oppostack;
 using namespace inet;
@@ -45,7 +49,19 @@ void ORWMac::initialize(int stage) {
         cModule *radioModule = getModuleByPath(radioModulePath);
         dataRadio = check_and_cast<IRadio *>(radioModule);
 
-        // Verification
+        // Parameter validation
+
+        /*
+         * Warning of noise in radio medium exceeding energy detection threshold
+         */
+        auto medium = getModuleFromPar<physicallayer::IRadioMedium>(radioModule->par("radioMediumModule"), radioModule);
+        auto noiseModel = medium->getBackgroundNoise();
+        auto scalarNoiseModel = check_and_cast_nullable<const physicallayer::IsotropicScalarBackgroundNoise*>(noiseModel);
+        auto dataReceiverModel = check_and_cast_nullable<const physicallayer::FlatReceiverBase*>(dataRadio->getReceiver());
+        if(scalarNoiseModel && dataReceiverModel)
+            if(scalarNoiseModel->getPower() > dataReceiverModel->getEnergyDetection())
+                throw cRuntimeError("Background noise power is greater than data radio energy detection threshold. Radio will always be \"Busy\"");
+
         /*
          * Calculation of invalid parameter combinations at the receiver
          * - MAC Layer requires tight timing during a communication negotiation
