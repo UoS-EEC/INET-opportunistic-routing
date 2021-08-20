@@ -75,7 +75,7 @@ void ORWMac::initialize(int stage) {
          * If an ACK is sent at the start of the ACK period, the data may not be fully
          * received until remainder of ack period + 1/5(ack period)
          */
-        auto lengthPrototype = makeShared<WakeUpDatagram>();
+        auto lengthPrototype = makeShared<ORWDatagram>();
         const b ackBits = b(lengthPrototype->getChunkLength());
         auto dataTransmitter = check_and_cast<const FlatTransmitterBase *>(dataRadio->getTransmitter());
         const bps bitrate = dataTransmitter->getBitrate();
@@ -122,7 +122,7 @@ void ORWMac::initialize(int stage) {
 
 void ORWMac::configureInterfaceEntry() {
     // generate a link-layer address to be used as interface token for IPv6
-    auto lengthPrototype = makeShared<WakeUpDatagram>();
+    auto lengthPrototype = makeShared<ORWDatagram>();
     const B interfaceMtu = phyMtu-B(lengthPrototype->getChunkLength());
     ASSERT2(interfaceMtu >= B(80), "The interface MTU available to the net layer is too small (under 80 bytes)");
     interfaceEntry->setMtu(interfaceMtu.get());
@@ -168,7 +168,7 @@ void ORWMac::setupTransmission() {
 }
 
 void ORWMac::setBeaconFieldsFromTags(const Packet* subject,
-        const inet::Ptr<WakeUpBeacon>& wuHeader) const
+        const inet::Ptr<ORWBeacon>& wuHeader) const
 {
     const auto equivalentDCTag = subject->findTag<EqDCReq>();
     const auto equivalentDCInd = subject->findTag<EqDCInd>();
@@ -185,7 +185,7 @@ void ORWMac::setBeaconFieldsFromTags(const Packet* subject,
 }
 
 void ORWMac::encapsulate(Packet* const pkt) const{ // From CsmaCaMac
-    auto macHeader = makeShared<WakeUpDatagram>();
+    auto macHeader = makeShared<ORWDatagram>();
     setBeaconFieldsFromTags(pkt, macHeader);
     const auto upwardsTag = pkt->findTag<EqDCUpwards>();
     if(upwardsTag != nullptr){
@@ -216,7 +216,7 @@ void ORWMac::completePacketTransmission()
 }
 
 void ORWMac::decapsulate(Packet* const pkt) const{ // From CsmaCaMac
-    auto macHeader = pkt->popAtFront<WakeUpDatagram>();
+    auto macHeader = pkt->popAtFront<ORWDatagram>();
     auto addressInd = pkt->addTagIfAbsent<MacAddressInd>();
     addressInd->setSrcAddress(macHeader->getTransmitterAddress());
     addressInd->setDestAddress(macHeader->getReceiverAddress());
@@ -227,8 +227,8 @@ void ORWMac::decapsulate(Packet* const pkt) const{ // From CsmaCaMac
 }
 
 Packet* ORWMac::buildAck(const Packet* receivedFrame) const{
-    auto receivedMacData = receivedFrame->peekAtFront<WakeUpGram>();
-    auto ackPacket = makeShared<WakeUpAck>();
+    auto receivedMacData = receivedFrame->peekAtFront<ORWGram>();
+    auto ackPacket = makeShared<ORWAck>();
     ackPacket->setTransmitterAddress(interfaceEntry->getMacAddress());
     ackPacket->setReceiverAddress(receivedMacData->getTransmitterAddress());
     // Look for EqDCInd tag to send info in response

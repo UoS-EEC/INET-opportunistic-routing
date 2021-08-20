@@ -10,36 +10,36 @@ import inet.linklayer.common.MacAddress;
 
 namespace oppostack;
 
-enum WakeUpGramType {
-    WU_DATA = 1;
-    WU_ACK = 2;
-    WU_SQUASH = 3; // Squash the transmitted network packet, as reception confirmed elsewhere
-    WU_BEACON = 0xF5;
+enum ORWGramType {
+    ORW_DATA = 1;
+    ORW_ACK = 2;
+    ORW_SQUASH = 3; // Squash the transmitted network packet, as reception confirmed elsewhere
+    ORW_BEACON = 0xF5;
 };
 
-class WakeUpGram extends inet::FieldsChunk
+class ORWGram extends inet::FieldsChunk
 {
-    WakeUpGramType type;    // header type (1 byte)
+    ORWGramType type;    // header type (1 byte)
     bool upwards = true; // Upwards routing flag, implemented as part of type byte
     inet::MacAddress transmitterAddress;    // (2 byte) but inet represents as 6
     inet::MacAddress receiverAddress;    // (2 byte) but inet represents as 6
     oppostack::ExpectedCost expectedCostInd = oppostack::ExpectedCost(255); // (1 byte)
 }
-class WakeUpBeacon extends WakeUpGram
+class ORWBeacon extends ORWGram
 {
-    type = WU_BEACON; //Max value is 255 (1 byte) in a wake-up this forms the preamble
+    type = ORW_BEACON; //Max value is 255 (1 byte) in a wake-up this forms the preamble
     oppostack::ExpectedCost minExpectedCost;  // Actually represented by the ExpectedCost type
     chunkLength = inet::B(8);
 }
 
-class WakeUpDatagram extends WakeUpBeacon
+class ORWDatagram extends ORWBeacon
 {
-    type = WU_DATA;
+    type = ORW_DATA;
 }
 
-class WakeUpAck extends WakeUpGram
+class ORWAck extends ORWGram
 {
-    type = WU_ACK;
+    type = ORW_ACK;
     uint8_t length;
     chunkLength = inet::B(9);
 }

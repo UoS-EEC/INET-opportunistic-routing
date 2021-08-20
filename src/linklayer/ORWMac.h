@@ -25,8 +25,8 @@
 // Variables within class
 #include <inet/power/contract/IEpEnergyStorage.h>
 #include <inet/physicallayer/contract/packetlevel/IRadio.h>
-#include "WakeUpGram_m.h"
 #include "CSMATxBackoff.h"
+#include "ORWGram_m.h"
 
 namespace oppostack {
 
@@ -152,7 +152,7 @@ protected:
     void setupTransmission();
     bool transmissionStartEnergyCheck() const;
     void setBeaconFieldsFromTags(const inet::Packet* subject,
-            const inet::Ptr<WakeUpBeacon>& wuHeader) const;
+            const inet::Ptr<ORWBeacon>& wuHeader) const;
     void encapsulate(inet::Packet* msg) const;
     void dropCurrentTxFrame(inet::PacketDropDetails& details) override{
         MacProtocolBase::dropCurrentTxFrame(details);

@@ -19,7 +19,7 @@
 #include <inet/physicallayer/base/packetlevel/FlatTransmitterBase.h>
 #include "WuMacEnergyMonitor.h"
 #include "IObservableMac.h"
-#include "WakeUpGram_m.h"
+#include "ORWGram_m.h"
 
 using namespace oppostack;
 Define_Module(WuMacEnergyMonitor);
@@ -168,7 +168,7 @@ const inet::J oppostack::WuMacEnergyMonitor::calcTxAndAckEstConsumption(inet::b 
         throw cRuntimeError("Cannot get dataRadio for energy estimation");
         return J(0.0);
     }
-    const auto dummyHeader = WakeUpDatagram();
+    const auto dummyHeader = ORWDatagram();
     const b headerLength = dummyHeader.getChunkLength();
     if(dataRadio==nullptr){
         throw cRuntimeError("Cannot get radio consumer for energy estimation");

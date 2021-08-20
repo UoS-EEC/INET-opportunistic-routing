@@ -27,9 +27,9 @@
 #include <inet/physicallayer/base/packetlevel/FlatReceiverBase.h>
 
 #include "../networklayer/ORWRouting.h"
-#include "WakeUpGram_m.h"
 #include "common/EqDCTag_m.h"
 #include "common/EncounterDetails_m.h"
+#include "ORWGram_m.h"
 
 using namespace inet;
 using physicallayer::IRadio;
@@ -374,7 +374,7 @@ void WakeUpMacLayer::stateReceiveAckProcessBackoff(const MacEvent& event)
 bool WakeUpMacLayer::stateReceiveProcess(const MacEvent& event, cMessage * const msg) {
     if(event == MacEvent::DATA_RECEIVED){
         auto packet = check_and_cast<const Packet*>(msg);
-        if(packet->peekAtFront<WakeUpGram>()->getType() == WU_ACK){
+        if(packet->peekAtFront<ORWGram>()->getType() == ORW_ACK){
             handleOverheardAckInDataReceiveState(packet);
             delete packet;
             return false;
@@ -426,7 +426,7 @@ void WakeUpMacLayer::handleOverheardAckInDataReceiveState(const Packet * const m
     // Only count coincidental ack in the first round to reduce double counting
     if(rxAckRound<=1){
         EncounterDetails details;
-        auto incomingMacData = msg->peekAtFront<WakeUpGram>();
+        auto incomingMacData = msg->peekAtFront<ORWGram>();
         details.setEncountered(incomingMacData->getTransmitterAddress());
         details.setCurrentEqDC(incomingMacData->getExpectedCostInd());
         emit(coincidentalEncounterSignal, 1.0, &details);
@@ -486,9 +486,9 @@ void WakeUpMacLayer::stateReceiveExitDataWait()
 
 void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const msg) {
     Packet* incomingFrame = check_and_cast<Packet*>(msg);
-    auto incomingMacData = incomingFrame->peekAtFront<WakeUpGram>();
+    auto incomingMacData = incomingFrame->peekAtFront<ORWGram>();
     Packet* storedFrame = check_and_cast_nullable<Packet*>(currentRxFrame);
-    if(incomingMacData->getType()==WU_DATA && currentRxFrame == nullptr){
+    if(incomingMacData->getType()==ORW_DATA && currentRxFrame == nullptr){
         stateReceiveExitDataWait();
         // Store the new received packet
         currentRxFrame = incomingFrame;
@@ -514,8 +514,8 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
         }
     }
     // Compare the received data to stored data, discard it new data
-    else if(incomingMacData->getType()==WU_DATA/* && currentRxFrame != nullptr*/
-            && storedFrame->peekAtFront<WakeUpGram>()->getTransmitterAddress() == incomingMacData->getTransmitterAddress() ){
+    else if(incomingMacData->getType()==ORW_DATA/* && currentRxFrame != nullptr*/
+            && storedFrame->peekAtFront<ORWGram>()->getTransmitterAddress() == incomingMacData->getTransmitterAddress() ){
         // Delete the existing currentRxFrame
         delete currentRxFrame;
 
@@ -564,10 +564,10 @@ void WakeUpMacLayer::stateReceiveDataWaitProcessDataReceived(cMessage * const ms
 void WakeUpMacLayer::stateReceiveAckProcessDataReceived(cMessage* msg)
 {
     Packet* incomingFrame = check_and_cast<Packet*>(msg);
-    auto incomingMacData = incomingFrame->peekAtFront<WakeUpGram>();
+    auto incomingMacData = incomingFrame->peekAtFront<ORWGram>();
     Packet* storedFrame = check_and_cast_nullable<Packet*>(currentRxFrame);
-    if(incomingMacData->getType()==WU_DATA/* && currentRxFrame != nullptr*/
-            && storedFrame->peekAtFront<WakeUpGram>()->getTransmitterAddress() == incomingMacData->getTransmitterAddress() ){
+    if(incomingMacData->getType()==ORW_DATA/* && currentRxFrame != nullptr*/
+            && storedFrame->peekAtFront<ORWGram>()->getTransmitterAddress() == incomingMacData->getTransmitterAddress() ){
         stateReceiveExitAck();
         stateReceiveEnterFinishDropReceived(PacketDropReason::DUPLICATE_DETECTED);
     }
@@ -692,8 +692,8 @@ void WakeUpMacLayer::stateTxAckWaitProcess(const MacEvent& event, cMessage * con
     if(event == MacEvent::DATA_RECEIVED){
         EV_DEBUG << "Data Ack Received";
         auto receivedData = check_and_cast<Packet* >(msg);
-        auto receivedAck = receivedData->peekAtFront<WakeUpGram>();
-        if(receivedAck->getType() == WU_ACK &&
+        auto receivedAck = receivedData->peekAtFront<ORWGram>();
+        if(receivedAck->getType() == ORW_ACK &&
                 receivedAck->getReceiverAddress() == interfaceEntry->getMacAddress() ){
             EncounterDetails details;
             details.setEncountered(receivedAck->getTransmitterAddress());
@@ -763,7 +763,7 @@ void WakeUpMacLayer::stateWakeUpWaitEnter()
 
 void WakeUpMacLayer::handleCoincidentalOverheardData(Packet* receivedData)
 {
-    auto receivedHeader = receivedData->peekAtFront<WakeUpGram>();
+    auto receivedHeader = receivedData->peekAtFront<ORWGram>();
     EncounterDetails details;
     details.setEncountered(receivedHeader->getTransmitterAddress());
     details.setCurrentEqDC(receivedHeader->getExpectedCostInd());
@@ -876,8 +876,8 @@ void WakeUpMacLayer::completePacketReception()
 }
 
 void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
-    const auto header = wakeUp->peekAtFront<WakeUpGram>();
-    if(header->getType()!=WakeUpGramType::WU_BEACON){
+    const auto header = wakeUp->peekAtFront<ORWGram>();
+    if(header->getType()!=ORWGramType::ORW_BEACON){
         return;
     }
     if(datagramPreRoutingHook(wakeUp)==HookBase::Result::ACCEPT){
@@ -890,7 +890,7 @@ void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
 }
 
 Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount) const{
-    auto wuHeader = makeShared<WakeUpBeacon>();
+    auto wuHeader = makeShared<ORWBeacon>();
     setBeaconFieldsFromTags(subject, wuHeader);
     auto frame = new Packet("wake-up", wuHeader);
     frame->addTag<PacketProtocolTag>()->setProtocol(&ORWProtocol);
