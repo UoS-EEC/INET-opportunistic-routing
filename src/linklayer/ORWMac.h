@@ -145,12 +145,15 @@ protected:
     /*@{*/
     inet::J transmissionStartMinEnergy{0.0};
     int txInProgressForwarders{0};
-    int maxTxTries = 1;
-    int txInProgressTries = 0;
-    int acknowledgedForwarders = 0;
-    int acknowledgmentRound = 1;
+    int maxTxTries{1};
+    int txInProgressTries{0};
+    int acknowledgedForwarders{0};
+    int acknowledgmentRound{1};
     void setupTransmission();
     bool transmissionStartEnergyCheck() const;
+    void setBeaconFieldsFromTags(const inet::Packet* subject,
+            const inet::Ptr<WakeUpBeacon>& wuHeader) const;
+    void encapsulate(inet::Packet* msg) const;
     void dropCurrentTxFrame(inet::PacketDropDetails& details) override{
         MacProtocolBase::dropCurrentTxFrame(details);
         emit(transmissionTriesSignal, txInProgressTries);
@@ -163,7 +166,22 @@ protected:
     }
     void completePacketTransmission();
     /*@}*/
+
+    /** @name Transmit State variables and event processing*/
+    /*@{*/
+    ExpectedCost dataMinExpectedCost = EqDC(25.5);
+    /*@}*/
+
+    /** @name Receive functions and variables */
+    /*@{*/
+    cMessage *currentRxFrame{nullptr};
+    void decapsulate(inet::Packet* msg) const;
+    inet::Packet* buildAck(const inet::Packet* subject) const;
+    void dropCurrentRxFrame(inet::PacketDropDetails& details);
+    /*@}*/
 };
+
+const inet::Protocol WuMacProtocol("WuMac", "WuMac", inet::Protocol::LinkLayer);
 
 } /* namespace oppostack */
 

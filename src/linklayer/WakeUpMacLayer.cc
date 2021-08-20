@@ -855,14 +855,6 @@ void WakeUpMacLayer::changeActiveRadio(physicallayer::IRadio* const newActiveRad
     }
 }
 
-void WakeUpMacLayer::dropCurrentRxFrame(PacketDropDetails& details)
-{
-    emit(packetDroppedSignal, currentRxFrame, &details);
-    emit(receptionDroppedSignal, true);
-    delete currentRxFrame;
-    currentRxFrame = nullptr;
-}
-
 void WakeUpMacLayer::completePacketReception()
 {
     // The receiving has timed out, if packet is received process
@@ -897,69 +889,12 @@ void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
     }
 }
 
-void WakeUpMacLayer::encapsulate(Packet* const pkt) const{ // From CsmaCaMac
-    auto macHeader = makeShared<WakeUpDatagram>();
-    setBeaconFieldsFromTags(pkt, macHeader);
-    const auto upwardsTag = pkt->findTag<EqDCUpwards>();
-    if(upwardsTag != nullptr){
-        macHeader->setUpwards(upwardsTag->isUpwards());
-    }
-
-    pkt->insertAtFront(macHeader);
-    pkt->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
-}
-
-Packet* WakeUpMacLayer::buildAck(const Packet* receivedFrame) const{
-    auto receivedMacData = receivedFrame->peekAtFront<WakeUpGram>();
-    auto ackPacket = makeShared<WakeUpAck>();
-    ackPacket->setTransmitterAddress(interfaceEntry->getMacAddress());
-    ackPacket->setReceiverAddress(receivedMacData->getTransmitterAddress());
-    // Look for EqDCInd tag to send info in response
-    auto costIndTag = receivedFrame->findTag<EqDCInd>();
-    if(costIndTag!=nullptr)
-        ackPacket->setExpectedCostInd(costIndTag->getEqDC());
-    else
-        cRuntimeError("WakeUpMacLayer must respond with a cost");
-    auto frame = new Packet("CsmaAck");
-    frame->insertAtFront(ackPacket);
-    frame->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
-    return frame;
-}
-
-void WakeUpMacLayer::setBeaconFieldsFromTags(const Packet* subject,
-        const inet::Ptr<WakeUpBeacon>& wuHeader) const
-{
-    const auto equivalentDCTag = subject->findTag<EqDCReq>();
-    const auto equivalentDCInd = subject->findTag<EqDCInd>();
-    // Default min is 255, can be updated when ack received from dest
-    ExpectedCost minExpectedCost = dataMinExpectedCost;
-    if (equivalentDCTag != nullptr && equivalentDCTag->getEqDC() < minExpectedCost) {
-        minExpectedCost = equivalentDCTag->getEqDC();
-        ASSERT(minExpectedCost >= ExpectedCost(0));
-    }
-    wuHeader->setMinExpectedCost(minExpectedCost);
-    wuHeader->setExpectedCostInd(equivalentDCInd->getEqDC());
-    wuHeader->setTransmitterAddress(interfaceEntry->getMacAddress());
-    wuHeader->setReceiverAddress(subject->getTag<MacAddressReq>()->getDestAddress());
-}
-
 Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount) const{
     auto wuHeader = makeShared<WakeUpBeacon>();
     setBeaconFieldsFromTags(subject, wuHeader);
     auto frame = new Packet("wake-up", wuHeader);
     frame->addTag<PacketProtocolTag>()->setProtocol(&WuMacProtocol);
     return frame;
-}
-
-void WakeUpMacLayer::decapsulate(Packet* const pkt) const{ // From CsmaCaMac
-    auto macHeader = pkt->popAtFront<WakeUpDatagram>();
-    auto addressInd = pkt->addTagIfAbsent<MacAddressInd>();
-    addressInd->setSrcAddress(macHeader->getTransmitterAddress());
-    addressInd->setDestAddress(macHeader->getReceiverAddress());
-    auto payloadProtocol = ProtocolGroup::ipprotocol.getProtocol(245);
-    pkt->addTagIfAbsent<InterfaceInd>()->setInterfaceId(interfaceEntry->getInterfaceId());
-    pkt->addTagIfAbsent<DispatchProtocolReq>()->setProtocol(payloadProtocol);
-    pkt->addTagIfAbsent<PacketProtocolTag>()->setProtocol(payloadProtocol);
 }
 
 void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {

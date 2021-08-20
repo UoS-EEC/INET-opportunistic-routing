@@ -47,8 +47,7 @@ class WakeUpMacLayer : public ORWMac
         wakeUpRadio(nullptr),
         activeRadio(nullptr),
         networkNode(nullptr),
-        replenishmentTimer(nullptr),
-        currentRxFrame(nullptr)
+        replenishmentTimer(nullptr)
       {}
     ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
@@ -145,7 +144,6 @@ protected:
     void completePacketReception();
 
   protected:
-    Packet* buildAck(const Packet* subject) const;
     /** @brief Transmitter State Machine **/
     TxDataState txDataState;
     State stateTxEnter();
@@ -160,7 +158,6 @@ protected:
      */
     virtual bool stateTxProcess(const MacEvent& event, cMessage* msg);
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
-    ExpectedCost dataMinExpectedCost = EqDC(25.5);
     simtime_t dataTransmissionDelay = 0;
     virtual void stateTxAckWaitProcess(const MacEvent& event, cMessage *msg);
 
@@ -171,24 +168,11 @@ protected:
     State stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
     State stateWakeUpProcess(const MacEvent& event, cMessage *msg);
 
-    /** @brief Receiving and acknowledgement **/
-    cMessage *currentRxFrame;
-    void dropCurrentRxFrame(PacketDropDetails& details);
-    void encapsulate(Packet* msg) const;
-    void decapsulate(Packet* msg) const;
-
     // OperationalBase:
     virtual void handleStartOperation(LifecycleOperation *operation) override;
     virtual void handleStopOperation(LifecycleOperation *operation) override;
     virtual void handleCrashOperation(LifecycleOperation *operation) override;
-
-    /** @brief Packet management **/
-    void setBeaconFieldsFromTags(const inet::Packet* subject,
-            const inet::Ptr<WakeUpBeacon>& wuHeader) const;
 };
-
-const Protocol WuMacProtocol("WuMac", "WuMac", Protocol::LinkLayer);
-
 } //namespace oppostack
 
 #endif
