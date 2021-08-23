@@ -151,6 +151,8 @@ protected:
         TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
     };
     State macState; //Record the current state of the MAC State machine
+    /** @brief Execute a step in the MAC state machine */
+    virtual void stateProcess(const MacEvent& event, cMessage *msg);
 
     /** @name Listening State variables and event processing */
     /*@{*/

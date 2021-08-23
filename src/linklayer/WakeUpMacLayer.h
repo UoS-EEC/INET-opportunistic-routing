@@ -92,7 +92,7 @@ protected:
 
   protected:
     /** @brief Execute a step in the MAC state machine */
-    void stateProcess(const MacEvent& event, cMessage *msg);
+    virtual void stateProcess(const MacEvent& event, cMessage *msg) override;
     /** @name Receiving State variables and event processing */
     /*@{*/
     virtual State stateListeningEnter() override;

@@ -199,31 +199,16 @@ void WakeUpMacLayer::stateProcess(const MacEvent& event, cMessage * const msg) {
     case State::WAKE_UP_IDLE:
         macState = stateWakeUpIdleProcess(event, msg);
         break;
-    case State::AWAIT_TRANSMIT:
-        ASSERT(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER
-                || activeRadio->getRadioMode() == IRadio::RADIO_MODE_SWITCHING);
-        macState = stateAwaitTransmitProcess(event, msg);
-        break;
-    case State::TRANSMIT:
-        if( stateTxProcess(event, msg) ){
-            // State transmit is therefore finished, enter listening
-            macState = stateListeningEnter();
-        }
-        break;
     case State::WAKE_UP_WAIT:
         // Process wake-up and wait for listening to start
         macState = stateWakeUpProcess(event, msg);
         break;
-    case State::RECEIVE:
-        // Listen for a data packet after a wake-up and start timeout for ack
-        if( stateReceiveProcess(event, msg) ){
-            // State receive is therefore finished, enter listening
-            macState = stateListeningEnter();
-        }
-        break;
-    default:
+    case State::DATA_IDLE:
         EV_WARN << "Wake-up MAC in unhandled state. Return to idle" << endl;
         macState = State::WAKE_UP_IDLE;
+        break;
+    default:
+        ORWMac::stateProcess(event, msg);
     }
 }
 

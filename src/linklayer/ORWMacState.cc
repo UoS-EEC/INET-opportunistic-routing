@@ -22,6 +22,52 @@ using namespace inet;
 using physicallayer::IRadio;
 using namespace oppostack;
 
+void ORWMac::stateProcess(const MacEvent& event, cMessage * const msg) {
+    // Operate State machine based on current state and event
+    auto ret = macState;
+    switch (macState){
+    case State::DATA_IDLE:
+        if(event == MacEvent::DATA_RECEIVED){
+            handleCoincidentalOverheardData(check_and_cast<Packet*>(msg)); // TODO: Should this be here, see WuMac::stateWakeUpIdleProcess()
+            ret = stateReceiveEnter(); // TODO: Replace with startReception function (see ORWMac::stateAwaitTransmitProcess() )
+            stateReceiveDataWaitProcessDataReceived(msg);// TODO: This may not work
+        }
+        else if (event == MacEvent::QUEUE_SEND) {
+            ASSERT(currentTxFrame == nullptr);
+            setupTransmission();
+            if (dataRadio->getRadioMode() == IRadio::RADIO_MODE_SWITCHING || !transmissionStartEnergyCheck()) {
+                ret = stateListeningEnterAlreadyListening();
+            }
+            else {
+                ret = stateTxEnter();
+            }
+        }
+        macState = ret;
+        break;
+    case State::AWAIT_TRANSMIT:
+//        ASSERT(dataRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER
+//                || dataRadio->getRadioMode() == IRadio::RADIO_MODE_SWITCHING);
+        macState = stateAwaitTransmitProcess(event, msg);
+        break;
+    case State::TRANSMIT:
+        if( stateTxProcess(event, msg) ){
+            // State transmit is therefore finished, enter listening
+            macState = stateListeningEnter();
+        }
+        break;
+    case State::RECEIVE:
+        // Listen for a data packet after a wake-up and start timeout for ack
+        if( stateReceiveProcess(event, msg) ){
+            // State receive is therefore finished, enter listening
+            macState = stateListeningEnter();
+        }
+        break;
+    default:
+        EV_WARN << "Wake-up MAC in unhandled state. Return to idle" << endl;
+        macState = State::WAKE_UP_IDLE;
+    }
+}
+
 ORWMac::State ORWMac::stateListeningEnterAlreadyListening(){
     if(currentTxFrame || not txQueue->isEmpty()){
         // Data is waiting in the tx queue
@@ -268,12 +314,13 @@ void ORWMac::stateReceiveProcessDataTimeout()
 
 ORWMac::State ORWMac::stateAwaitTransmitProcess(const MacEvent& event, cMessage* const msg)
 {
-
     if(event == MacEvent::DATA_RECEIVED){
         cancelEvent(transmitStartDelay);
         cancelEvent(replenishmentTimer);
-        handleCoincidentalOverheardData(check_and_cast<Packet*>(msg));
-        return stateReceiveEnter(); // TODO: Replace with startReception function (see WuMac::stateAwaitTransmitProcess() )
+        handleCoincidentalOverheardData(check_and_cast<Packet*>(msg)); // TODO: Should this be here, see WuMac::stateAwaitTransmitProcess()
+        auto ret = stateReceiveEnter(); // TODO: Replace with startReception function (see WuMac::stateAwaitTransmitProcess() )
+        stateReceiveDataWaitProcessDataReceived(msg);// TODO: This may not work
+        return ret;
     }
     else if (event == MacEvent::DATA_RX_READY && !transmitStartDelay->isScheduled() && !replenishmentTimer->isScheduled()) {
         // MacEvent::DATA_RX_READY triggered by transmitting ending but with packet ready
