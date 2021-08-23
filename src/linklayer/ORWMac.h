@@ -105,6 +105,7 @@ protected:
     /*@{*/
     inet::cMessage *receiveTimeout{nullptr};
     inet::cMessage *ackBackoffTimer{nullptr};
+    inet::cMessage *transmitStartDelay{nullptr};
     /*@}*/
 
     /** @brief The radio. */
@@ -182,7 +183,8 @@ protected:
     void stateReceiveAckProcessDataReceived(cMessage *msg);
     void stateReceiveAckEnterReceiveDataWait();
     void stateReceiveProcessDataTimeout();
-    /* Overridable by inheriting classes for other receiver behavior
+    /*
+     * Overridable by inherited class for protocol variation
      * @ return Is receiveState finished
      */
     virtual bool stateReceiveProcess(const MacEvent& event, cMessage *msg);
@@ -217,6 +219,17 @@ protected:
     /** @name Transmit State variables and event processing*/
     /*@{*/
     ExpectedCost dataMinExpectedCost = EqDC(25.5);
+    TxDataState txDataState;
+    virtual State stateTxEnter();
+    void stateTxEnterDataWait();
+    void stateTxDataWaitExitEnterAckWait();
+    void stateTxEnterEnd();
+    /*
+     * Overridable by inherited class for protocol variation
+     * @ return Is transmit State finished
+     */
+    virtual bool stateTxProcess(const MacEvent& event, cMessage* msg);
+    void stateTxAckWaitProcess(const MacEvent& event, cMessage *msg);
     /*@}*/
 };
 

@@ -47,7 +47,6 @@ void WakeUpMacLayer::initialize(int const stage) {
         wakeUpRadioOutGateId = findGate("wakeUpRadioOut");
 
         //Create timer messages
-        transmitStartDelay = new cMessage("transmit backoff");
         txWakeUpWaitDuration = par("txWakeUpWaitDuration");
         wuApproveResponseLimit = par("wuApproveResponseLimit");
 
@@ -334,26 +333,6 @@ WakeUpMacLayer::State WakeUpMacLayer::stateReceiveEnter()
     return State::RECEIVE;
 }
 
-void WakeUpMacLayer::stateTxEnterEnd()
-{
-    //The Radio Receive->Sleep triggers next SM transition
-    txDataState = TxDataState::END;
-    dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
-}
-
-void WakeUpMacLayer::stateTxDataWaitExitEnterAckWait()
-{
-    delete activeBackoff;
-    activeBackoff = nullptr;
-    Packet* dataFrame = currentTxFrame->dup();
-    if(datagramPostRoutingHook(dataFrame)!=INetfilter::IHook::Result::ACCEPT){
-        EV_ERROR << "Aborted transmission of data is unimplemented." << endl;
-    }
-    encapsulate(dataFrame);
-    sendDown(dataFrame);
-    txDataState = TxDataState::DATA;
-}
-
 void WakeUpMacLayer::stateTxWakeUpWaitExit()
 {
     delete activeBackoff;
@@ -387,131 +366,10 @@ bool WakeUpMacLayer::stateTxProcess(const MacEvent& event, cMessage* const msg) 
             stateTxEnterDataWait();
         }
         break;
-    case TxDataState::DATA_WAIT:
-        stepBackoffSM(event);
-        if(event==MacEvent::TX_READY){
-            stateTxDataWaitExitEnterAckWait();
-        }
-        break;
-    case TxDataState::DATA:
-        if(event == MacEvent::TX_END){
-            if (skipDirectTxFinalAck && dataMinExpectedCost == EqDC(0)) {
-                // Only the final dest will Ack when expectedCost=0 (A DirectTx)
-                // therefore do not retransmit dataPacketAgain go straight to end
-                // Even if destination does not Ack again.
-                currentTxFrame->addTagIfAbsent<EqDCBroadcast>();
-                completePacketTransmission();
-                stateTxEnterEnd();
-            }
-            else{//Ack required
-                //reset confirmed forwarders count
-                acknowledgedForwarders = 0;
-                // Increase acknowledgment round value
-                acknowledgmentRound++;
-                // Schedule acknowledgement wait timeout
-                scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
-                txDataState = TxDataState::ACK_WAIT;
-                dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-            }
-        }
-        break;
-    case TxDataState::ACK_WAIT:
-        stateTxAckWaitProcess(event, msg);
-        break;
-    case TxDataState::END:
-        if(event == MacEvent::TX_START){
-            // Reschedule, because radio transition not finished
-            scheduleAt(simTime() + ackWaitDuration, transmitStartDelay);
-        }
-        else if(event == MacEvent::DATA_RX_IDLE){
-            return true;
-        }
-        break;
     default:
-        cRuntimeError("Unhandled State");
+        return ORWMac::stateTxProcess(event, msg);
     }
     return false;
-}
-
-void WakeUpMacLayer::stateTxEnterDataWait()
-{
-    txDataState = TxDataState::DATA_WAIT;
-    // use activeBackoff for backoff state machine
-    ASSERT(activeBackoff == nullptr);
-    activeBackoff = new CSMATxUniformBackoff(this, activeRadio,
-            0.0, ackWaitDuration/3);
-    if(activeRadio->getRadioMode() == IRadio::RADIO_MODE_RECEIVER){
-        activeBackoff->startTxOrBackoff();
-    }
-    else{
-        activeBackoff->startCold();
-    }
-}
-
-void WakeUpMacLayer::stateTxAckWaitProcess(const MacEvent& event, cMessage * const msg) {
-    if(event == MacEvent::DATA_RECEIVED){
-        EV_DEBUG << "Data Ack Received";
-        auto receivedData = check_and_cast<Packet* >(msg);
-        auto receivedAck = receivedData->peekAtFront<ORWGram>();
-        if(receivedAck->getType() == ORW_ACK &&
-                receivedAck->getReceiverAddress() == interfaceEntry->getMacAddress() ){
-            EncounterDetails details;
-            details.setEncountered(receivedAck->getTransmitterAddress());
-            details.setCurrentEqDC(receivedAck->getExpectedCostInd());
-            emit(expectedEncounterSignal, 0.8/acknowledgmentRound, &details);
-
-            acknowledgedForwarders++;
-            // If acknowledging node is packet destination
-            // Set MinExpectedCost to 0 for the next data packet
-            // This stops nodes other than the destination participating
-            // if recheckDataPacketEqDC is enabled
-            const inet::MacAddress ackSender = receivedAck->getTransmitterAddress();
-            const inet::MacAddress packetDestination = currentTxFrame->getTag<MacAddressReq>()->getDestAddress();
-            if (ackSender == packetDestination) {
-                // Update value of EqDC on Tag
-                dataMinExpectedCost = EqDC(0.0);
-            }
-            delete receivedData;
-        }
-        else{
-            handleCoincidentalOverheardData(receivedData);
-            EV_DEBUG <<  "Discarding overheard data as busy transmitting" << endl;
-            delete receivedData;
-        }
-    }
-    else if(event == MacEvent::ACK_TIMEOUT){
-        if(acknowledgmentRound <= 1){
-            // At the end of the first ack round, notify of expecting encounters
-            emit(listenForEncountersEndedSignal, (double)acknowledgedForwarders);
-        }
-        auto broadcastTag = currentTxFrame->findTag<EqDCBroadcast>();
-
-        // TODO: Get required forwarders count from packetTag from n/w layer
-        // TODO: Test this with more nodes should this include forwarders from prev timeslot?
-        const int supplementaryForwarders = acknowledgedForwarders - requiredForwarders;
-        if(broadcastTag != nullptr){
-            // Don't resend data, broadcasts only get sent once
-            completePacketTransmission();
-            stateTxEnterEnd();
-        }
-        else if( activeRadio->getReceptionState() != IRadio::RECEPTION_STATE_IDLE ){
-            // Data, possibly ACK or contending wake-up still in progress
-            scheduleAt(simTime() + ackWaitDuration, ackBackoffTimer);
-        }
-        else if(supplementaryForwarders > 0){
-            // Go straight to immediate data retransmission to reduce forwarders
-            stateTxEnterDataWait();
-        }
-        else{
-            txInProgressForwarders = txInProgressForwarders+acknowledgedForwarders; // TODO: Check forwarders uniqueness
-            completePacketTransmission();
-            if(currentTxFrame){//Not complete yet
-                // Try transmitting again after standard ack backoff
-                scheduleAt(simTime() + ackWaitDuration, transmitStartDelay);
-            }
-            stateTxEnterEnd();
-        }
-    }
 }
 
 void WakeUpMacLayer::stateWakeUpWaitEnter()

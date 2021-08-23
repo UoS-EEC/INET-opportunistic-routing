@@ -43,7 +43,6 @@ class WakeUpMacLayer : public ORWMac
   public:
     WakeUpMacLayer()
       : ORWMac(),
-        transmitStartDelay(nullptr),
         wakeUpRadio(nullptr),
         activeRadio(nullptr),
         networkNode(nullptr)
@@ -71,11 +70,6 @@ protected:
         DATA_RADIO_WAIT, // Wait for the data radio to start
         ABORT // Shutdown data radio and restart wake-up radio
     };
-
-    /** @name Protocol timer messages */
-    /*@{*/
-    cMessage *transmitStartDelay;
-    /*@}*/
 
     int wakeUpRadioInGateId = -1;
     int wakeUpRadioOutGateId = -1;
@@ -109,27 +103,15 @@ protected:
     State stateWakeUpIdleProcess(const MacEvent& event, omnetpp::cMessage* const msg);
     State stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg);
     virtual State stateReceiveEnter() override;
-    /* @brief Override receive process? */
-    virtual bool stateReceiveProcess(const MacEvent& event, cMessage *msg) override;
     /*@}*/
 
   protected:
     /** @brief Transmitter State Machine **/
-    TxDataState txDataState;
-    State stateTxEnter();
-    void stateTxEnterDataWait();
-    void stateTxDataWaitExitEnterAckWait();
+    virtual State stateTxEnter() override;
     void stateTxWakeUpWaitExit();
-    void stateTxEnterEnd();
-    /*
-     * Member to process events when in the Transmit state
-     * Overridable by inheriting classes for other trasmitter behavior
-     * @ return Is transmit State finished
-     */
-    virtual bool stateTxProcess(const MacEvent& event, cMessage* msg);
+    /* @brief Extends base to add wake-up transmission before data */
+    virtual bool stateTxProcess(const MacEvent& event, cMessage* msg) override;
     Packet* buildWakeUp(const Packet* subject, const int retryCount) const;
-    simtime_t dataTransmissionDelay = 0;
-    virtual void stateTxAckWaitProcess(const MacEvent& event, cMessage *msg);
 
     /** @brief Wake-up listening State Machine **/
     WuWaitState wuState;
