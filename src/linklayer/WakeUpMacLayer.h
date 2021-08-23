@@ -46,8 +46,7 @@ class WakeUpMacLayer : public ORWMac
         transmitStartDelay(nullptr),
         wakeUpRadio(nullptr),
         activeRadio(nullptr),
-        networkNode(nullptr),
-        replenishmentTimer(nullptr)
+        networkNode(nullptr)
       {}
     ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
@@ -93,9 +92,6 @@ protected:
     inet::LifecycleController lifecycleController;
     cModule* networkNode;
 
-    simtime_t replenishmentCheckRate = SimTime(1, SimTimeUnit::SIMTIME_S);
-    cMessage* replenishmentTimer;
-
     virtual void initialize(int stage) override;
     virtual void cancelAllTimers() override;
     void deleteAllTimers();
@@ -108,13 +104,9 @@ protected:
 
 
   protected:
-    State macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     void stateProcess(const MacEvent& event, cMessage *msg);
-    State stateListeningEnterAlreadyListening();
-    State stateListeningEnter();
-    void stateListeningIdleEnterAlreadyListening();
-    void stateAwaitTransmitEnterAlreadyListening();
+    virtual State stateListeningEnter() override;
     State stateWakeUpIdleProcess(const MacEvent& event, omnetpp::cMessage* const msg);
     State stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg);
     EqDC acceptDataEqDCThreshold = EqDC(25.5);

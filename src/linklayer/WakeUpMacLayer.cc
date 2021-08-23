@@ -48,7 +48,6 @@ void WakeUpMacLayer::initialize(int const stage) {
 
         //Create timer messages
         transmitStartDelay = new cMessage("transmit backoff");
-        replenishmentTimer = new cMessage("replenishment check timeout");
         txWakeUpWaitDuration = par("txWakeUpWaitDuration");
         wuApproveResponseLimit = par("wuApproveResponseLimit");
         candiateRelayContentionProbability = par("candiateRelayContentionProbability");
@@ -235,24 +234,15 @@ void WakeUpMacLayer::stateProcess(const MacEvent& event, cMessage * const msg) {
     }
 }
 
-WakeUpMacLayer::State WakeUpMacLayer::stateListeningEnterAlreadyListening(){
-    if(currentTxFrame || not txQueue->isEmpty()){
-        // Data is waiting in the tx queue
-        // Schedule replenishment timer if insufficient stored energy
-        if(!transmissionStartEnergyCheck())
-            scheduleAt(simTime() + SimTime(1, SimTimeUnit::SIMTIME_S), replenishmentTimer);
-        changeActiveRadio(wakeUpRadio); // TODO: Does this do anything?
-        return State::AWAIT_TRANSMIT;
-    }
-    else{
-        changeActiveRadio(wakeUpRadio); // TODO: Does this do anything?
-        return State::WAKE_UP_IDLE;
-    }
-}
-
 WakeUpMacLayer::State WakeUpMacLayer::stateListeningEnter(){
     wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-    return stateListeningEnterAlreadyListening();
+    changeActiveRadio(wakeUpRadio);
+    State s;
+    // Override transition to data idle with transitio to wake-up idle
+    if( (s = stateListeningEnterAlreadyListening()) != State::DATA_IDLE){
+        return s;
+    }
+    return State::WAKE_UP_IDLE;
 }
 
 WakeUpMacLayer::State WakeUpMacLayer::stateTxEnter()
@@ -832,12 +822,10 @@ void WakeUpMacLayer::cancelAllTimers()
 {
     ORWMac::cancelAllTimers();
     cancelEvent(transmitStartDelay);
-    cancelEvent(replenishmentTimer);
 }
 
 void WakeUpMacLayer::deleteAllTimers(){
     delete transmitStartDelay;
-    delete replenishmentTimer;
 }
 
 WakeUpMacLayer::~WakeUpMacLayer() {

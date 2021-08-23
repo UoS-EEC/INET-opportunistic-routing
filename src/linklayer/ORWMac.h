@@ -50,16 +50,6 @@ protected:
     };
     /*@}*/
 
-    /** @brief MAC high level states */
-    enum class State {
-        WAKE_UP_IDLE, // WuRx waiting for wake-up subclass
-        DATA_IDLE, // Data radio waiting
-        WAKE_UP_WAIT, // WuRx receiving or processing for wake-up subclass
-        RECEIVE, // Data radio listening, receiving and ack following wake-up or initial data
-        AWAIT_TRANSMIT, // DATA radio listening but with packet waiting to be transmitted
-        TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
-    };
-
     enum class TxDataState {
         WAKE_UP_WAIT, // Tx wake-up when radio ready and CSMA finished
         WAKE_UP, // Tx Wake-up in progress
@@ -120,6 +110,9 @@ protected:
     /** @brief The radio. */
     inet::physicallayer::IRadio *dataRadio{nullptr};
 
+    simtime_t replenishmentCheckRate = SimTime(1, SimTimeUnit::SIMTIME_S);
+    cMessage* replenishmentTimer{nullptr};
+
     /** @brief User Configured parameters */
     omnetpp::simtime_t dataListeningDuration{0};
     omnetpp::simtime_t ackWaitDuration{0};
@@ -140,6 +133,23 @@ protected:
     virtual void cancelAllTimers();
     void deleteAllTimers();
     ~ORWMac();
+
+    /** @brief MAC high level state logic*/
+    enum class State {
+        WAKE_UP_IDLE, // WuRx waiting for wake-up subclass
+        DATA_IDLE, // Data radio waiting
+        WAKE_UP_WAIT, // WuRx receiving or processing for wake-up subclass
+        RECEIVE, // Data radio listening, receiving and ack following wake-up or initial data
+        AWAIT_TRANSMIT, // DATA radio listening but with packet waiting to be transmitted
+        TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
+    };
+    State macState; //Record the current state of the MAC State machine
+
+    /** @name Listening State variables and event processing */
+    /*@{*/
+    virtual State stateListeningEnterAlreadyListening();
+    virtual State stateListeningEnter();
+    /*@}*/
 
     /** @name Transmit functions and variables */
     /*@{*/

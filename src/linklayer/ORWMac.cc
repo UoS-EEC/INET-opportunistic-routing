@@ -37,6 +37,7 @@ void ORWMac::initialize(int stage) {
         // create timer messages
         ackBackoffTimer = new cMessage("ack wait timer");
         receiveTimeout = new cMessage("wake-up wait timer");
+        replenishmentTimer = new cMessage("replenishment check timeout");
 
         //load parameters
         transmissionStartMinEnergy = J(par("transmissionStartMinEnergy"));
@@ -134,11 +135,13 @@ void ORWMac::configureInterfaceEntry() {
 void ORWMac::cancelAllTimers() {
     cancelEvent(ackBackoffTimer);
     cancelEvent(receiveTimeout);
+    cancelEvent(replenishmentTimer);
 }
 
 void ORWMac::deleteAllTimers() {
     delete ackBackoffTimer;
     delete receiveTimeout;
+    delete replenishmentTimer;
 }
 
 ORWMac::~ORWMac() {
