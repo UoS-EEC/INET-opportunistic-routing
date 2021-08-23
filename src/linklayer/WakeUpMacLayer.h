@@ -63,10 +63,7 @@ class WakeUpMacLayer : public ORWMac
     // TODO: Replace by type to represent accept, reject messages
     const int WAKEUP_APPROVE = 502;
     const int WAKEUP_REJECT = 503;
-    double candiateRelayContentionProbability = 0.7;
 
-    bool recheckDataPacketEqDC;
-    bool skipDirectTxFinalAck = false;
 protected:
     enum class WuWaitState{
         IDLE, // WuRx listening
@@ -109,19 +106,10 @@ protected:
     virtual State stateListeningEnter() override;
     State stateWakeUpIdleProcess(const MacEvent& event, omnetpp::cMessage* const msg);
     State stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg);
-    EqDC acceptDataEqDCThreshold = EqDC(25.5);
-    int rxAckRound = 0;
-    RxState rxState;
-    State  stateReceiveEnter();
-    void stateReceiveEnterDataWait();
+    virtual State stateReceiveEnter() override;
     void stateReceiveAckEnterReceiveDataWait();
-    void stateReceiveEnterFinishDropReceived(const inet::PacketDropReason reason);
-    void stateReceiveEnterFinish();
     void stateReceiveProcessDataTimeout();
-    void stateReceiveEnterAck();
-    void stateReceiveExitAck();
     void stateReceiveAckProcessBackoff(const MacEvent& event);
-    void stateReceiveExitDataWait();
     /*
      * Member to process events when in the Receive state
      * Overridable by inheriting classes for other reciever behavior
@@ -129,10 +117,6 @@ protected:
      */
     virtual bool stateReceiveProcess(const MacEvent& event, cMessage *msg);
   private:
-    void handleCoincidentalOverheardData(inet::Packet* receivedData);
-    void handleOverheardAckInDataReceiveState(const Packet * const msg);
-    void stateReceiveDataWaitProcessDataReceived(cMessage *msg);
-    void stateReceiveAckProcessDataReceived(cMessage *msg);
     void completePacketReception();
 
   protected:

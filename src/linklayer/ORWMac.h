@@ -116,6 +116,9 @@ protected:
     /** @brief User Configured parameters */
     omnetpp::simtime_t dataListeningDuration{0};
     omnetpp::simtime_t ackWaitDuration{0};
+    double candiateRelayContentionProbability = 0.7;
+    bool recheckDataPacketEqDC{true};
+    bool skipDirectTxFinalAck{false};
 
     /** @brief Calculated (in initialize) parameters */
     /*@{*/
@@ -151,6 +154,31 @@ protected:
     virtual State stateListeningEnter();
     /*@}*/
 
+    /** @name Receive functions and variables */
+    /*@{*/
+    int rxAckRound = 0;
+    EqDC acceptDataEqDCThreshold = EqDC(25.5);
+    cMessage *currentRxFrame{nullptr};
+    void decapsulate(inet::Packet* msg) const;
+    inet::Packet* buildAck(const inet::Packet* subject) const;
+    void dropCurrentRxFrame(inet::PacketDropDetails& details);
+    void handleCoincidentalOverheardData(inet::Packet* receivedData);
+    void handleOverheardAckInDataReceiveState(const inet::Packet * const msg);
+    /*@}*/
+
+    /** @name Receiving State variables and event processing */
+    /*@{*/
+    RxState rxState;
+    virtual State stateReceiveEnter();
+    void stateReceiveEnterDataWait();
+    void stateReceiveExitDataWait();
+    void stateReceiveEnterAck();
+    void stateReceiveExitAck();
+    void stateReceiveEnterFinishDropReceived(const inet::PacketDropReason reason);
+    void stateReceiveEnterFinish();
+    void stateReceiveDataWaitProcessDataReceived(cMessage *msg);
+    void stateReceiveAckProcessDataReceived(cMessage *msg);
+
     /** @name Transmit functions and variables */
     /*@{*/
     inet::J transmissionStartMinEnergy{0.0};
@@ -180,14 +208,6 @@ protected:
     /** @name Transmit State variables and event processing*/
     /*@{*/
     ExpectedCost dataMinExpectedCost = EqDC(25.5);
-    /*@}*/
-
-    /** @name Receive functions and variables */
-    /*@{*/
-    cMessage *currentRxFrame{nullptr};
-    void decapsulate(inet::Packet* msg) const;
-    inet::Packet* buildAck(const inet::Packet* subject) const;
-    void dropCurrentRxFrame(inet::PacketDropDetails& details);
     /*@}*/
 };
 

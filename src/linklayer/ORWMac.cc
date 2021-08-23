@@ -23,6 +23,7 @@
 #include <inet/linklayer/common/MacAddressTag_m.h>
 #include <inet/common/ProtocolGroup.h>
 #include "common/EqDCTag_m.h"
+#include "common/EncounterDetails_m.h"
 
 using namespace oppostack;
 using namespace inet;
@@ -44,6 +45,7 @@ void ORWMac::initialize(int stage) {
         dataListeningDuration = par("dataListeningDuration");
         ackWaitDuration = par("ackWaitDuration");
         initialContentionDuration = ackWaitDuration/3;
+        candiateRelayContentionProbability = par("candiateRelayContentionProbability");
 
         // link direct module interfaces
         const char* energyStoragePath = par("energyStorage");
@@ -252,4 +254,27 @@ void ORWMac::dropCurrentRxFrame(PacketDropDetails& details)
     emit(receptionDroppedSignal, true);
     delete currentRxFrame;
     currentRxFrame = nullptr;
+}
+
+void ORWMac::handleCoincidentalOverheardData(Packet* receivedData)
+{
+    auto receivedHeader = receivedData->peekAtFront<ORWGram>();
+    EncounterDetails details;
+    details.setEncountered(receivedHeader->getTransmitterAddress());
+    details.setCurrentEqDC(receivedHeader->getExpectedCostInd());
+    emit(coincidentalEncounterSignal, 2.0, &details);
+}
+
+void ORWMac::handleOverheardAckInDataReceiveState(const Packet * const msg){
+    // Overheard Ack from neighbor
+    EV_WARN << "Overheard Ack from neighbor is it worth sending own ACK?" << endl;
+    // Leave in current mac state which could be MacState::RECEIVE or S_ACK
+    // Only count coincidental ack in the first round to reduce double counting
+    if(rxAckRound<=1){
+        auto incomingMacData = msg->peekAtFront<ORWGram>();
+        EncounterDetails details;
+        details.setEncountered(incomingMacData->getTransmitterAddress());
+        details.setCurrentEqDC(incomingMacData->getExpectedCostInd());
+        emit(coincidentalEncounterSignal, 1.0, &details);
+    }
 }
