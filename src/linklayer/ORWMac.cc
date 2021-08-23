@@ -278,3 +278,23 @@ void ORWMac::handleOverheardAckInDataReceiveState(const Packet * const msg){
         emit(coincidentalEncounterSignal, 1.0, &details);
     }
 }
+
+void ORWMac::completePacketReception()
+{
+    // The receiving has timed out, if packet is received process
+    if (currentRxFrame != nullptr) {
+        Packet* pkt = dynamic_cast<Packet*>(currentRxFrame);
+        decapsulate(pkt);
+        pkt->removeTagIfPresent<EqDCReq>();
+        pkt->removeTagIfPresent<EqDCInd>();
+        pkt->trim();
+        if(datagramLocalInHook(pkt)!=IHook::Result::ACCEPT){
+            EV_ERROR << "Aborted reception of data is unimplemented" << endl;
+        }
+        else{
+            sendUp(pkt);
+        }
+        currentRxFrame = nullptr;
+        emit(receptionEndedSignal, true);
+    }
+}

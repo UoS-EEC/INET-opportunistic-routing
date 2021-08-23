@@ -164,6 +164,7 @@ protected:
     void dropCurrentRxFrame(inet::PacketDropDetails& details);
     void handleCoincidentalOverheardData(inet::Packet* receivedData);
     void handleOverheardAckInDataReceiveState(const inet::Packet * const msg);
+    void completePacketReception();
     /*@}*/
 
     /** @name Receiving State variables and event processing */
@@ -172,12 +173,20 @@ protected:
     virtual State stateReceiveEnter();
     void stateReceiveEnterDataWait();
     void stateReceiveExitDataWait();
+    void stateReceiveAckProcessBackoff(const MacEvent& event);
     void stateReceiveEnterAck();
     void stateReceiveExitAck();
     void stateReceiveEnterFinishDropReceived(const inet::PacketDropReason reason);
     void stateReceiveEnterFinish();
     void stateReceiveDataWaitProcessDataReceived(cMessage *msg);
     void stateReceiveAckProcessDataReceived(cMessage *msg);
+    void stateReceiveAckEnterReceiveDataWait();
+    void stateReceiveProcessDataTimeout();
+    /* Overridable by inheriting classes for other receiver behavior
+     * @ return Is receiveState finished
+     */
+    virtual bool stateReceiveProcess(const MacEvent& event, cMessage *msg);
+    /*@}*/
 
     /** @name Transmit functions and variables */
     /*@{*/

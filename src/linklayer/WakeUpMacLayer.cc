@@ -327,87 +327,6 @@ WakeUpMacLayer::State WakeUpMacLayer::stateAwaitTransmitProcess(const MacEvent& 
     return macState;
 }
 
-void WakeUpMacLayer::stateReceiveAckEnterReceiveDataWait()
-{
-    // return to receive mode (via receive wait) when ack transmitted
-    // For follow up packet
-    cancelEvent(receiveTimeout);
-    stateReceiveEnterDataWait();
-
-    // From transmit mode
-    dataRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
-}
-
-void WakeUpMacLayer::stateReceiveProcessDataTimeout()
-{
-    // The receiving has timed out, if packet is received process
-    completePacketReception();
-}
-
-void WakeUpMacLayer::stateReceiveAckProcessBackoff(const MacEvent& event)
-{
-    const auto backoffResult = stepBackoffSM(event);
-    if (event == MacEvent::TX_READY) {
-        // send acknowledgement packet when radio is ready
-        sendDown(buildAck(check_and_cast<Packet*>(currentRxFrame)));
-    }
-    else if (backoffResult == CSMATxBackoffBase::State::OFF) {
-        // Backoff has been aborted
-        // Drop packet and schedule immediate timeout
-        EV_WARN << "Dropping packet because of channel congestion";
-        stateReceiveExitAck();
-        stateReceiveEnterFinishDropReceived(PacketDropReason::DUPLICATE_DETECTED);
-    }
-}
-// Receive acknowledgement process that can be overridden
-bool WakeUpMacLayer::stateReceiveProcess(const MacEvent& event, cMessage * const msg) {
-    if(event == MacEvent::DATA_RECEIVED){
-        auto packet = check_and_cast<const Packet*>(msg);
-        if(packet->peekAtFront<ORWGram>()->getType() == ORW_ACK){
-            handleOverheardAckInDataReceiveState(packet);
-            delete packet;
-            return false;
-        }
-    }
-
-    switch(rxState){
-        case RxState::DATA_WAIT:
-            if(event == MacEvent::DATA_TIMEOUT){
-                // The receiving has timed out, optionally process received packet
-                stateReceiveProcessDataTimeout();
-                return true;
-            }
-            else if(event == MacEvent::DATA_RECEIVED){
-                stateReceiveDataWaitProcessDataReceived(msg);
-            }
-            // Transition from ACK after TX_END
-            else if(event == MacEvent::DATA_RX_READY){
-                stateReceiveExitDataWait();
-                stateReceiveEnterDataWait();
-            }
-            break;
-        case RxState::ACK:
-            stateReceiveAckProcessBackoff(event);
-            if(event == MacEvent::TX_END){
-                stateReceiveExitAck();
-                stateReceiveAckEnterReceiveDataWait();
-            }
-            else if(event == MacEvent::DATA_RECEIVED){
-                stateReceiveDataWaitProcessDataReceived(msg);
-            }
-            break;
-        case RxState::FINISH:
-            if(event == MacEvent::DATA_TIMEOUT){
-                // The receiving has timed out, optionally process received packet
-                stateReceiveProcessDataTimeout();
-                return true;
-            }
-            break;
-        default: cRuntimeError("Unknown state");
-    }
-    return false;
-}
-
 WakeUpMacLayer::State WakeUpMacLayer::stateReceiveEnter()
 {
     rxAckRound = 0;
@@ -682,26 +601,6 @@ void WakeUpMacLayer::changeActiveRadio(physicallayer::IRadio* const newActiveRad
         activeRadio = newActiveRadio;
         transmissionState = activeRadio->getTransmissionState();
         receptionState = activeRadio->getReceptionState();
-    }
-}
-
-void WakeUpMacLayer::completePacketReception()
-{
-    // The receiving has timed out, if packet is received process
-    if (currentRxFrame != nullptr) {
-        Packet* pkt = dynamic_cast<Packet*>(currentRxFrame);
-        decapsulate(pkt);
-        pkt->removeTagIfPresent<EqDCReq>();
-        pkt->removeTagIfPresent<EqDCInd>();
-        pkt->trim();
-        if(datagramLocalInHook(pkt)!=IHook::Result::ACCEPT){
-            EV_ERROR << "Aborted reception of data is unimplemented" << endl;
-        }
-        else{
-            sendUp(pkt);
-        }
-        currentRxFrame = nullptr;
-        emit(receptionEndedSignal, true);
     }
 }
 

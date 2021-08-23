@@ -103,21 +103,15 @@ protected:
   protected:
     /** @brief Execute a step in the MAC state machine */
     void stateProcess(const MacEvent& event, cMessage *msg);
+    /** @name Receiving State variables and event processing */
+    /*@{*/
     virtual State stateListeningEnter() override;
     State stateWakeUpIdleProcess(const MacEvent& event, omnetpp::cMessage* const msg);
     State stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg);
     virtual State stateReceiveEnter() override;
-    void stateReceiveAckEnterReceiveDataWait();
-    void stateReceiveProcessDataTimeout();
-    void stateReceiveAckProcessBackoff(const MacEvent& event);
-    /*
-     * Member to process events when in the Receive state
-     * Overridable by inheriting classes for other reciever behavior
-     * @ return Is receiveState finished
-     */
-    virtual bool stateReceiveProcess(const MacEvent& event, cMessage *msg);
-  private:
-    void completePacketReception();
+    /* @brief Override receive process? */
+    virtual bool stateReceiveProcess(const MacEvent& event, cMessage *msg) override;
+    /*@}*/
 
   protected:
     /** @brief Transmitter State Machine **/
