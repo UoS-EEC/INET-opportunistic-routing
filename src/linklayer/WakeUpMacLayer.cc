@@ -56,11 +56,6 @@ void WakeUpMacLayer::initialize(int const stage) {
         cModule *radioModule = getModuleByPath(wakeUpRadioModulePath);
         wakeUpRadio = check_and_cast<IRadio *>(radioModule);
 
-        const char* networkNodePath = par("networkNode");
-        networkNode = getModuleByPath(networkNodePath);
-
-        txQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("queue"));
-
         // Retransmission reduction through data packet updating
         recheckDataPacketEqDC = par("recheckDataPacketEqDC");
         skipDirectTxFinalAck = recheckDataPacketEqDC && par("skipDirectTxFinalAck");
@@ -308,22 +303,9 @@ WakeUpMacLayer::State WakeUpMacLayer::stateAwaitTransmitProcess(const MacEvent& 
         activeBackoff->startTxOrDelay(delayIfBusy);
         return stateTxEnter();
     }
-    else if (event == MacEvent::REPLENISH_TIMEOUT) {
-        // Check if there is enough energy. If not, replenish to maintain above tx threshold
-        if (!transmissionStartEnergyCheck()) {
-            // Turn off and let the SimpleEpEnergyManager turn back on at the on threshold
-            LifecycleOperation::StringMap params;
-            auto* operation = new ModuleStopOperation();
-            operation->initialize(networkNode, params);
-            lifecycleController.initiateOperation(operation);
-        }
-        else {
-            // Now got enough energy so transmit by triggering ackBackoff
-            if (!transmitStartDelay->isScheduled())
-                scheduleAt(simTime(), transmitStartDelay);
-        }
+    else {
+        return ORWMac::stateAwaitTransmitProcess(event, msg);
     }
-    return macState;
 }
 
 WakeUpMacLayer::State WakeUpMacLayer::stateReceiveEnter()

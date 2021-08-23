@@ -20,7 +20,6 @@
 #define __WAKEUPMAC_WAKEUPMACLAYER_H_
 
 #include <omnetpp.h>
-#include <inet/common/lifecycle/LifecycleController.h>
 #include <inet/physicallayer/contract/packetlevel/IRadio.h>
 #include <inet/common/lifecycle/NodeStatus.h>
 #include <inet/common/Protocol.h>
@@ -44,8 +43,7 @@ class WakeUpMacLayer : public ORWMac
     WakeUpMacLayer()
       : ORWMac(),
         wakeUpRadio(nullptr),
-        activeRadio(nullptr),
-        networkNode(nullptr)
+        activeRadio(nullptr)
       {}
     ~WakeUpMacLayer();
     virtual void handleUpperPacket(Packet *packet) override;
@@ -80,8 +78,6 @@ protected:
     physicallayer::IRadio::TransmissionState transmissionState;
     physicallayer::IRadio::ReceptionState receptionState;
 
-    inet::LifecycleController lifecycleController;
-    cModule* networkNode;
 
     virtual void initialize(int stage) override;
     virtual void cancelAllTimers() override;
@@ -101,7 +97,7 @@ protected:
     /*@{*/
     virtual State stateListeningEnter() override;
     State stateWakeUpIdleProcess(const MacEvent& event, omnetpp::cMessage* const msg);
-    State stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg);
+    virtual State stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg) override;
     virtual State stateReceiveEnter() override;
     /*@}*/
 

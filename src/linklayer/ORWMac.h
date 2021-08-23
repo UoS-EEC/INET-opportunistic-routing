@@ -25,6 +25,7 @@
 // Variables within class
 #include <inet/power/contract/IEpEnergyStorage.h>
 #include <inet/physicallayer/contract/packetlevel/IRadio.h>
+#include <inet/common/lifecycle/LifecycleController.h>
 #include "CSMATxBackoff.h"
 #include "ORWGram_m.h"
 
@@ -111,6 +112,8 @@ protected:
     /** @brief The radio. */
     inet::physicallayer::IRadio *dataRadio{nullptr};
 
+    inet::LifecycleController lifecycleController;
+    cModule* networkNode{nullptr};
     simtime_t replenishmentCheckRate = SimTime(1, SimTimeUnit::SIMTIME_S);
     cMessage* replenishmentTimer{nullptr};
 
@@ -215,6 +218,8 @@ protected:
     }
     void completePacketTransmission();
     /*@}*/
+
+    virtual State stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg);
 
     /** @name Transmit State variables and event processing*/
     /*@{*/

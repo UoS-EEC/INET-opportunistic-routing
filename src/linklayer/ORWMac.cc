@@ -57,6 +57,11 @@ void ORWMac::initialize(int stage) {
         cModule *radioModule = getModuleByPath(radioModulePath);
         dataRadio = check_and_cast<IRadio *>(radioModule);
 
+        const char* networkNodePath = par("networkNode");
+        networkNode = getModuleByPath(networkNodePath);
+
+        txQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("queue"));
+
         // Parameter validation
 
         /*

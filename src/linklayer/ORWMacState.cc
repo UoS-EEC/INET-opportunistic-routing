@@ -266,6 +266,51 @@ void ORWMac::stateReceiveProcessDataTimeout()
     completePacketReception();
 }
 
+ORWMac::State ORWMac::stateAwaitTransmitProcess(const MacEvent& event, cMessage* const msg)
+{
+
+    if(event == MacEvent::DATA_RECEIVED){
+        cancelEvent(transmitStartDelay);
+        cancelEvent(replenishmentTimer);
+        handleCoincidentalOverheardData(check_and_cast<Packet*>(msg));
+        return stateReceiveEnter(); // TODO: Replace with startReception function (see WuMac::stateAwaitTransmitProcess() )
+    }
+    else if (event == MacEvent::DATA_RX_READY && !transmitStartDelay->isScheduled() && !replenishmentTimer->isScheduled()) {
+        // MacEvent::DATA_RX_READY triggered by transmitting ending but with packet ready
+        // Perform carrier sense if there is a currentTxFrame
+        if (!txQueue->isEmpty()) {
+            ASSERT(not txQueue->isEmpty());
+            setupTransmission();
+        }
+        return stateTxEnter();
+    }
+    else if (event == MacEvent::TX_START && !replenishmentTimer->isScheduled()) {
+        // MacEvent::TX_START triggered by wait before transmit after rxing or txing
+        // Check if there are packets to send and if so, send them
+        if (currentTxFrame == nullptr) {
+            ASSERT(not txQueue->isEmpty());
+            setupTransmission();
+        }
+        return stateTxEnter();
+    }
+    else if (event == MacEvent::REPLENISH_TIMEOUT) {
+        // Check if there is enough energy. If not, replenish to maintain above tx threshold
+        if (!transmissionStartEnergyCheck()) {
+            // Turn off and let the SimpleEpEnergyManager turn back on at the on threshold
+            LifecycleOperation::StringMap params;
+            auto* operation = new ModuleStopOperation();
+            operation->initialize(networkNode, params);
+            lifecycleController.initiateOperation(operation);
+        }
+        else {
+            // Now got enough energy so transmit by triggering ackBackoff
+            if (!transmitStartDelay->isScheduled())
+                scheduleAt(simTime(), transmitStartDelay);
+        }
+    }
+    return macState;
+}
+
 bool ORWMac::stateTxProcess(const MacEvent& event, cMessage* const msg) {
     switch (txDataState){
     case TxDataState::DATA_WAIT:
