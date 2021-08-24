@@ -79,7 +79,7 @@ void ORWMac::initialize(int stage) {
          * Calculation of invalid parameter combinations at the receiver
          * - MAC Layer requires tight timing during a communication negotiation
          * - Incorrect timing increases the collision and duplication probability
-         * After the wake-up contention to receive and forward occurs
+         * After the data reception contention to receive and forward occurs
          * The physical MTU is limited by the time spent dataListening after sending an ACK
          * If an ACK is sent at the start of the ACK period, the data may not be fully
          * received until remainder of ack period + 1/5(ack period)

@@ -16,11 +16,27 @@
 package oppostack.linklayer;
 import inet.linklayer.base.MacProtocolBase;
 import inet.linklayer.contract.IMacProtocol;
+import inet.queueing.contract.IPacketQueue;
 
 //
 // Opportunistic Routing for WSN implementation of Ghadimi, Duquennoy et al. 
 // by Edward Longman, University of Southampton
 //
+// Implements negotiation of packet acceptance when multiple nodes competing to forward.
+// If transmitter: after sending and data, if multiple acks received, the
+// data is resent, until there is only 1 ack received.
+// If receiver: after and data reception ack is sent, if no more data received
+// then the data is sent up, if data re-received, then candiateRelayContentionProbability 
+// decides if it will send ack to receive data again else it gives up.
+//
+// Also monitors the energyStorage to ensure there is enough energy to send message
+// 
+// Encounter signals emitted to build a model of the probability of encountering 
+// neighboring nodes.
+// 
+// ExpectedCost is a 8bit measurement of effort required to get packet to sink
+// ExpectedCost = EqDC/10. If ack received from destination (ExpectedCost=0) then 
+// the data packet has it's cost field updated.
 module ORWMac extends MacProtocolBase like IMacProtocol, IOpportunisticLinkLayer
 {
     parameters:
@@ -32,12 +48,12 @@ module ORWMac extends MacProtocolBase like IMacProtocol, IOpportunisticLinkLayer
         
         double transmissionStartMinEnergy @unit(J) = 0.004345J; // Don't start transmitting unless there is at least this in storage
         double radioTurnaroundTime @unit(s) = default(50us);
-        double dataListeningDuration @unit(s) = default(0.0085 s); // How long to listen after a wake-up
+        double dataListeningDuration @unit(s) = default(0.0085 s); // How long to listen before data negotiation finished
         double ackWaitDuration @unit(s) = default(0.0024 s); // Must be bigger than radio Rx -> Tx
         double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
         int maxTxTries = default(4);
         
-        // WakeUpMac retry signals and statistics
+        // ORWMac retry signals and statistics
         @signal[transmissionTries](type=long);
         @signal[ackContentionRounds](type=long);
         @statistic[transmissionTries](title="Number of Tries till packet discarded or received"; record=histogram,vector);
@@ -64,4 +80,10 @@ module ORWMac extends MacProtocolBase like IMacProtocol, IOpportunisticLinkLayer
         @statistic[packetDropDuplicateDetected](title="packet drop: duplicate detected, contention stopped"; source=packetDropReasonIsDuplicateDetected(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
         @statistic[packetDropIncorrectlyReceived](title="packet drop: incorrectly received"; source=packetDropReasonIsIncorrectlyReceived(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
         @statistic[packetDropInterfaceDown](title="packet drop: interface down"; source=packetDropReasonIsInterfaceDown(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
+	submodules:
+        queue: <default("DropHeadQueue")> like IPacketQueue {
+            parameters:
+                packetCapacity = default(2);
+                @display("p=100,100;q=l2queue");
+        }
 }

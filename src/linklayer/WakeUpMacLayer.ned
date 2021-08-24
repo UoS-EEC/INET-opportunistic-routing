@@ -16,27 +16,13 @@
 package oppostack.linklayer;
 import inet.linklayer.base.MacProtocolBase;
 import inet.linklayer.contract.IMacProtocol;
-import inet.queueing.contract.IPacketQueue;
 
 // Communicates using two radios (IRadio), one for wake-up one for data. 
 // Two radio model is an abstraction of using wake-up receiver and data radio to 
 // send the wake-up. 
-//
-// Also monitors the energyStorage to ensure there is enough energy to send message
-//
-// Implements negotiation of packet acceptance when multiple nodes competing to forward.
-// If transmitter: after sending wake-up and data, if multiple acks received, the
-// data (and not wake-up) is resent, until there is only 1 ack received.
-// If receiver: after wake-up and data reception ack is sent, if no more data received
-// then the data is sent up, if data re-received, then candiateRelayContentionProbability 
-// decides if it will send ack to receive data again else it gives up.
 // 
-// Encounter signals emitted to build a model of the probability of encountering 
-// neighboring nodes.
-// 
-// ExpectedCost is a 8bit measurement of effort required to get packet to sink
-// ExpectedCost = EqDC/10. If ack received from destination (ExpectedCost=0) then 
-// the data packet has it's cost field updated.
+// Adds a wake-up radio to the ORWMac to wake-up potential receivers
+// wake-up only sent once for each ack negotiation period
 
 module WakeUpMacLayer extends ORWMac
 {
@@ -56,11 +42,6 @@ module WakeUpMacLayer extends ORWMac
         input wakeUpRadioIn;
         output wakeUpRadioOut;
     submodules:
-        queue: <default("DropHeadQueue")> like IPacketQueue {
-            parameters:
-                packetCapacity = default(2);
-                @display("p=100,100;q=l2queue");
-        }
         monitor: WuMacEnergyMonitor {
             @display("p=100,200");
         }
