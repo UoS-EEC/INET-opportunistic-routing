@@ -44,45 +44,14 @@ module WakeUpMacLayer extends ORWMac
         @class(WakeUpMacLayer);
         // Assumes MAC layer is within an interface
         string wakeUpRadioModule = default("^.wakeUpRadio");   // The path to the Wake up radio
-        string networkNode = default("^.^");
         double txWakeUpWaitDuration @unit(s) = default(0.0006 s); // Must be bigger than radio OFF -> idle
         double wuApproveResponseLimit @unit(s) = default(1000ns);
-        double candiateRelayContentionProbability = default(0.7); // If another forwarder detected, how likely is this node to contend for relay rights
-        int maxTxTries = default(4);
 
         // After receiving wake-up, recheck the data before sending ack and accepting
         bool recheckDataPacketEqDC = default(true);
         // If transmitter receives ack from the final dest, and recheckDataPacketEqDC is
         // performed then don't resend data, as only the final dest will accept EqDC=0
         bool skipDirectTxFinalAck = default(false);
-
-        // WakeUpMac retry signals and statistics
-        @signal[transmissionTries](type=long);
-        @signal[ackContentionRounds](type=long);
-        @statistic[transmissionTries](title="Number of Tries till packet discarded or received"; record=histogram,vector);
-        @statistic[ackContentionRounds](title="Number of ack contention rounds for each packet"; record=histogram,vector);
-        
-        // Weighted Encounters signals and with attached L2Addr and EDC/EquivalentTx(EqTx) details
-        @signal[coincidentalEncounter](type=double);
-        @signal[expectedEncounter](type=double);
-        @signal[listenForEncountersEnded](type=double);
-        @statistic[coincidentalEncounter](title="Weighted coincidental neighbor encounter"; record=vector,count);
-        @statistic[expectedEncounter](title="Weighted expected neighbor encounter"; record=vector,count);
-        @statistic[listenForEncountersEnded](title="Ended expected encounters listening period"; record=vector,count);
-
-		// Mac Energy Consumption Monitoring Signals
-        @signal[receptionStarted](type=bool);
-        @signal[receptionEnded](type=bool);
-        @signal[receptionDropped](type=bool);
-        @signal[transmissionStarted](type=bool);
-        @signal[transmissionEnded](type=bool);
-
-        // Generic packet loss statistics
-        @statistic[packetDropNoRouteFound](title="packet drop: no route found"; source=packetDropReasonIsNoRouteFound(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
-        @statistic[packetDropQueueOverflow](title="packet drop: queue overflow"; source=packetDropReasonIsQueueOverflow(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
-        @statistic[packetDropDuplicateDetected](title="packet drop: duplicate detected, contention stopped"; source=packetDropReasonIsDuplicateDetected(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
-        @statistic[packetDropIncorrectlyReceived](title="packet drop: incorrectly received"; source=packetDropReasonIsIncorrectlyReceived(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
-        @statistic[packetDropInterfaceDown](title="packet drop: interface down"; source=packetDropReasonIsInterfaceDown(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
     gates:
         input wakeUpRadioIn;
         output wakeUpRadioOut;
