@@ -157,6 +157,49 @@ ORWMac::~ORWMac() {
     deleteAllTimers();
 }
 
+
+void ORWMac::handleUpperPacket(Packet* const packet) {
+    // step Mac state machine
+    // Make Mac owned copy of message
+    auto addressRequest =packet->addTagIfAbsent<MacAddressReq>();
+    if(addressRequest->getDestAddress() == MacAddress::UNSPECIFIED_ADDRESS){
+        addressRequest->setDestAddress(MacAddress::BROADCAST_ADDRESS);
+    }
+    txQueue->pushPacket(packet);
+    stateProcess(MacEvent::QUEUE_SEND, packet);
+}
+
+void ORWMac::handleLowerPacket(Packet* const packet) {
+    if(packet->getArrivalGateId() == lowerLayerInGateId){
+        EV_DEBUG << "Received  main packet" << endl;
+        stateProcess(MacEvent::DATA_RECEIVED, packet);
+    }
+    else{
+        MacProtocolBase::handleLowerCommand(packet);
+    }
+}
+
+void ORWMac::handleSelfMessage(cMessage *msg) {
+    if(msg == transmitStartDelay){
+        stateProcess(MacEvent::TX_START, msg);
+    }
+    else if(msg == receiveTimeout){
+        stateProcess(MacEvent::DATA_TIMEOUT, msg);
+    }
+    else if(msg == ackBackoffTimer){
+        stateProcess(MacEvent::ACK_TIMEOUT, msg);
+    }
+    else if(msg == replenishmentTimer){
+        stateProcess(MacEvent::REPLENISH_TIMEOUT, msg);
+    }
+    else if( activeBackoff && activeBackoff->isBackoffTimer(msg) ){
+        stateProcess(MacEvent::CSMA_BACKOFF, msg);
+    }
+    else {
+        EV_WARN << "Unhandled self message" << endl;
+    }
+}
+
 void ORWMac::handleRadioSignal(const simsignal_t signalID,
         const intval_t value) {
     if (signalID == IRadio::transmissionStateChangedSignal) {

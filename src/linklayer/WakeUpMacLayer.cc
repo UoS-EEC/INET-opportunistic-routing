@@ -92,17 +92,6 @@ void WakeUpMacLayer::handleLowerPacket(Packet* const packet) {
     }
 }
 
-void WakeUpMacLayer::handleUpperPacket(Packet* const packet) {
-    // step Mac state machine
-    // Make Mac owned copy of message
-    auto addressRequest =packet->addTagIfAbsent<MacAddressReq>();
-    if(addressRequest->getDestAddress() == MacAddress::UNSPECIFIED_ADDRESS){
-        addressRequest->setDestAddress(MacAddress::BROADCAST_ADDRESS);
-    }
-    txQueue->pushPacket(packet);
-    stateProcess(MacEvent::QUEUE_SEND, packet);
-}
-
 void WakeUpMacLayer::receiveSignal(cComponent* const source, simsignal_t const signalID,
         intval_t const value, cObject* const details) {
     Enter_Method_Silent();
@@ -114,22 +103,7 @@ void WakeUpMacLayer::receiveSignal(cComponent* const source, simsignal_t const s
 }
 
 void WakeUpMacLayer::handleSelfMessage(cMessage* const msg) {
-    if(msg == transmitStartDelay){
-        stateProcess(MacEvent::TX_START, msg);
-    }
-    else if(msg == receiveTimeout){
-        stateProcess(MacEvent::DATA_TIMEOUT, msg);
-    }
-    else if(msg == ackBackoffTimer){
-        stateProcess(MacEvent::ACK_TIMEOUT, msg);
-    }
-    else if(msg == replenishmentTimer){
-        stateProcess(MacEvent::REPLENISH_TIMEOUT, msg);
-    }
-    else if( activeBackoff && activeBackoff->isBackoffTimer(msg) ){
-        stateProcess(MacEvent::CSMA_BACKOFF, msg);
-    }
-    else if(msg->getKind() == WAKEUP_APPROVE){
+    if(msg->getKind() == WAKEUP_APPROVE){
         stateProcess(MacEvent::WU_APPROVE, msg);
         delete msg;
     }
@@ -138,7 +112,7 @@ void WakeUpMacLayer::handleSelfMessage(cMessage* const msg) {
         delete msg;
     }
     else{
-        EV_DEBUG << "Unhandled self message" << endl;
+        ORWMac::handleSelfMessage(msg);
     }
 }
 

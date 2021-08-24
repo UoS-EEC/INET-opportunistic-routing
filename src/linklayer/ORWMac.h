@@ -49,6 +49,10 @@ protected:
     virtual void handleLowerCommand(omnetpp::cMessage *msg) override{
         EV_WARN << "Unhandled Lower Command" << endl;
     };
+    virtual void handleUpperPacket(inet::Packet *packet) override;
+    virtual void handleLowerPacket(inet::Packet *packet) override;
+    virtual void handleSelfMessage(cMessage *msg) override;
+
     void handleRadioSignal(const omnetpp::simsignal_t signalID,
             const intval_t value);
     using MacProtocolBase::receiveSignal;

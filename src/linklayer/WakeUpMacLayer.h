@@ -21,7 +21,6 @@
 
 #include <omnetpp.h>
 #include <inet/physicallayer/contract/packetlevel/IRadio.h>
-#include <inet/common/lifecycle/NodeStatus.h>
 #include <inet/common/Protocol.h>
 
 #include "../networklayer/ORWRouting.h"
@@ -46,7 +45,6 @@ class WakeUpMacLayer : public ORWMac
         activeRadio(nullptr)
       {}
     ~WakeUpMacLayer();
-    virtual void handleUpperPacket(Packet *packet) override;
     virtual void handleLowerPacket(Packet *packet) override;
     virtual void handleSelfMessage(cMessage *msg) override;
     using ORWMac::receiveSignal;
