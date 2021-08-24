@@ -20,8 +20,9 @@
 #include "RoutingSetExt_m.h"
 #include <algorithm>
 #include <functional>
+
+#include "../linklayer/ORWGram_m.h"
 #include "common/oppDefs.h"
-#include "../linklayer/WakeUpGram_m.h"
 using namespace oppostack;
 using namespace inet;
 
@@ -195,8 +196,8 @@ const Ptr<const OpportunisticRoutingHeader> ORPLRoutingTable::getOpportunisticRo
     // Check and convert network header to OpportunisticRoutingHeader
     if( packet->hasAt<OpportunisticRoutingHeader>(secondHeaderOffset)){
         // TODO: Remove when EqDC indicator sent in OpportunisticRoutingHeader
-        if(packet->hasAtFront<WakeUpGram>()){
-            indicatedMinCostToSink = packet->peekAtFront<WakeUpGram>()->getExpectedCostInd();
+        if(packet->hasAtFront<ORWGram>()){
+            indicatedMinCostToSink = packet->peekAtFront<ORWGram>()->getExpectedCostInd();
         }
 
         // Peek at Network Header using offset of length of chunk at start.

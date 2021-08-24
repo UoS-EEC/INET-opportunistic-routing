@@ -18,8 +18,9 @@
 #include "common/EncounterDetails_m.h"
 #include <inet/networklayer/nexthop/NextHopInterfaceData.h>
 #include <inet/networklayer/common/L3AddressResolver.h>
+
+#include "../linklayer/ORWGram_m.h"
 #include "linklayer/IOpportunisticLinkLayer.h"
-#include "linklayer/WakeUpGram_m.h"
 #include "common/oppDefs.h"
 #include "common/EqDCTag_m.h"
 
@@ -221,7 +222,7 @@ void ORWRoutingTable::increaseInteractionDenominator()
 
 INetfilter::IHook::Result ORWRoutingTable::datagramPreRoutingHook(Packet* datagram)
 {
-    auto header = datagram->peekAtFront<WakeUpGram>();
+    auto header = datagram->peekAtFront<ORWGram>();
     const auto destAddr = header->getReceiverAddress();
     // TODO: Use IInterfaceTable::findInterfaceByAddress( L3Address(destAddr) )
     // If packet addressed directly to interface, then accept it with zero cost.
@@ -235,9 +236,9 @@ INetfilter::IHook::Result ORWRoutingTable::datagramPreRoutingHook(Packet* datagr
         }
     }
     const auto headerType = header->getType();
-    if(headerType==WakeUpGramType::WU_BEACON ||
-            headerType==WakeUpGramType::WU_DATA){
-        auto costHeader = datagram->peekAtFront<WakeUpBeacon>();
+    if(headerType==ORWGramType::ORW_BEACON ||
+            headerType==ORWGramType::ORW_DATA){
+        auto costHeader = datagram->peekAtFront<ORWBeacon>();
         if(destAddr == MacAddress::BROADCAST_ADDRESS){
             datagram->addTagIfAbsent<EqDCReq>()->setEqDC(EqDC(25.5));
             //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
