@@ -109,58 +109,7 @@ void WakeUpMacLayer::receiveSignal(cComponent* const source, simsignal_t const s
     // Check it is for the active radio
     cComponent* activeRadioComponent = check_and_cast_nullable<cComponent*>(activeRadio);
     if(operationalState == OPERATING && activeRadioComponent && activeRadioComponent == source){
-        if (signalID == IRadio::transmissionStateChangedSignal) {
-            // Handle both the data transmission ending and the wake-up transmission ending.
-            // They should never happen at the same time, so one variable is enough
-            // to manage both
-            IRadio::TransmissionState newRadioTransmissionState = static_cast<IRadio::TransmissionState>(value);
-            if (transmissionState == IRadio::TRANSMISSION_STATE_TRANSMITTING && newRadioTransmissionState == IRadio::TRANSMISSION_STATE_IDLE) {
-                // KLUDGE: we used to get a cMessage from the radio (the identity was not important)
-                auto msg = new cMessage("Transmission over");
-                stateProcess(MacEvent::TX_END, msg);
-                delete msg;
-            }
-            else if (transmissionState == IRadio::TRANSMISSION_STATE_UNDEFINED && newRadioTransmissionState == IRadio::TRANSMISSION_STATE_IDLE) {
-                // radio has finished switching to startup
-                // But handled by radioModeChanged due to signal order bugfix
-            }
-            else {
-                EV_DEBUG << "Unhandled transmitter state transition" << endl;
-            }
-            transmissionState = newRadioTransmissionState;
-        }
-        else if (signalID == IRadio::receptionStateChangedSignal) {
-            // Handle radio moving to receive mode
-            IRadio::ReceptionState newRadioReceptionState = static_cast<IRadio::ReceptionState>(value);
-            if (receptionState == IRadio::RECEPTION_STATE_UNDEFINED &&
-                    (newRadioReceptionState == IRadio::RECEPTION_STATE_IDLE
-                      || newRadioReceptionState == IRadio::RECEPTION_STATE_BUSY) ) {
-                // radio has finished switching to listening
-                auto msg = new cMessage("Reception ready");
-                stateProcess(MacEvent::DATA_RX_READY, msg);
-                delete msg;
-            }
-            else {
-                EV_DEBUG << "Unhandled reception state transition" << endl;
-            }
-            receptionState = newRadioReceptionState;
-        }
-        else if(signalID == IRadio::radioModeChangedSignal){
-            // Handle radio switching into sleep mode and into transmitter mode, since radio mode fired last for transmitter mode
-            IRadio::RadioMode newRadioMode = static_cast<IRadio::RadioMode>(value);
-            if (newRadioMode == IRadio::RADIO_MODE_SLEEP){
-                auto msg = new cMessage("Radio switched to sleep");
-                stateProcess(MacEvent::DATA_RX_IDLE, msg);
-                delete msg;
-            }
-            else if(newRadioMode == IRadio::RADIO_MODE_TRANSMITTER){
-                auto msg = new cMessage("Transmitter Started");
-                stateProcess(MacEvent::TX_READY, msg);
-                delete msg;
-            }
-            receptionState = IRadio::RECEPTION_STATE_UNDEFINED;
-            transmissionState = IRadio::TRANSMISSION_STATE_UNDEFINED;
-        }
+        handleRadioSignal(signalID, value);
     }
 }
 
@@ -449,49 +398,4 @@ Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount)
     auto frame = new Packet("wake-up", wuHeader);
     frame->addTag<PacketProtocolTag>()->setProtocol(&ORWProtocol);
     return frame;
-}
-
-void WakeUpMacLayer::handleStartOperation(LifecycleOperation *operation) {
-    // complete unfinished reception
-    completePacketReception();
-    macState = stateListeningEnter();
-    interfaceEntry->setState(InterfaceEntry::State::UP);
-    interfaceEntry->setCarrier(true);
-}
-
-void WakeUpMacLayer::handleStopOperation(LifecycleOperation *operation) {
-    handleCrashOperation(operation);
-}
-
-void WakeUpMacLayer::handleCrashOperation(LifecycleOperation* const operation) {
-    if(currentTxFrame != nullptr){
-        emit(ackContentionRoundsSignal, acknowledgmentRound);
-        if(txInProgressForwarders>0){
-            PacketDropDetails details;
-            details.setReason(INTERFACE_DOWN);
-            // Packet has been received by a forwarder
-            dropCurrentTxFrame(details);
-        }
-    }
-    else if(currentRxFrame != nullptr){
-        // Check if in ack backoff period and if waiting to send ack
-        if(receiveTimeout->isScheduled() && ackBackoffTimer->isScheduled()){
-            // Ack not sent yet so just bow out
-            delete currentRxFrame;
-            currentRxFrame = nullptr;
-            emit(receptionDroppedSignal, true);
-        }// TODO: check how many contending acks there were
-        else{
-            // Send packet up upon restart by leaving in memory
-        }
-    }
-
-    cancelAllTimers();
-    if(activeBackoff != nullptr){
-        delete activeBackoff;
-        activeBackoff = nullptr;
-    }
-    // Stop all signals from being interpreted
-    interfaceEntry->setCarrier(false);
-    interfaceEntry->setState(InterfaceEntry::State::DOWN);
 }

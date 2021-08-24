@@ -49,6 +49,10 @@ protected:
     virtual void handleLowerCommand(omnetpp::cMessage *msg) override{
         EV_WARN << "Unhandled Lower Command" << endl;
     };
+    void handleRadioSignal(const omnetpp::simsignal_t signalID,
+            const intval_t value);
+    using MacProtocolBase::receiveSignal;
+    virtual void receiveSignal(cComponent* source, simsignal_t signalID, intval_t value, cObject* details) override;
     /*@}*/
 
     enum class TxDataState {
@@ -111,6 +115,8 @@ protected:
 
     /** @brief The radio. */
     inet::physicallayer::IRadio *dataRadio{nullptr};
+    inet::physicallayer::IRadio::TransmissionState transmissionState;
+    inet::physicallayer::IRadio::ReceptionState receptionState;
 
     inet::LifecycleController lifecycleController;
     cModule* networkNode{nullptr};
@@ -150,6 +156,12 @@ protected:
         AWAIT_TRANSMIT, // DATA radio listening but with packet waiting to be transmitted
         TRANSMIT // Transmitting (Wake-up, pause, transmit and wait for ack)
     };
+
+    // OperationalBase:
+    virtual void handleStartOperation(inet::LifecycleOperation *operation) override;
+    virtual void handleStopOperation(inet::LifecycleOperation *operation) override;
+    virtual void handleCrashOperation(inet::LifecycleOperation *operation) override;
+
     State macState; //Record the current state of the MAC State machine
     /** @brief Execute a step in the MAC state machine */
     virtual void stateProcess(const MacEvent& event, cMessage *msg);

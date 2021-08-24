@@ -75,8 +75,6 @@ protected:
     /** @brief The radio. */
     physicallayer::IRadio *wakeUpRadio;
     physicallayer::IRadio *activeRadio;
-    physicallayer::IRadio::TransmissionState transmissionState;
-    physicallayer::IRadio::ReceptionState receptionState;
 
 
     virtual void initialize(int stage) override;
@@ -115,11 +113,6 @@ protected:
     State stateWakeUpWaitExitToListening();
     State stateWakeUpWaitApproveWaitEnter(omnetpp::cMessage* const msg);
     State stateWakeUpProcess(const MacEvent& event, cMessage *msg);
-
-    // OperationalBase:
-    virtual void handleStartOperation(LifecycleOperation *operation) override;
-    virtual void handleStopOperation(LifecycleOperation *operation) override;
-    virtual void handleCrashOperation(LifecycleOperation *operation) override;
 };
 } //namespace oppostack
 
