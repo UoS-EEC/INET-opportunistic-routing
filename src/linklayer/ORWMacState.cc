@@ -139,7 +139,7 @@ bool ORWMac::stateReceiveProcess(const MacEvent& event, cMessage * const msg) {
 ORWMac::State ORWMac::stateReceiveEnter()
 {
     rxAckRound = 0;
-    stateReceiveEnterAck();
+    stateReceiveEnterDataWait();
     return State::RECEIVE;
 }
 

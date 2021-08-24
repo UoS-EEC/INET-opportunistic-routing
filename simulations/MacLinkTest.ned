@@ -30,6 +30,7 @@ network MacLinkTest
         radioMedium.mediumLimitCache.maxTransmissionDuration = 20ms;
         radioMedium.backgroundNoise.power = default(-110dBm);
         @display("bgb=147.92384,61.53135;scale=4");
+        *.wlan[0].mac.recheckDataPacketEqDC = false;
     submodules:
         radioMedium: Ieee802154NarrowbandScalarRadioMedium {
             @display("p=18.343197,17.751482");
@@ -37,13 +38,16 @@ network MacLinkTest
         receivingWakeUpNode: ORWLinkLayerNode {
             @display("p=71.68298,45.578777");
             packetGenerator.productionInterval = 1000s;
+            energyGenerator.powerGeneration = 5mW;
         }
         transmittingWakeUpNode: ORWLinkLayerNode {
             @display("p=62.774406,37.4989");
+            energyGenerator.powerGeneration = 6.5mW;
         }
         overhearingWakeUpNode: ORWLinkLayerNode {
             @display("p=62.774406,50.758183");
             packetGenerator.productionInterval = 900s;
+            energyGenerator.powerGeneration = 4.5mW;
         }
 //        transmittingNode: AdhocHost {
 //            numApps = 1;
