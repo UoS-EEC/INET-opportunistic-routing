@@ -1,3 +1,3 @@
 package oppostack;
 @namespace(oppostack);
-@license(MIT);
+@license(LGPL-2.0-or-later);

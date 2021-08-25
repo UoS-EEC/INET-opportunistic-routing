@@ -1,6 +1,7 @@
+// Copyright (c) 2021, University of Southampton and Contributors.
+// All rights reserved.
 //
-// This program is property of its copyright holder. All rights reserved.
-//
+// SPDX-License-Identifier: LGPL-2.0-or-later
 
 import inet.common.INETDefs;
 import inet.common.TagBase;

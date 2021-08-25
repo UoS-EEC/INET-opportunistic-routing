@@ -1,3 +1,3 @@
 package oppostack.simulations;
 
-@license(MIT);
+@license(LGPL-2.0-or-later);
