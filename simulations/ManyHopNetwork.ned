@@ -26,7 +26,7 @@ network ManyHopNetwork
         }
         visualizer: IntegratedCanvasVisualizer {
             @display("p=81.656815,18.343197");
-            networkRouteVisualizer.typename = "ORPLRouteCanvasVisualizer";
+            networkRouteVisualizer.typename = "ORWRouteCanvasVisualizer";
             networkRouteVisualizer.displayRoutes = true;
         }
         configurator: NextHopNetworkConfigurator {

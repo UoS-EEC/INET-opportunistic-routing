@@ -10,7 +10,7 @@ import inet.queueing.source.ActivePacketSource;
 import inet.queueing.sink.PassivePacketSink;
 import oppostack.power.PacketConsumptionTracking;
 //
-// TODO auto-generated type
+// Node using cross layer ORW functionality to opportunistically route data
 //
 module ORWLayerNode extends NetworkLayerNodeBase
 {

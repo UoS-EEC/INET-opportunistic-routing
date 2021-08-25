@@ -10,7 +10,7 @@ import inet.queueing.source.ActivePacketSource;
 import inet.queueing.sink.PassivePacketSink;
 import oppostack.power.PacketConsumptionTracking;
 //
-// TODO auto-generated type
+// Node extending ORW functionality to ORPL
 //
 module ORPLLayerNode extends ORWLayerNode
 {

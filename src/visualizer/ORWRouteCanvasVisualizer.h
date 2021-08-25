@@ -10,9 +10,9 @@
 
 namespace oppostack{
 
-class ORPLRouteCanvasVisualizer : public inet::visualizer::NetworkRouteCanvasVisualizer{
+class ORWRouteCanvasVisualizer : public inet::visualizer::NetworkRouteCanvasVisualizer{
 public:
-    ORPLRouteCanvasVisualizer() : inet::visualizer::NetworkRouteCanvasVisualizer() {};
+    ORWRouteCanvasVisualizer() : inet::visualizer::NetworkRouteCanvasVisualizer() {};
 protected:
   virtual bool isPathStart(cModule *module) const override;
   virtual bool isPathEnd(cModule *module) const override;

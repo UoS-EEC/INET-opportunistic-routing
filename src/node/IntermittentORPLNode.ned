@@ -6,7 +6,7 @@
 package oppostack.node;
 
 //
-// TODO auto-generated type
+// Node with insufficient power for constant operation requires intermittency
 //
 module IntermittentORPLNode extends ORPLLayerNode
 {

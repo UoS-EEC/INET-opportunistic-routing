@@ -11,7 +11,7 @@ moduleinterface IOpportunisticRoutingTable
 }
 
 //
-// TODO auto-generated type
+// Table of neighbor nodes and associated EqDC value for ORWRouting
 //
 simple ORWRoutingTable like IOpportunisticRoutingTable
 {

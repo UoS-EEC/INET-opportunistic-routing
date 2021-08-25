@@ -6,7 +6,7 @@
 package oppostack.networklayer;
 
 //
-// TODO auto-generated type
+// Extension of ORW Routing for downward routing
 //
 simple ORPLRouting extends ORWRouting
 {

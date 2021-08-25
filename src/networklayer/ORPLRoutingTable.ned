@@ -6,7 +6,7 @@
 package oppostack.networklayer;
 
 //
-// TODO auto-generated type
+// Extension of ORWRoutingTable to store Downward routing set
 //
 simple ORPLRoutingTable extends ORWRoutingTable
 {

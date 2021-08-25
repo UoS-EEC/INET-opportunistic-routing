@@ -96,7 +96,7 @@ network IntermittentDenseORPLTest
         }
         visualizer: IntegratedCanvasVisualizer {
             @display("p=18.323357,5.13054");
-            networkRouteVisualizer.typename = "ORPLRouteCanvasVisualizer";
+            networkRouteVisualizer.typename = "ORWRouteCanvasVisualizer";
             networkRouteVisualizer.displayRoutes = true;
             networkRouteVisualizer.packetFilter = "appData*";
         }

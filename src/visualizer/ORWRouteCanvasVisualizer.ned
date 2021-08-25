@@ -8,12 +8,12 @@ package oppostack.visualizer;
 import inet.visualizer.networklayer.NetworkRouteCanvasVisualizer;
 
 //
-// TODO auto-generated type
+// Routing visualizer that is compatible with ORWRouting modules
 //
-module ORPLRouteCanvasVisualizer extends NetworkRouteCanvasVisualizer
+module ORWRouteCanvasVisualizer extends NetworkRouteCanvasVisualizer
 {
     parameters:
-        @class(ORPLRouteCanvasVisualizer);
+        @class(ORWRouteCanvasVisualizer);
         fadeOutMode = "simulationTime";
         fadeOutTime = 100s;
 }
