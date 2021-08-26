@@ -8,7 +8,7 @@ package oppostack.simulations;
 import inet.networklayer.common.InterfaceTable;
 import inet.node.inet.AdhocHost;
 import inet.physicallayer.ieee802154.packetlevel.Ieee802154NarrowbandScalarRadioMedium;
-import oppostack.node.ORWLayerNode;
+import oppostack.node.IntermittentORWNode;
 import inet.visualizer.integrated.IntegratedCanvasVisualizer;
 import inet.networklayer.configurator.nexthop.NextHopNetworkConfigurator;
 //
@@ -17,9 +17,11 @@ import inet.networklayer.configurator.nexthop.NextHopNetworkConfigurator;
 network ManyHopORWNetwork
 {
     parameters:
-        visualizer.mediumVisualizer.displayCommunicationRanges = true;
+        visualizer.mediumVisualizer.displayCommunicationRanges = false;
         radioMedium.mediumLimitCache.maxTransmissionDuration = 20ms;
-        @display("bgb=182.41661,111.69078;scale=4");
+        radioMedium.backgroundNoise.power = default(-110dBm);
+        *.mac.candidateRelayContentionProbability = 0.5;
+        @display("bgb=778.1475,677.9825;scale=4");
     submodules:
         radioMedium: Ieee802154NarrowbandScalarRadioMedium {
             @display("p=18.343197,17.751482");
@@ -28,6 +30,7 @@ network ManyHopORWNetwork
             @display("p=81.656815,18.343197");
             networkRouteVisualizer.typename = "ORWRouteCanvasVisualizer";
             networkRouteVisualizer.displayRoutes = true;
+            networkRouteVisualizer.packetFilter = "appData*";
         }
         configurator: NextHopNetworkConfigurator {
             @display("p=141.42014,15.976333");
