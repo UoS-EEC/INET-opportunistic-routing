@@ -11,6 +11,7 @@
 
 #include "../linklayer/ORWGram_m.h"
 #include "linklayer/IOpportunisticLinkLayer.h"
+#include "linklayer/ILinkOverhearingSource.h"
 #include "common/oppDefs.h"
 #include "common/EqDCTag_m.h"
 
@@ -26,9 +27,9 @@ simsignal_t ORWRoutingTable::sureNeighborsSignal = cComponent::registerSignal("s
 void ORWRoutingTable::initialize(int stage){
     if(stage == INITSTAGE_LOCAL){
         cModule* encountersModule = getCModuleFromPar(par("encountersSourceModule"), this);
-        encountersModule->subscribe(IOpportunisticLinkLayer::coincidentalEncounterSignal, this);
-        encountersModule->subscribe(IOpportunisticLinkLayer::expectedEncounterSignal, this);
-        encountersModule->subscribe(IOpportunisticLinkLayer::listenForEncountersEndedSignal, this);
+        encountersModule->subscribe(ILinkOverhearingSource::coincidentalEncounterSignal, this);
+        encountersModule->subscribe(ILinkOverhearingSource::expectedEncounterSignal, this);
+        encountersModule->subscribe(ILinkOverhearingSource::listenForEncountersEndedSignal, this);
 
         interfaceTable = inet::getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
 
@@ -68,12 +69,12 @@ void ORWRoutingTable::initialize(int stage){
 
 void ORWRoutingTable::receiveSignal(cComponent* source, simsignal_t signalID, double weight, cObject* details)
 {
-    if(signalID == IOpportunisticLinkLayer::coincidentalEncounterSignal || signalID == IOpportunisticLinkLayer::expectedEncounterSignal){
+    if(signalID == ILinkOverhearingSource::coincidentalEncounterSignal || signalID == ILinkOverhearingSource::expectedEncounterSignal){
         oppostack::EncounterDetails* encounterMacDetails = check_and_cast<oppostack::EncounterDetails*>(details);
         const L3Address inboundMacAddress = arp->getL3AddressFor(encounterMacDetails->getEncountered());
         updateEncounters(inboundMacAddress, encounterMacDetails->getCurrentEqDC(), weight);
     }
-    if(signalID == IOpportunisticLinkLayer::listenForEncountersEndedSignal || signalID == IOpportunisticLinkLayer::coincidentalEncounterSignal){
+    if(signalID == ILinkOverhearingSource::listenForEncountersEndedSignal || signalID == ILinkOverhearingSource::coincidentalEncounterSignal){
         increaseInteractionDenominator();
     }
 }

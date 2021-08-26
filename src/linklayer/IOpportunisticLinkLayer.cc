@@ -15,13 +15,6 @@ using namespace inet;
  */
 simsignal_t IOpportunisticLinkLayer::transmissionTriesSignal = cComponent::registerSignal("transmissionTries");
 simsignal_t IOpportunisticLinkLayer::ackContentionRoundsSignal = cComponent::registerSignal("ackContentionRounds");
-/**
- * Neighbor Update signals
- * Sent when information overheard from neighbors
- */
-simsignal_t IOpportunisticLinkLayer::expectedEncounterSignal = cComponent::registerSignal("expectedEncounter");
-simsignal_t IOpportunisticLinkLayer::coincidentalEncounterSignal = cComponent::registerSignal("coincidentalEncounter");
-simsignal_t IOpportunisticLinkLayer::listenForEncountersEndedSignal = cComponent::registerSignal("listenForEncountersEnded");
 
 INetfilter::IHook::Result IOpportunisticLinkLayer::datagramPreRoutingHook(Packet *datagram)
 {

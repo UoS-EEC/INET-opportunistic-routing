@@ -23,13 +23,6 @@ public:
      */
     static omnetpp::simsignal_t transmissionTriesSignal;
     static omnetpp::simsignal_t ackContentionRoundsSignal;
-
-    /**
-     * Neighbor Update signals definitions
-     */
-    static omnetpp::simsignal_t expectedEncounterSignal;
-    static omnetpp::simsignal_t coincidentalEncounterSignal;
-    static omnetpp::simsignal_t listenForEncountersEndedSignal;
 protected:
     // NetFilter functions:
     // @brief called before a inet::Packetarriving from the network is accepted/acked

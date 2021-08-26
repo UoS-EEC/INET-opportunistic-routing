@@ -10,6 +10,7 @@
 #include <inet/linklayer/contract/IMacProtocol.h>
 #include <inet/linklayer/base/MacProtocolBase.h>
 #include "IOpportunisticLinkLayer.h"
+#include "ILinkOverhearingSource.h"
 #include "IObservableMac.h"
 
 // Variables within class
@@ -29,6 +30,7 @@ class ORWMac:
         public inet::IMacProtocol,
         public inet::MacProtocolBase,
         public IOpportunisticLinkLayer,
+        public ILinkOverhearingSource,
         public IObservableMac {
 protected:
     /* @name In/Out Processing */
