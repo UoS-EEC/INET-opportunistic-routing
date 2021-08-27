@@ -121,7 +121,7 @@ protected:
     omnetpp::simtime_t dataListeningDuration{0};
     omnetpp::simtime_t ackWaitDuration{0};
     double candiateRelayContentionProbability = 0.7;
-    bool recheckDataPacketEqDC{true};
+    bool checkDataPacketEqDC{true};
     bool skipDirectTxFinalAck{false};
 
     /** @brief Calculated (in initialize) parameters */

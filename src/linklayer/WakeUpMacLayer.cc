@@ -47,8 +47,8 @@ void WakeUpMacLayer::initialize(int const stage) {
         wakeUpRadio = check_and_cast<IRadio *>(radioModule);
 
         // Retransmission reduction through data packet updating
-        recheckDataPacketEqDC = par("recheckDataPacketEqDC");
-        skipDirectTxFinalAck = recheckDataPacketEqDC && par("skipDirectTxFinalAck");
+        checkDataPacketEqDC = par("checkDataPacketEqDC");
+        skipDirectTxFinalAck = checkDataPacketEqDC && par("skipDirectTxFinalAck");
 
         // Validation
         auto dataReceiverModel = check_and_cast_nullable<const physicallayer::FlatReceiverBase*>(dataRadio->getReceiver());

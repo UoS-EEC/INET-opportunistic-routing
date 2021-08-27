@@ -20,7 +20,7 @@ network MacLinkTest
         radioMedium.mediumLimitCache.maxTransmissionDuration = 20ms;
         radioMedium.backgroundNoise.power = default(-110dBm);
         @display("bgb=147.92384,61.53135;scale=4");
-        *.wlan[0].mac.recheckDataPacketEqDC = false;
+        *.wlan[0].mac.checkDataPacketEqDC = false;
     submodules:
         radioMedium: Ieee802154NarrowbandScalarRadioMedium {
             @display("p=18.343197,17.751482");
