@@ -241,14 +241,14 @@ void ORWMac::stateReceiveDataWaitProcessDataReceived(cMessage * const msg) {
         // Check if the retransmitted packet still accepted
         // Packet will change if transmitter receives ack from the final destination
         // to improve the chances that only the data destination responds.
-        if(recheckDataPacketEqDC && datagramPreRoutingHook(incomingFrame) != INetfilter::IHook::ACCEPT){
+        if(checkDataPacketEqDC && datagramPreRoutingHook(incomingFrame) != INetfilter::IHook::ACCEPT){
             // New information in the data packet means do not accept data packet
             stateReceiveEnterFinishDropReceived(PacketDropReason::OTHER_PACKET_DROP);
         }
         else{
             // Begin random relay contention
             double relayDiceRoll = uniform(0,1);
-            bool destinationAckPersistance = recheckDataPacketEqDC && (acceptDataEqDCThreshold == EqDC(0.0) );
+            bool destinationAckPersistance = checkDataPacketEqDC && (acceptDataEqDCThreshold == EqDC(0.0) );
             if(destinationAckPersistance && skipDirectTxFinalAck){
                 // Received Direct Tx and so stop extra ack
                 // Send immediate wuTimeout to trigger MacEvent::WU_TIMEOUT
@@ -448,7 +448,7 @@ void ORWMac::stateTxAckWaitProcess(const MacEvent& event, cMessage * const msg) 
             // If acknowledging node is packet destination
             // Set MinExpectedCost to 0 for the next data packet
             // This stops nodes other than the destination participating
-            // if recheckDataPacketEqDC is enabled
+            // if checkDataPacketEqDC is enabled
             const inet::MacAddress ackSender = receivedAck->getTransmitterAddress();
             const inet::MacAddress packetDestination = currentTxFrame->getTag<MacAddressReq>()->getDestAddress();
             if (ackSender == packetDestination) {

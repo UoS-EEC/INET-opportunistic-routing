@@ -1,9 +1,7 @@
-/*
- * CSMATxBackoffBase.cpp
+/* Copyright (c) 2021, University of Southampton and Contributors.
+ * All rights reserved.
  *
- *  Created on: 11 Jun 2021
- *      Author: Edward
- */
+ * SPDX-License-Identifier: LGPL-2.0-or-later */
 
 #include "CSMATxBackoff.h"
 

@@ -1,9 +1,7 @@
-/*
- * Units.h
+/* Copyright (c) 2021, University of Southampton and Contributors.
+ * All rights reserved.
  *
- *  Created on: 18 Dec 2020
- *      Author: Edward
- */
+ * SPDX-License-Identifier: LGPL-2.0-or-later */
 
 #ifndef COMMON_UNITS_H_
 #define COMMON_UNITS_H_

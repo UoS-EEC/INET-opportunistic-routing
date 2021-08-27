@@ -1,9 +1,7 @@
-/*
- * OpportunisticLinkBase.cpp
+/* Copyright (c) 2021, University of Southampton and Contributors.
+ * All rights reserved.
  *
- *  Created on: 21 Jun 2021
- *      Author: Edward
- */
+ * SPDX-License-Identifier: LGPL-2.0-or-later */
 
 #include "IOpportunisticLinkLayer.h"
 
@@ -15,13 +13,6 @@ using namespace inet;
  */
 simsignal_t IOpportunisticLinkLayer::transmissionTriesSignal = cComponent::registerSignal("transmissionTries");
 simsignal_t IOpportunisticLinkLayer::ackContentionRoundsSignal = cComponent::registerSignal("ackContentionRounds");
-/**
- * Neighbor Update signals
- * Sent when information overheard from neighbors
- */
-simsignal_t IOpportunisticLinkLayer::expectedEncounterSignal = cComponent::registerSignal("expectedEncounter");
-simsignal_t IOpportunisticLinkLayer::coincidentalEncounterSignal = cComponent::registerSignal("coincidentalEncounter");
-simsignal_t IOpportunisticLinkLayer::listenForEncountersEndedSignal = cComponent::registerSignal("listenForEncountersEnded");
 
 INetfilter::IHook::Result IOpportunisticLinkLayer::datagramPreRoutingHook(Packet *datagram)
 {

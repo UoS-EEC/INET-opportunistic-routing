@@ -1,9 +1,7 @@
-/*
- * IOpportunisticLinkLayer.h
+/* Copyright (c) 2021, University of Southampton and Contributors.
+ * All rights reserved.
  *
- *  Created on: 21 Jun 2021
- *      Author: Edward
- */
+ * SPDX-License-Identifier: LGPL-2.0-or-later */
 
 #ifndef LINKLAYER_IOPPORTUNISTICLINKLAYER_H_
 #define LINKLAYER_IOPPORTUNISTICLINKLAYER_H_
@@ -23,13 +21,6 @@ public:
      */
     static omnetpp::simsignal_t transmissionTriesSignal;
     static omnetpp::simsignal_t ackContentionRoundsSignal;
-
-    /**
-     * Neighbor Update signals definitions
-     */
-    static omnetpp::simsignal_t expectedEncounterSignal;
-    static omnetpp::simsignal_t coincidentalEncounterSignal;
-    static omnetpp::simsignal_t listenForEncountersEndedSignal;
 protected:
     // NetFilter functions:
     // @brief called before a inet::Packetarriving from the network is accepted/acked

@@ -10,6 +10,7 @@
 #include <inet/linklayer/contract/IMacProtocol.h>
 #include <inet/linklayer/base/MacProtocolBase.h>
 #include "IOpportunisticLinkLayer.h"
+#include "ILinkOverhearingSource.h"
 #include "IObservableMac.h"
 
 // Variables within class
@@ -29,6 +30,7 @@ class ORWMac:
         public inet::IMacProtocol,
         public inet::MacProtocolBase,
         public IOpportunisticLinkLayer,
+        public ILinkOverhearingSource,
         public IObservableMac {
 protected:
     /* @name In/Out Processing */
@@ -121,7 +123,7 @@ protected:
     omnetpp::simtime_t dataListeningDuration{0};
     omnetpp::simtime_t ackWaitDuration{0};
     double candiateRelayContentionProbability = 0.7;
-    bool recheckDataPacketEqDC{true};
+    bool checkDataPacketEqDC{true};
     bool skipDirectTxFinalAck{false};
 
     /** @brief Calculated (in initialize) parameters */

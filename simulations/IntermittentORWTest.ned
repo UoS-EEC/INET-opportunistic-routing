@@ -24,73 +24,73 @@ network IntermittentORWTest
         radioMedium: Ieee802154NarrowbandScalarRadioMedium {
             @display("p=83.43197,77.51482");
         }
-        receivingWakeUpNode: ORWLayerNode {
+        receivingNode: ORWLayerNode {
             @display("p=441.5929,273.01802");
             wlan[0].mac.address = "0000DA7ABA5E";
-            generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
+            generic.*.hubAddress = "receivingNode(modulepath)";
             generic.*.hubExpectedCost = 0;
         }
         transmittingWakeUpNode: IntermittentORWNode {
             @display("p=280.34737,463.58093");
-            generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
+            generic.*.hubAddress = "receivingNode(modulepath)";
             generic.*.hubExpectedCost = 200ExpectedCost;
-            packetGenerator.destAddresses = "receivingWakeUpNode(modulepath)";
+            packetGenerator.destAddresses = "receivingNode(modulepath)";
             packetGenerator.startTime = 0.5s;
             energyGenerator.powerGeneration = 6mW;
             packetGenerator.sendInterval = 10s;
         }
         node1: IntermittentORWNode {
             @display("p=449.627,336.8679");
-            generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
+            generic.*.hubAddress = "receivingNode(modulepath)";
             generic.*.hubExpectedCost = 150ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node2: IntermittentORWNode {
             @display("p=386.2,353.78174");
-            generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
+            generic.*.hubAddress = "receivingNode(modulepath)";
             generic.*.hubExpectedCost = 150ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node3: IntermittentORWNode {
             @display("p=311.49708,309.66473");
-            generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
+            generic.*.hubAddress = "receivingNode(modulepath)";
             generic.*.hubExpectedCost = 150ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node4: IntermittentORWNode {
             @display("p=404.52335,391.83796");
-            generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
+            generic.*.hubAddress = "receivingNode(modulepath)";
             generic.*.hubExpectedCost = 150ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node5: IntermittentORWNode {
             @display("p=334.04892,418.61824");
-            generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
+            generic.*.hubAddress = "receivingNode(modulepath)";
             generic.*.hubExpectedCost = 150ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node6: IntermittentORWNode {
             @display("p=389.01897,473.58833");
-            generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
+            generic.*.hubAddress = "receivingNode(modulepath)";
             generic.*.hubExpectedCost = 150ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node7: IntermittentORWNode {
             @display("p=256.527,391.83796");
-            generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
+            generic.*.hubAddress = "receivingNode(modulepath)";
             generic.*.hubExpectedCost = 150ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
         }
         node8: IntermittentORWNode {
             @display("p=311.49708,506.0066");
-            generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
+            generic.*.hubAddress = "receivingNode(modulepath)";
             generic.*.hubExpectedCost = 150ExpectedCost;
             packetGenerator.destAddresses = "";
             packetGenerator.sendInterval = 5s;
