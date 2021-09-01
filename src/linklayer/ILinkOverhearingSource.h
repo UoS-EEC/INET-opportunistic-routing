@@ -5,8 +5,8 @@
 
 #include <omnetpp.h>
 
-#ifndef ILINKOVERHEARINGSOURCE_H_
-#define ILINKOVERHEARINGSOURCE_H_
+#ifndef LINKLAYER_ILINKOVERHEARINGSOURCE_H_
+#define LINKLAYER_ILINKOVERHEARINGSOURCE_H_
 
 namespace oppostack {
 
@@ -22,4 +22,4 @@ public:
 
 } /* namespace oppostack */
 
-#endif /* ILINKOVERHEARINGSOURCE_H_ */
+#endif /* LINKLAYER_ILINKOVERHEARINGSOURCE_H_ */

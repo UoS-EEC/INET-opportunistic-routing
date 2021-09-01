@@ -1,4 +1,10 @@
 /* Copyright (c) 2021, University of Southampton and Contributors.
+ * Some elements taken from (Ieee802154Mac authors Jerome Rousselot,
+ * Marcel Steine, Amre El-Hoiydi, Marc Loebbers, Yosia Hadisusanto)
+ * (C) 2007-2009 CSEM SA
+ * (C) 2009 T.U. Eindhoven
+ * (C) 2004 Telecommunication Networks Group (TKN) at
+ *              Technische Universitaet Berlin, Germany.
  * All rights reserved.
  *
  * SPDX-License-Identifier: LGPL-2.0-or-later */
@@ -115,7 +121,6 @@ void ORWMac::initialize(int stage) {
         dataCMod->subscribe(IRadio::receptionStateChangedSignal, this);
 
         // Initial state handled by handleStartOperation()
-
     }
 }
 

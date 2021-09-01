@@ -5,8 +5,8 @@
  * getCModuleFromPar modified from inet/common/ModuleAccess.h getModuleFromPar<T>
  */
 
-#ifndef OPPDEFS_H_
-#define OPPDEFS_H_
+#ifndef COMMON_OPPDEFS_H_
+#define COMMON_OPPDEFS_H_
 
 #include <omnetpp.h>
 
@@ -16,4 +16,4 @@ omnetpp::cModule* getCModuleFromPar(omnetpp::cPar& par, const omnetpp::cModule *
 
 } //namespace oppostack
 
-#endif /* OPPDEFS_H_ */
+#endif /* COMMON_OPPDEFS_H_ */

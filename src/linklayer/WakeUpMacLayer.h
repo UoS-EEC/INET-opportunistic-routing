@@ -1,23 +1,10 @@
-/************************
- * file:        WakeUpMacLayer.h
+/* Copyright (c) 2021, University of Southampton and Contributors.
+ * All rights reserved.
  *
- * author:      Edward Longman, (Ieee802154Mac authors Jerome Rousselot, Marcel Steine, Amre El-Hoiydi,
- *                Marc Loebbers, Yosia Hadisusanto)
- *
- * copyright:    (C) 2007-2009 CSEM SA
- *              (C) 2009 T.U. Eindhoven
- *                (C) 2004 Telecommunication Networks Group (TKN) at
- *              Technische Universitaet Berlin, Germany.
- *
- *              This program is free software; you can redistribute it
- *              and/or modify it under the terms of the GNU General Public
- *              License as published by the Free Software Foundation; either
- *              version 2 of the License, or (at your option) any later
- *              version.
- *
- */
-#ifndef __WAKEUPMAC_WAKEUPMACLAYER_H_
-#define __WAKEUPMAC_WAKEUPMACLAYER_H_
+ * SPDX-License-Identifier: LGPL-2.0-or-later */
+
+#ifndef LINKLAYER_WAKEUPMACLAYER_H_
+#define LINKLAYER_WAKEUPMACLAYER_H_
 
 #include <omnetpp.h>
 #include <inet/physicallayer/contract/packetlevel/IRadio.h>
@@ -114,4 +101,4 @@ protected:
 };
 } //namespace oppostack
 
-#endif
+#endif // ifdef LINKLAYER_WAKEUPMACLAYER_H_

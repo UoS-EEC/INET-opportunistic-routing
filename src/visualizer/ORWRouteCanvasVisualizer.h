@@ -3,8 +3,8 @@
  *
  * SPDX-License-Identifier: LGPL-2.0-or-later */
 
-#ifndef ORPLROUTECANVASVISUALIZER_H_
-#define ORPLROUTECANVASVISUALIZER_H_
+#ifndef ORWROUTECANVASVISUALIZER_H_
+#define ORWROUTECANVASVISUALIZER_H_
 
 #include <inet/visualizer/networklayer/NetworkRouteCanvasVisualizer.h>
 
@@ -21,4 +21,4 @@ protected:
 };
 
 } //namespace oppostack
-#endif /* ORPLROUTECANVASVISUALIZER_H_ */
+#endif /* ORWROUTECANVASVISUALIZER_H_ */
