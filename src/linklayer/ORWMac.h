@@ -182,7 +182,10 @@ protected:
     void decapsulate(inet::Packet* msg) const;
     inet::Packet* buildAck(const inet::Packet* subject) const;
     void dropCurrentRxFrame(inet::PacketDropDetails& details);
-    void handleCoincidentalOverheardData(inet::Packet* receivedData);
+    void emitEncounterFromWeightedPacket(omnetpp::simsignal_t signal, double weight, const inet::Packet* data);
+    void handleCoincidentalOverheardData(const inet::Packet* receivedData){
+        emitEncounterFromWeightedPacket(coincidentalEncounterSignal, 2.0, receivedData);
+    }
     void handleOverheardAckInDataReceiveState(const inet::Packet * const msg);
     void completePacketReception();
     /*@}*/

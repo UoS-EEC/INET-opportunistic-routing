@@ -366,13 +366,13 @@ void ORWMac::dropCurrentRxFrame(PacketDropDetails& details)
     currentRxFrame = nullptr;
 }
 
-void ORWMac::handleCoincidentalOverheardData(Packet* receivedData)
-{
-    auto receivedHeader = receivedData->peekAtFront<ORWGram>();
+void ORWMac::emitEncounterFromWeightedPacket(
+        omnetpp::simsignal_t signal, double weight, const inet::Packet *data) {
+    auto receivedHeader = data->peekAtFront<ORWGram>();
     EncounterDetails details;
     details.setEncountered(receivedHeader->getTransmitterAddress());
     details.setCurrentEqDC(receivedHeader->getExpectedCostInd());
-    emit(coincidentalEncounterSignal, 2.0, &details);
+    emit(signal, weight, &details);
 }
 
 void ORWMac::handleOverheardAckInDataReceiveState(const Packet * const msg){
@@ -381,11 +381,7 @@ void ORWMac::handleOverheardAckInDataReceiveState(const Packet * const msg){
     // Leave in current mac state which could be MacState::RECEIVE or S_ACK
     // Only count coincidental ack in the first round to reduce double counting
     if(rxAckRound<=1){
-        auto incomingMacData = msg->peekAtFront<ORWGram>();
-        EncounterDetails details;
-        details.setEncountered(incomingMacData->getTransmitterAddress());
-        details.setCurrentEqDC(incomingMacData->getExpectedCostInd());
-        emit(coincidentalEncounterSignal, 1.0, &details);
+        emitEncounterFromWeightedPacket(coincidentalEncounterSignal, 1.0, msg);
     }
 }
 
