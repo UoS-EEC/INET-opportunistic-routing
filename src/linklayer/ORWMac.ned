@@ -77,4 +77,7 @@ module ORWMac extends MacProtocolBase like IMacProtocol, IOpportunisticLinkLayer
                 packetCapacity = default(2);
                 @display("p=100,100;q=l2queue");
         }
+        monitor: MacEnergyMonitor {
+            @display("p=100,200");
+        }
 }

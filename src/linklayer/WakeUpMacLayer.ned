@@ -31,9 +31,4 @@ module WakeUpMacLayer extends ORWMac
     gates:
         input wakeUpRadioIn;
         output wakeUpRadioOut;
-    submodules:
-        monitor: MacEnergyMonitor {
-            @display("p=100,200");
-        }
-
 }

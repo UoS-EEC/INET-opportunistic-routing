@@ -20,6 +20,7 @@ void ORWMac::stateProcess(const MacEvent& event, cMessage * const msg) {
     case State::DATA_IDLE:
         if(event == MacEvent::DATA_RECEIVED){
             handleCoincidentalOverheardData(check_and_cast<Packet*>(msg)); // TODO: Should this be here, see WuMac::stateWakeUpIdleProcess()
+            emit(receptionStartedSignal, true);
             ret = stateReceiveEnter(); // TODO: Replace with startReception function (see ORWMac::stateAwaitTransmitProcess() )
             stateReceiveDataWaitProcessDataReceived(msg);// TODO: This may not work
         }
