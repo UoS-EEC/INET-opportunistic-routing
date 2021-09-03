@@ -3,8 +3,8 @@
  *
  * SPDX-License-Identifier: LGPL-2.0-or-later */
 
-#ifndef LINKLAYER_WUMACENERGYMONITOR_H_
-#define LINKLAYER_WUMACENERGYMONITOR_H_
+#ifndef LINKLAYER_MACENERGYMONITOR_H_
+#define LINKLAYER_MACENERGYMONITOR_H_
 
 #include <omnetpp.h>
 #include <inet/power/contract/IEpEnergyStorage.h>
@@ -14,22 +14,21 @@
 #include <inet/common/lifecycle/ModuleOperations.h>
 
 using namespace omnetpp;
-using namespace inet;
 namespace oppostack {
 
 /**
- * Receive Signals from WakeUpMac about starting and stopping of reception or transmission
+ * Receive Signals from IOberservableMac about starting and stopping of reception or transmission for energy monitoring
  * Implemented using Stop and Start operation to pause monitoring when interrupted due to node shutdown
  */
-class WuMacEnergyMonitor : public inet::OperationalBase, public inet::cListener
+class MacEnergyMonitor : public inet::OperationalBase, public inet::cListener
 {
 public:
-    WuMacEnergyMonitor():inet::OperationalBase(),
+    MacEnergyMonitor():inet::OperationalBase(),
     energyStorage(nullptr),
     macModule(nullptr){};
 
     static simsignal_t receptionConsumptionSignal;
-    static simsignal_t falseWakeUpConsumptionSignal;
+    static simsignal_t falseReceptionConsumptionSignal;
     static simsignal_t transmissionConsumptionSignal;
     static simsignal_t unknownConsumptionSignal;
   private:
@@ -67,4 +66,4 @@ public:
 
 } /* namespace oppostack */
 
-#endif /* LINKLAYER_WUMACENERGYMONITOR_H_ */
+#endif /* LINKLAYER_MACENERGYMONITOR_H_ */

@@ -8,9 +8,9 @@
 
 #include <inet/networklayer/contract/INetfilter.h>
 
+#include "linklayer/MacEnergyMonitor.h"
 #include "linklayer/ORWMac.h"
-#include "../networklayer/ORWRoutingTable.h"
-#include "linklayer/WuMacEnergyMonitor.h"
+#include "networklayer/ORWRoutingTable.h"
 #include "PacketConsumptionTag_m.h"
 
 
@@ -25,7 +25,7 @@ public:
     static simsignal_t packetReceivedEnergyConsumedSignal;
 protected:
     virtual void initialize() override;
-    WuMacEnergyMonitor* macEnergyMonitor;
+    MacEnergyMonitor* macEnergyMonitor;
     ORWRoutingTable* routingTable; // TODO: Replace with IRoutingTable
     ORWMac* macLayer;
 

@@ -32,7 +32,7 @@ module WakeUpMacLayer extends ORWMac
         input wakeUpRadioIn;
         output wakeUpRadioOut;
     submodules:
-        monitor: WuMacEnergyMonitor {
+        monitor: MacEnergyMonitor {
             @display("p=100,200");
         }
 

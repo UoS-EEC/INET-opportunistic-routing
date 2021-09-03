@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: LGPL-2.0-or-later */
 
 #include "WakeUpMacLayer.h"
-#include "WuMacEnergyMonitor.h"
-
 #include <omnetpp.h>
 #include <algorithm> // for min max
 #include <inet/common/ModuleAccess.h>
@@ -19,6 +17,7 @@
 #include "../networklayer/ORWRouting.h"
 #include "common/EqDCTag_m.h"
 #include "common/EncounterDetails_m.h"
+#include "MacEnergyMonitor.h"
 #include "ORWGram_m.h"
 
 using namespace inet;

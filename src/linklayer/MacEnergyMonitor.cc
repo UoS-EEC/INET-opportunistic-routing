@@ -7,25 +7,28 @@
 #include <inet/power/contract/IEpEnergyStorage.h>
 #include <inet/physicallayer/contract/packetlevel/IRadio.h>
 #include <inet/physicallayer/base/packetlevel/FlatTransmitterBase.h>
-#include "WuMacEnergyMonitor.h"
 #include "IObservableMac.h"
+#include "MacEnergyMonitor.h"
 #include "ORWGram_m.h"
 
 using namespace oppostack;
-Define_Module(WuMacEnergyMonitor);
+using namespace inet;
+Define_Module(MacEnergyMonitor);
 /**
  * Energy consumption statistics
  */
-simsignal_t WuMacEnergyMonitor::receptionConsumptionSignal = cComponent::registerSignal("receptionConsumption");
-simsignal_t WuMacEnergyMonitor::falseWakeUpConsumptionSignal = cComponent::registerSignal("falseWakeUpConsumption");
-simsignal_t WuMacEnergyMonitor::transmissionConsumptionSignal = cComponent::registerSignal("transmissionConsumption");
-simsignal_t WuMacEnergyMonitor::unknownConsumptionSignal = cComponent::registerSignal("unknownConsumption");
+simsignal_t MacEnergyMonitor::receptionConsumptionSignal = cComponent::registerSignal("receptionConsumption");
+simsignal_t MacEnergyMonitor::falseReceptionConsumptionSignal = cComponent::registerSignal("falseReceptionConsumption");
+simsignal_t MacEnergyMonitor::transmissionConsumptionSignal = cComponent::registerSignal("transmissionConsumption");
+simsignal_t MacEnergyMonitor::unknownConsumptionSignal = cComponent::registerSignal("unknownConsumption");
 
-void WuMacEnergyMonitor::initialize(int stage)
+void MacEnergyMonitor::initialize(int stage)
 {
     OperationalBase::initialize(stage);
     if (stage == INITSTAGE_LOCAL) {
         macModule = getParentModule();
+        // Check it is the correct type
+        check_and_cast<IObservableMac*>(macModule);
 
         cModule* storageModule = getCModuleFromPar(macModule->par("energyStorage"), macModule);
         energyStorage = check_and_cast<inet::power::IEpEnergyStorage*>(storageModule);
@@ -38,24 +41,24 @@ void WuMacEnergyMonitor::initialize(int stage)
     }
 }
 
-void WuMacEnergyMonitor::handleStartOperation(inet::LifecycleOperation* const operation)
+void MacEnergyMonitor::handleStartOperation(inet::LifecycleOperation* const operation)
 {
     if(inProgress!=SIMSIGNAL_NULL)resumeMonitoring();
 }
 
-void WuMacEnergyMonitor::resumeMonitoring()
+void MacEnergyMonitor::resumeMonitoring()
 {
     storedEnergyStartValue = energyStorage->getResidualEnergyCapacity();
     initialEnergyGeneration = energyStorage->getTotalPowerGeneration();
     storedEnergyStartTime = simTime();
 }
 
-void WuMacEnergyMonitor::handleStopOperation(inet::LifecycleOperation* const operation)
+void MacEnergyMonitor::handleStopOperation(inet::LifecycleOperation* const operation)
 {
     if(inProgress!=SIMSIGNAL_NULL)pauseMonitoring();
 }
 
-void WuMacEnergyMonitor::pauseMonitoring()
+void MacEnergyMonitor::pauseMonitoring()
 {
     pausedIntermediateConsumption = pausedIntermediateConsumption + calculateDeltaEnergyConsumption();
     storedEnergyStartValue = J(0);
@@ -63,7 +66,7 @@ void WuMacEnergyMonitor::pauseMonitoring()
     storedEnergyStartTime = 0;
 }
 
-void WuMacEnergyMonitor::startMonitoring(simsignal_t const startSignal)
+void MacEnergyMonitor::startMonitoring(simsignal_t const startSignal)
 {
     if(storedEnergyStartTime == 0 || storedEnergyStartValue != J(0) || initialEnergyGeneration == W(0)){
         // finish energy consumption monitoring was not called, catch and emit signal and warning
@@ -74,10 +77,10 @@ void WuMacEnergyMonitor::startMonitoring(simsignal_t const startSignal)
     resumeMonitoring();
 }
 
-void WuMacEnergyMonitor::finishMonitoring(simsignal_t const collectionSignal)
+void MacEnergyMonitor::finishMonitoring(simsignal_t const collectionSignal)
 {
     ASSERT(collectionSignal == receptionConsumptionSignal ||
-            collectionSignal == falseWakeUpConsumptionSignal ||
+            collectionSignal == falseReceptionConsumptionSignal ||
             collectionSignal == transmissionConsumptionSignal ||
             collectionSignal == unknownConsumptionSignal);
     // Calculate the energy consumed by approximating energy generation as average over consumption period
@@ -102,12 +105,12 @@ void WuMacEnergyMonitor::finishMonitoring(simsignal_t const collectionSignal)
 
 
 
-void WuMacEnergyMonitor::handleCrashOperation(inet::LifecycleOperation* const operation)
+void MacEnergyMonitor::handleCrashOperation(inet::LifecycleOperation* const operation)
 {
     finishMonitoring(SIMSIGNAL_NULL);
 }
 
-void WuMacEnergyMonitor::receiveSignal(cComponent* const source, simsignal_t const signalID, bool const b, cObject* const details)
+void MacEnergyMonitor::receiveSignal(cComponent* const source, simsignal_t const signalID, bool const b, cObject* const details)
 {
     if(inProgress == signalID){
         // Ignore as monitoring this mode already
@@ -119,7 +122,7 @@ void WuMacEnergyMonitor::receiveSignal(cComponent* const source, simsignal_t con
             finishMonitoring(receptionConsumptionSignal);
         }
         else{
-            finishMonitoring(falseWakeUpConsumptionSignal);
+            finishMonitoring(falseReceptionConsumptionSignal);
         }
     }
     else if(inProgress == IObservableMac::transmissionStartedSignal &&
@@ -136,7 +139,7 @@ void WuMacEnergyMonitor::receiveSignal(cComponent* const source, simsignal_t con
     }
 }
 
-const J WuMacEnergyMonitor::calculateDeltaEnergyConsumption() const
+const J MacEnergyMonitor::calculateDeltaEnergyConsumption() const
 {
     const J deltaEnergy = energyStorage->getResidualEnergyCapacity() - storedEnergyStartValue;
     const W averageGeneration = 0.5 * (energyStorage->getTotalPowerGeneration() + initialEnergyGeneration);
@@ -149,7 +152,7 @@ const J WuMacEnergyMonitor::calculateDeltaEnergyConsumption() const
     return calculatedConsumedEnergy;
 }
 
-const inet::J oppostack::WuMacEnergyMonitor::calcTxAndAckEstConsumption(inet::b packetLength) const
+const inet::J oppostack::MacEnergyMonitor::calcTxAndAckEstConsumption(inet::b packetLength) const
 {// TODO: Use MacEstimateCostProcess on InterfaceEntry
     using namespace inet;
     const simtime_t ackWait = macModule->par("ackWaitDuration");
@@ -175,7 +178,7 @@ const inet::J oppostack::WuMacEnergyMonitor::calcTxAndAckEstConsumption(inet::b 
     return E_TxAndAckLi;
 }
 
-bool oppostack::WuMacEnergyMonitor::isMatchingEndedSignal(const simsignal_t endedSignal)
+bool oppostack::MacEnergyMonitor::isMatchingEndedSignal(const simsignal_t endedSignal)
 {
     if(inProgress == IObservableMac::receptionStartedSignal &&
                 (endedSignal == IObservableMac::receptionEndedSignal || endedSignal == IObservableMac::receptionDroppedSignal) ){
