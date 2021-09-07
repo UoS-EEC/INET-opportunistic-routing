@@ -17,7 +17,7 @@ module ORWLayerNode extends NetworkLayerNodeBase
     parameters:
         @display("i=misc/receiving");
         numWlanInterfaces = 1;
-        wlan[0].typename = "WakeUpMacInterface";
+        wlan[0].typename = default("WakeUpMacInterface");
         mobility.typename = "StationaryMobility";
         hasStatus = true; // Needed for node UP/DOWN
         energyStorage.typename = "SimpleEpEnergyStorage";
