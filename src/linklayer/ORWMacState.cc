@@ -357,6 +357,11 @@ bool ORWMac::stateTxProcess(const MacEvent& event, cMessage* const msg) {
         if(event==MacEvent::TX_READY){
             stateTxDataWaitExitEnterAckWait();
         }
+        else if(event==MacEvent::DATA_RECEIVED){
+            handleCoincidentalOverheardData(check_and_cast<Packet*>(msg));
+            EV_WARN <<  "Discarding overheard data as busy transmitting" << endl;
+            delete msg;
+        }
         break;
     case TxDataState::DATA:
         if(event == MacEvent::TX_END){
@@ -457,7 +462,7 @@ void ORWMac::stateTxAckWaitProcess(const MacEvent& event, cMessage * const msg) 
         }
         else{
             handleCoincidentalOverheardData(receivedData);
-            EV_DEBUG <<  "Discarding overheard data as busy transmitting" << endl;
+            EV_WARN <<  "Discarding overheard data as busy transmitting" << endl;
             delete receivedData;
         }
     }

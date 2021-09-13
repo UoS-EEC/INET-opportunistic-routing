@@ -139,15 +139,18 @@ void ORWMac::cancelAllTimers() {
     cancelEvent(ackBackoffTimer);
     cancelEvent(receiveTimeout);
     cancelEvent(replenishmentTimer);
+    cancelEvent(transmitStartDelay);
 }
 
 void ORWMac::deleteAllTimers() {
     delete ackBackoffTimer;
     delete receiveTimeout;
     delete replenishmentTimer;
+    delete transmitStartDelay;
 }
 
 ORWMac::~ORWMac() {
+    delete currentRxFrame;
     cancelAllTimers();
     deleteAllTimers();
 }

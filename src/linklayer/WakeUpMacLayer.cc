@@ -316,21 +316,6 @@ WakeUpMacLayer::State WakeUpMacLayer::stateWakeUpProcess(const MacEvent& event, 
     return macState;
 }
 
-void WakeUpMacLayer::cancelAllTimers()
-{
-    ORWMac::cancelAllTimers();
-    cancelEvent(transmitStartDelay);
-}
-
-void WakeUpMacLayer::deleteAllTimers(){
-    delete transmitStartDelay;
-}
-
-WakeUpMacLayer::~WakeUpMacLayer() {
-    cancelAllTimers();
-    deleteAllTimers();
-}
-
 void WakeUpMacLayer::changeActiveRadio(physicallayer::IRadio* const newActiveRadio) {
     if(activeRadio != newActiveRadio){
         if(activeRadio)

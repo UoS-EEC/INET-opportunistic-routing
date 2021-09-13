@@ -31,7 +31,6 @@ class WakeUpMacLayer : public ORWMac
         wakeUpRadio(nullptr),
         activeRadio(nullptr)
       {}
-    ~WakeUpMacLayer();
     virtual void handleLowerPacket(Packet *packet) override;
     virtual void handleSelfMessage(cMessage *msg) override;
     using ORWMac::receiveSignal;
@@ -63,8 +62,6 @@ protected:
 
 
     virtual void initialize(int stage) override;
-    virtual void cancelAllTimers() override;
-    void deleteAllTimers();
     void changeActiveRadio(physicallayer::IRadio*);
     // Check if message comes from lower gate or wake-up radio
     virtual bool isLowerMessage(cMessage* msg) override{
