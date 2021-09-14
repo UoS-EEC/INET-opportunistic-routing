@@ -18,12 +18,12 @@ package oppostack.linklayer;
 //
 
 import inet.linklayer.contract.IWirelessInterface;
-import inet.networklayer.common.InterfaceEntry;
+import inet.networklayer.common.NetworkInterface;
 import inet.physicallayer.contract.packetlevel.IRadio;
 import inet.physicallayer.ieee802154.packetlevel.Ieee802154NarrowbandDimensionalRadio;
 import inet.physicallayer.ieee802154.packetlevel.Ieee802154NarrowbandRadio;
 
-module ORWMacInterface extends InterfaceEntry like IWirelessInterface
+module ORWMacInterface extends NetworkInterface like IWirelessInterface
 {
     parameters:
         @class(ORWMacInterface);

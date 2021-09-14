@@ -48,7 +48,7 @@ protected:
     int interactionDenominator = 0;
     oppostack::EqDC forwardingCostW = oppostack::EqDC(0.1);
     virtual void calculateInteractionProbability();
-    void configureInterface(inet::InterfaceEntry *ie);
+    void configureInterface(inet::NetworkInterface *ie);
     static omnetpp::simsignal_t updatedEqDCValueSignal;
     static omnetpp::simsignal_t vagueNeighborsSignal;
     static omnetpp::simsignal_t sureNeighborsSignal;

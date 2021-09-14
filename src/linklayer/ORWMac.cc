@@ -412,7 +412,7 @@ void ORWMac::handleStartOperation(LifecycleOperation *operation) {
     // complete unfinished reception
     completePacketReception();
     macState = stateListeningEnter();
-    interfaceEntry->setState(InterfaceEntry::State::UP);
+    interfaceEntry->setState(NetworkInterface::State::UP);
     interfaceEntry->setCarrier(true);
 }
 
@@ -450,5 +450,5 @@ void ORWMac::handleCrashOperation(LifecycleOperation* const operation) {
     }
     // Stop all signals from being interpreted
     interfaceEntry->setCarrier(false);
-    interfaceEntry->setState(InterfaceEntry::State::DOWN);
+    interfaceEntry->setState(NetworkInterface::State::DOWN);
 }

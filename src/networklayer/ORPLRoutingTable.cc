@@ -69,7 +69,7 @@ std::pair<const L3Address ,int > ORPLRoutingTable::getRoute(int k)
 EqDC ORPLRoutingTable::calculateUpwardsCost(const inet::L3Address destination) const
 {
     Enter_Method("ORPLRoutingTable::calculateUpwardsCost(address)");
-    const InterfaceEntry* interface = interfaceTable->findFirstNonLoopbackInterface();
+    const NetworkInterface* interface = interfaceTable->findFirstNonLoopbackInterface();
 
     if(interface->getNetworkAddress() == destination){
         return EqDC(0.0);
@@ -105,7 +105,7 @@ EqDC ORPLRoutingTable::calculateDownwardsCost(const inet::L3Address& destination
 
     const auto& immediateNeighbor = encountersTable.find(destination);
     const auto& downwardsSetNode = routingSetTable.find(destination);
-    const InterfaceEntry* interface = interfaceTable->findFirstNonLoopbackInterface();
+    const NetworkInterface* interface = interfaceTable->findFirstNonLoopbackInterface();
     if(interface->getNetworkAddress() == destination){
         return EqDC(0.0);
     }

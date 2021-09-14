@@ -153,7 +153,7 @@ const J MacEnergyMonitor::calculateDeltaEnergyConsumption() const
 }
 
 const inet::J oppostack::MacEnergyMonitor::calcTxAndAckEstConsumption(inet::b packetLength) const
-{// TODO: Use MacEstimateCostProcess on InterfaceEntry
+{// TODO: Use MacEstimateCostProcess on NetworkInterface
     using namespace inet;
     const simtime_t ackWait = macModule->par("ackWaitDuration");
     const cModule* dataRadio = macModule->getParentModule()->getSubmodule("dataRadio");

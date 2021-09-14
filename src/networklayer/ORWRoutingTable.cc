@@ -149,7 +149,7 @@ EqDC ORWRoutingTable::calculateUpwardsCost(const L3Address destination, EqDC& ne
 EqDC ORWRoutingTable::calculateUpwardsCost(const inet::L3Address destination) const
 {
     Enter_Method("ORWRoutingTable::calculateUpwardsCost(address)");
-    const InterfaceEntry* interface = interfaceTable->findFirstNonLoopbackInterface();
+    const NetworkInterface* interface = interfaceTable->findFirstNonLoopbackInterface();
     if(interface->getNetworkAddress() == destination){
         return EqDC(0.0);
     }
@@ -181,7 +181,7 @@ void ORWRoutingTable::calculateInteractionProbability()
     interactionDenominator = 0;
 }
 
-void ORWRoutingTable::configureInterface(inet::InterfaceEntry* ie)
+void ORWRoutingTable::configureInterface(inet::NetworkInterface* ie)
 {
     int interfaceModuleId = ie->getId();
     // mac

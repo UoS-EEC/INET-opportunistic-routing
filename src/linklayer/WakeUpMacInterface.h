@@ -6,10 +6,10 @@
 #ifndef LINKLAYER_WAKEUPMACINTERFACE_H_
 #define LINKLAYER_WAKEUPMACINTERFACE_H_
 
-#include <inet/networklayer/common/InterfaceEntry.h>
+#include <inet/networklayer/common/NetworkInterface.h>
 namespace oppostack{
 
-class WakeUpMacInterface : public inet::InterfaceEntry{
+class WakeUpMacInterface : public inet::NetworkInterface{
     // Stub class
 };
 

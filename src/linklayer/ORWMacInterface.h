@@ -6,10 +6,10 @@
 #ifndef LINKLAYER_ORWMACINTERFACE_H_
 #define LINKLAYER_ORWMACINTERFACE_H_
 
-#include <inet/networklayer/common/InterfaceEntry.h>
+#include <inet/networklayer/common/NetworkInterface.h>
 namespace oppostack{
 
-class ORWMacInterface : public inet::InterfaceEntry{
+class ORWMacInterface : public inet::NetworkInterface{
     // Stub class
 };
 
