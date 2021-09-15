@@ -126,7 +126,7 @@ void ORWHello::receiveSignal(cComponent* source, omnetpp::simsignal_t signalID, 
         auto pkt = new Packet("PacketLog");
         pkt->insertAtFront(packetRecord);
 
-        sentMessageQueue->pushPacket(pkt);
+        sentMessageQueue->enqueuePacket(pkt);
     }
 }
 

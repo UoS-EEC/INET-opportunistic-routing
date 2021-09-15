@@ -9,7 +9,7 @@
 #define LINKLAYER_CSMATXBACKOFF_H_
 
 #include <omnetpp.h>
-#include <inet/physicallayer/contract/packetlevel/IRadio.h>
+#include <inet/physicallayer/wireless/common/contract/packetlevel/IRadio.h>
 #include <inet/power/contract/IEpEnergyStorage.h>
 
 using namespace omnetpp;

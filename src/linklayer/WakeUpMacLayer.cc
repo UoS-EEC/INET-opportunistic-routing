@@ -12,7 +12,7 @@
 #include <inet/linklayer/common/InterfaceTag_m.h>
 #include <inet/linklayer/common/MacAddressTag_m.h>
 #include <inet/common/packet/chunk/Chunk.h>
-#include <inet/physicallayer/base/packetlevel/FlatReceiverBase.h>
+#include <inet/physicallayer/wireless/common/base/packetlevel/FlatReceiverBase.h>
 
 #include "../networklayer/ORWRouting.h"
 #include "common/EqDCTag_m.h"

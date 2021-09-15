@@ -19,11 +19,11 @@ using namespace inet::units::values;
 class PacketConsumptionTag extends inet::TagBase {
     omnetpp::cComponent* source[];
     oppostack::EqDC estimatedCost[];
-    inet::J energyConsumed[];
+    J energyConsumed[];
 }
 
 class HopConsumptionTag extends inet::TagBase {
     omnetpp::cComponent* source;
     oppostack::EqDC estimatedCost;
-    inet::J energyConsumed;
+    J energyConsumed;
 }

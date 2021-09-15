@@ -7,7 +7,7 @@
 #define LINKLAYER_WAKEUPMACLAYER_H_
 
 #include <omnetpp.h>
-#include <inet/physicallayer/contract/packetlevel/IRadio.h>
+#include <inet/physicallayer/wireless/common/contract/packetlevel/IRadio.h>
 #include <inet/common/Protocol.h>
 
 #include "../networklayer/ORWRouting.h"

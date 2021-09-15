@@ -5,8 +5,8 @@
 
 #include "common/oppDefs.h"
 #include <inet/power/contract/IEpEnergyStorage.h>
-#include <inet/physicallayer/contract/packetlevel/IRadio.h>
-#include <inet/physicallayer/base/packetlevel/FlatTransmitterBase.h>
+#include <inet/physicallayer/wireless/common/contract/packetlevel/IRadio.h>
+#include <inet/physicallayer/wireless/common/base/packetlevel/FlatTransmitterBase.h>
 #include "IObservableMac.h"
 #include "MacEnergyMonitor.h"
 #include "ORWGram_m.h"

@@ -37,7 +37,7 @@ public:
     virtual inet::INetfilter::IHook::Result datagramLocalOutHook(inet::Packet *datagram) override;
     void reportReception(EqDC estCost, inet::J energyConsumed);
 private:
-    void accumulateHopTagToRoute(HopConsumptionTag* tag, PacketConsumptionTag* packetTag) const;
+    void accumulateHopTagToRoute(inet::Ptr<HopConsumptionTag> tag, inet::Ptr<PacketConsumptionTag> packetTag) const;
 };
 
 } /* namespace oppostack */

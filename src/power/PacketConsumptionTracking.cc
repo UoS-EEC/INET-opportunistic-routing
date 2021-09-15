@@ -30,7 +30,7 @@ void oppostack::PacketConsumptionTracking::reportReception(EqDC estCost, inet::J
     emit(packetReceivedEnergyConsumedSignal, energyConsumed.get());
 }
 
-void PacketConsumptionTracking::accumulateHopTagToRoute(HopConsumptionTag* const hopTag, PacketConsumptionTag* const packetTag) const
+void PacketConsumptionTracking::accumulateHopTagToRoute(Ptr<HopConsumptionTag> const hopTag, Ptr<PacketConsumptionTag> const packetTag) const
 {
     // Tag must exist from sender module
     J receiverEnergy = macEnergyMonitor->calculateDeltaEnergyConsumption() + hopTag->getEnergyConsumed();

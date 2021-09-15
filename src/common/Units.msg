@@ -6,7 +6,11 @@
 cplusplus {{
 #include "Units.h"
 #include "inet/common/Units.h"
+
+using namespace inet::units::values;
 }}
+
+class J    { @existingClass; @primitive; @fromString(J(string2double($)));    @toString(unit2string($)); @defaultValue(J(NaN)); }
 
 namespace oppostack;
 
@@ -22,5 +26,3 @@ class EqDC
     @opaque;
     @toString(.str());
 }
-
-class inet::J    { @existingClass; @primitive; @fromString(inet::J(string2double($)));    @toString(unit2string($)); @defaultValue(inet::J(NaN)); }

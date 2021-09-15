@@ -21,7 +21,7 @@
 
 // Variables within class
 #include <inet/power/contract/IEpEnergyStorage.h>
-#include <inet/physicallayer/contract/packetlevel/IRadio.h>
+#include <inet/physicallayer/wireless/common/contract/packetlevel/IRadio.h>
 #include <inet/common/lifecycle/LifecycleController.h>
 #include "CSMATxBackoff.h"
 #include "ORWGram_m.h"
@@ -144,7 +144,7 @@ protected:
     inet::power::IEpEnergyStorage* energyStorage{nullptr};
 
     virtual void initialize(int stage) override;
-    virtual void configureInterfaceEntry() override;
+    virtual void configureNetworkInterface() override;
     virtual void cancelAllTimers();
     void deleteAllTimers();
     ~ORWMac();

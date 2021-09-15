@@ -6,7 +6,7 @@
 #ifndef ORWROUTECANVASVISUALIZER_H_
 #define ORWROUTECANVASVISUALIZER_H_
 
-#include <inet/visualizer/networklayer/NetworkRouteCanvasVisualizer.h>
+#include <inet/visualizer/canvas/networklayer/NetworkRouteCanvasVisualizer.h>
 
 namespace oppostack{
 

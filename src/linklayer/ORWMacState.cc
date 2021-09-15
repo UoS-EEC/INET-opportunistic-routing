@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: LGPL-2.0-or-later */
 
 #include "ORWMac.h"
-#include <inet/physicallayer/contract/packetlevel/IRadio.h>
+#include <inet/physicallayer/wireless/common/contract/packetlevel/IRadio.h>
 #include <inet/linklayer/common/MacAddressTag_m.h>
 #include "common/EqDCTag_m.h"
 #include "common/EncounterDetails_m.h"
@@ -444,7 +444,7 @@ void ORWMac::stateTxAckWaitProcess(const MacEvent& event, cMessage * const msg) 
         auto receivedData = check_and_cast<Packet* >(msg);
         auto receivedAck = receivedData->peekAtFront<ORWGram>();
         if(receivedAck->getType() == ORW_ACK &&
-                receivedAck->getReceiverAddress() == interfaceEntry->getMacAddress() ){
+                receivedAck->getReceiverAddress() == networkInterface->getMacAddress() ){
             emitEncounterFromWeightedPacket(expectedEncounterSignal, 0.8/acknowledgmentRound, receivedData);
 
             acknowledgedForwarders++;

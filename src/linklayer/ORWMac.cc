@@ -10,10 +10,10 @@
  * SPDX-License-Identifier: LGPL-2.0-or-later */
 
 #include "ORWMac.h"
-#include <inet/physicallayer/base/packetlevel/FlatTransmitterBase.h>
-#include <inet/physicallayer/contract/packetlevel/IRadioMedium.h>
-#include <inet/physicallayer/backgroundnoise/IsotropicScalarBackgroundNoise.h>
-#include <inet/physicallayer/base/packetlevel/FlatReceiverBase.h>
+#include <inet/physicallayer/wireless/common/base/packetlevel/FlatTransmitterBase.h>
+#include <inet/physicallayer/wireless/common/contract/packetlevel/IRadioMedium.h>
+#include <inet/physicallayer/wireless/common/backgroundnoise/IsotropicScalarBackgroundNoise.h>
+#include <inet/physicallayer/wireless/common/base/packetlevel/FlatReceiverBase.h>
 #include <inet/common/ModuleAccess.h>
 #include <inet/linklayer/common/InterfaceTag_m.h>
 #include <inet/linklayer/common/MacAddressTag_m.h>
@@ -124,15 +124,15 @@ void ORWMac::initialize(int stage) {
     }
 }
 
-void ORWMac::configureInterfaceEntry() {
+void ORWMac::configureNetworkInterface() {
     // generate a link-layer address to be used as interface token for IPv6
     auto lengthPrototype = makeShared<ORWDatagram>();
     const B interfaceMtu = phyMtu-B(lengthPrototype->getChunkLength());
     ASSERT2(interfaceMtu >= B(80), "The interface MTU available to the net layer is too small (under 80 bytes)");
-    interfaceEntry->setMtu(interfaceMtu.get());
-    interfaceEntry->setMulticast(true);
-    interfaceEntry->setBroadcast(true);
-    interfaceEntry->setPointToPoint(false);
+    networkInterface->setMtu(interfaceMtu.get());
+    networkInterface->setMulticast(true);
+    networkInterface->setBroadcast(true);
+    networkInterface->setPointToPoint(false);
 }
 
 void ORWMac::cancelAllTimers() {
@@ -163,7 +163,7 @@ void ORWMac::handleUpperPacket(Packet* const packet) {
     if(addressRequest->getDestAddress() == MacAddress::UNSPECIFIED_ADDRESS){
         addressRequest->setDestAddress(MacAddress::BROADCAST_ADDRESS);
     }
-    txQueue->pushPacket(packet);
+    txQueue->enqueuePacket(packet);
     stateProcess(MacEvent::QUEUE_SEND, packet);
 }
 
@@ -298,7 +298,7 @@ void ORWMac::setBeaconFieldsFromTags(const Packet* subject,
     }
     wuHeader->setMinExpectedCost(minExpectedCost);
     wuHeader->setExpectedCostInd(equivalentDCInd->getEqDC());
-    wuHeader->setTransmitterAddress(interfaceEntry->getMacAddress());
+    wuHeader->setTransmitterAddress(networkInterface->getMacAddress());
     wuHeader->setReceiverAddress(subject->getTag<MacAddressReq>()->getDestAddress());
 }
 
@@ -339,7 +339,7 @@ void ORWMac::decapsulate(Packet* const pkt) const{ // From CsmaCaMac
     addressInd->setSrcAddress(macHeader->getTransmitterAddress());
     addressInd->setDestAddress(macHeader->getReceiverAddress());
     auto payloadProtocol = ProtocolGroup::ipprotocol.getProtocol(245);
-    pkt->addTagIfAbsent<InterfaceInd>()->setInterfaceId(interfaceEntry->getInterfaceId());
+    pkt->addTagIfAbsent<InterfaceInd>()->setInterfaceId(networkInterface->getInterfaceId());
     pkt->addTagIfAbsent<DispatchProtocolReq>()->setProtocol(payloadProtocol);
     pkt->addTagIfAbsent<PacketProtocolTag>()->setProtocol(payloadProtocol);
 }
@@ -347,7 +347,7 @@ void ORWMac::decapsulate(Packet* const pkt) const{ // From CsmaCaMac
 Packet* ORWMac::buildAck(const Packet* receivedFrame) const{
     auto receivedMacData = receivedFrame->peekAtFront<ORWGram>();
     auto ackPacket = makeShared<ORWAck>();
-    ackPacket->setTransmitterAddress(interfaceEntry->getMacAddress());
+    ackPacket->setTransmitterAddress(networkInterface->getMacAddress());
     ackPacket->setReceiverAddress(receivedMacData->getTransmitterAddress());
     // Look for EqDCInd tag to send info in response
     auto costIndTag = receivedFrame->findTag<EqDCInd>();
@@ -412,8 +412,8 @@ void ORWMac::handleStartOperation(LifecycleOperation *operation) {
     // complete unfinished reception
     completePacketReception();
     macState = stateListeningEnter();
-    interfaceEntry->setState(NetworkInterface::State::UP);
-    interfaceEntry->setCarrier(true);
+    networkInterface->setState(NetworkInterface::State::UP);
+    networkInterface->setCarrier(true);
 }
 
 void ORWMac::handleStopOperation(LifecycleOperation *operation) {
@@ -449,6 +449,6 @@ void ORWMac::handleCrashOperation(LifecycleOperation* const operation) {
         activeBackoff = nullptr;
     }
     // Stop all signals from being interpreted
-    interfaceEntry->setCarrier(false);
-    interfaceEntry->setState(NetworkInterface::State::DOWN);
+    networkInterface->setCarrier(false);
+    networkInterface->setState(NetworkInterface::State::DOWN);
 }
