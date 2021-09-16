@@ -5,7 +5,7 @@
 
 package oppostack.visualizer;
 
-import inet.visualizer.networklayer.NetworkRouteCanvasVisualizer;
+import inet.visualizer.canvas.networklayer.NetworkRouteCanvasVisualizer;
 
 //
 // Routing visualizer that is compatible with ORWRouting modules

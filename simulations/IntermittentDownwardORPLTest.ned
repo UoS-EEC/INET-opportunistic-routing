@@ -7,10 +7,10 @@ package oppostack.simulations;
 
 import inet.networklayer.common.InterfaceTable;
 import inet.node.inet.AdhocHost;
-import inet.physicallayer.ieee802154.packetlevel.Ieee802154NarrowbandScalarRadioMedium;
+import inet.physicallayer.wireless.ieee802154.packetlevel.Ieee802154NarrowbandScalarRadioMedium;
 import oppostack.node.ORPLLayerNode;
 import oppostack.node.IntermittentORPLNode;
-import inet.visualizer.integrated.IntegratedCanvasVisualizer;
+import inet.visualizer.canvas.integrated.IntegratedCanvasVisualizer;
 import inet.networklayer.configurator.nexthop.NextHopNetworkConfigurator;
 
 network IntermittentDownwardORPLTest extends IntermittentDenseORPLTest
