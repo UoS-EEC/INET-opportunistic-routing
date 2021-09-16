@@ -28,7 +28,7 @@ network IntermittentDenseORPLTest
             @display("p=44.15929,27.301802");
             wlan[0].mac.address = "0000DA7ABA5E";
             generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
-            generic.*.hubExpectedCost = 0;
+            generic.*.hubExpectedCost = 0ExpectedCost;
         }
         transmittingWakeUpNode: IntermittentORPLNode {
             @display("p=28.034737,46.358093");

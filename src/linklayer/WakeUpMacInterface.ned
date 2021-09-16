@@ -32,8 +32,8 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
         string address = default("auto"); // MAC address as hex string (12 hex digits), or
                                           // "auto". "auto" values will be replaced by
                                           // a generated MAC address in init stage 0.
-        *.interfaceTableModule = default(absPath(interfaceTableModule));
-        *.energySourceModule = default(absPath(energySourceModule));
+        *.interfaceTableModule = default(absPath(this.interfaceTableModule));
+        *.energySourceModule = default(absPath(this.energySourceModule));
         **.antenna.mobility.typename = "";
         @display("i=block/ifcard");
 

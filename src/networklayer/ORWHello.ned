@@ -21,7 +21,7 @@ module ORWHello extends IpvxTrafGen
         startTime @unit(s) = default(uniform(0s,200s)); // time of sending the first hello
         sendInterval @unit(s) = default(200s); // set minimum frequency to send packets (including from other layers
         protocol = 241; // value for IPv4, IPv6 protocol field, accepts only between 143 and 254
-        packetLength @unit(B) = 0; // packet length in bytes
+        packetLength @unit(B) = 0B; // packet length in bytes
         destAddresses = this.hubAddress; // list of destination addresses, separated by spaces
         
         string packetSignalSourceModule = default("^.np");
