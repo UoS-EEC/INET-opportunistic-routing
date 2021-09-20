@@ -10,9 +10,8 @@
 #include <inet/networklayer/common/L3AddressResolver.h>
 
 #include "../linklayer/ORWGram_m.h"
-#include "linklayer/IOpportunisticLinkLayer.h"
 #include "linklayer/ILinkOverhearingSource.h"
-#include "common/oppDefs.h"
+#include "linklayer/IOpportunisticLinkLayer.h"
 #include "common/EqDCTag_m.h"
 
 using namespace omnetpp;
@@ -25,27 +24,9 @@ simsignal_t ORWRoutingTable::vagueNeighborsSignal = cComponent::registerSignal("
 simsignal_t ORWRoutingTable::sureNeighborsSignal = cComponent::registerSignal("sureNeighbors");
 
 void ORWRoutingTable::initialize(int stage){
+    RoutingTableBase::initialize(stage);
     if(stage == INITSTAGE_LOCAL){
-        cModule* encountersModule = getCModuleFromPar(par("encountersSourceModule"), this);
-        encountersModule->subscribe(ILinkOverhearingSource::coincidentalEncounterSignal, this);
-        encountersModule->subscribe(ILinkOverhearingSource::expectedEncounterSignal, this);
-        encountersModule->subscribe(ILinkOverhearingSource::listenForEncountersEndedSignal, this);
-
-        interfaceTable = inet::getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
-
         arp = inet::getModuleFromPar<IArp>(par("arpModule"), this);
-
-        const char *addressTypeString = par("addressType");
-        if (!strcmp(addressTypeString, "mac"))
-            addressType = L3Address::MAC;
-        else if (!strcmp(addressTypeString, "modulepath"))
-            addressType = L3Address::MODULEPATH;
-        else if (!strcmp(addressTypeString, "moduleid"))
-            addressType = L3Address::MODULEID;
-        else
-            throw cRuntimeError("Unknown address type");
-
-        forwardingCostW = EqDC(par("forwardingCost"));
 
         probCalcEncountersThresholdMax = par("probCalcEncountersThresholdMax");
     }
@@ -181,20 +162,6 @@ void ORWRoutingTable::calculateInteractionProbability()
     interactionDenominator = 0;
 }
 
-void ORWRoutingTable::configureInterface(inet::InterfaceEntry* ie)
-{
-    int interfaceModuleId = ie->getId();
-    // mac
-    NextHopInterfaceData *d = ie->addProtocolData<NextHopInterfaceData>();
-    d->setMetric(1);
-    if (addressType == L3Address::MAC)
-        d->setAddress(ie->getMacAddress());
-    else if (ie && addressType == L3Address::MODULEPATH)
-        d->setAddress(ModulePathAddress(interfaceModuleId));
-    else if (ie && addressType == L3Address::MODULEID)
-        d->setAddress(ModuleIdAddress(interfaceModuleId));
-}
-
 void ORWRoutingTable::activateWarmUpRoutingData()
 {
     probCalcEncountersThreshold = std::min(probCalcEncountersThreshold * 2, probCalcEncountersThresholdMax);
@@ -245,11 +212,4 @@ INetfilter::IHook::Result ORWRoutingTable::datagramPreRoutingHook(Packet* datagr
         }
     }
     return IHook::Result::DROP;
-}
-
-inet::L3Address ORWRoutingTable::getRouterIdAsGeneric()
-{
-    Enter_Method_Silent("ORWRoutingTable::getRouterIdAsGeneric()");
-    // TODO: Cleaner way to get L3 Address?
-    return interfaceTable->findFirstNonLoopbackInterface()->getNetworkAddress();
 }
