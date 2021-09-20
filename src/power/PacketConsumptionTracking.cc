@@ -16,7 +16,7 @@ Define_Module(PacketConsumptionTracking);
 
 void PacketConsumptionTracking::initialize()
 {
-    routingTable = check_and_cast<ORWRoutingTable*>(getCModuleFromPar(par("routingTable"), this));
+    routingTable = check_and_cast<RoutingTableBase*>(getCModuleFromPar(par("routingTable"), this));
     macLayer = check_and_cast<ORWMac*>(getCModuleFromPar(par("wakeUpMacModule"),this));
     macEnergyMonitor = check_and_cast<MacEnergyMonitor*>(getCModuleFromPar(par("wakeUpMacMonitorModule"), this));
     macLayer->registerHook(0, this);

@@ -10,7 +10,7 @@
 
 #include "linklayer/MacEnergyMonitor.h"
 #include "linklayer/ORWMac.h"
-#include "networklayer/ORWRoutingTable.h"
+#include "networklayer/RoutingTableBase.h"
 #include "PacketConsumptionTag_m.h"
 
 
@@ -26,7 +26,7 @@ public:
 protected:
     virtual void initialize() override;
     MacEnergyMonitor* macEnergyMonitor;
-    ORWRoutingTable* routingTable; // TODO: Replace with IRoutingTable
+    RoutingTableBase* routingTable; // TODO: Replace with IRoutingTable
     ORWMac* macLayer;
 
 public:

@@ -17,5 +17,4 @@ simple RoutingTableBase like IOpportunisticRoutingTable
     string addressType @enum("mac","modulepath","moduleid") = default("modulepath");
     int hubExpectedCost @unit(ExpectedCost) = default(255ExpectedCost);
     double forwardingCost @unit(EqDC) = default(0EqDC); //TODO: Calculate based on actual effort required
-    string encountersSourceModule = default("^.^");
 }

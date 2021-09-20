@@ -61,6 +61,7 @@ network MacLinkTest
 //            wlan[0].radio.transmitter.power = 0.01W; // 15dBm
 //        }
         visualizer: IntegratedCanvasVisualizer {
+            dataLinkVisualizer.displayLinks = true;
             @display("p=81.656815,18.343197");
         }
         configurator: Ipv4NetworkConfigurator {

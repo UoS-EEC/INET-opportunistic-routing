@@ -8,20 +8,13 @@
 
 #include "RoutingTableBase.h"
 #include "linklayer/ILinkOverhearingSource.h"
-#include "common/oppDefs.h"
 
 using namespace omnetpp;
 using namespace inet;
 using namespace oppostack;
 
 void RoutingTableBase::initialize(int stage) {
-    if(stage == INITSTAGE_LOCAL){
-        cModule* encountersModule = getCModuleFromPar(par("encountersSourceModule"), this);
-        encountersModule->subscribe(ILinkOverhearingSource::coincidentalEncounterSignal, this);
-        encountersModule->subscribe(ILinkOverhearingSource::expectedEncounterSignal, this);
-        encountersModule->subscribe(ILinkOverhearingSource::listenForEncountersEndedSignal, this);
-
-        interfaceTable = inet::getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
+    if(stage == INITSTAGE_LOCAL){interfaceTable = inet::getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
 
         const char *addressTypeString = par("addressType");
         if (!strcmp(addressTypeString, "mac"))
@@ -64,4 +57,17 @@ void RoutingTableBase::configureInterface(InterfaceEntry *ie) {
 L3Address RoutingTableBase::getRouterIdAsGeneric() {
     Enter_Method_Silent("RoutingTableBase::getRouterIdAsGeneric()");
     return interfaceTable->findFirstNonLoopbackInterface()->getNetworkAddress();
+}
+
+EqDC RoutingTableBase::calculateUpwardsCost(const L3Address destination, EqDC& nextHopEqDC) const
+{
+    Enter_Method("RoutingTableBase::calculateUpwardsCost(address, ..)");
+
+    const EqDC estimatedCost = calculateUpwardsCost(destination);
+    nextHopEqDC = EqDC(25.5);
+    // Limit resolution and add own routing cost before reporting.
+    if(estimatedCost < EqDC(25.5)){
+        nextHopEqDC = ExpectedCost(estimatedCost - forwardingCostW);
+    }
+    return estimatedCost;
 }

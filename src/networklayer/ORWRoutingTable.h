@@ -18,15 +18,12 @@
 namespace oppostack{
 
 
-class ORWRoutingTable : public RoutingTableBase
-{
+class ORWRoutingTable : public RoutingTableBase, public omnetpp::cListener{
 public:
     virtual void initialize(int stage) override;
 protected:
     inet::IArp *arp{nullptr};
 
-
-    virtual int numInitStages() const override { return inet::NUM_INIT_STAGES; }
     virtual void receiveSignal(cComponent *source, omnetpp::simsignal_t signalID, double weight, cObject *details) override;
     void updateEncounters(const inet::L3Address address, const oppostack::EqDC cost, const double weight);
     class NeighborEntry{
@@ -51,9 +48,8 @@ protected:
     virtual void activateWarmUpRoutingData();
 
 public:
-    virtual oppostack::EqDC calculateUpwardsCost(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
-    virtual oppostack::EqDC calculateUpwardsCost(const inet::L3Address destination) const;
-
+    using RoutingTableBase::calculateUpwardsCost;
+    virtual oppostack::EqDC calculateUpwardsCost(const inet::L3Address destination) const override;
     virtual inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram) override;
 };
 

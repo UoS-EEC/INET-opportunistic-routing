@@ -15,6 +15,7 @@ parameters:
     string hubAddress = default("routingHub");
     string arpModule = default("^.arp");
     int probCalcEncountersThresholdMax = 100;
+    string encountersSourceModule = default("^.^");
     @signal[updatedEqDCValue](type = double);
     @signal[vagueNeighbors](type = long);
     @signal[sureNeighbors](type = long);

@@ -14,7 +14,6 @@
 #include <inet/common/packet/chunk/Chunk.h>
 #include <inet/physicallayer/base/packetlevel/FlatReceiverBase.h>
 
-#include "../networklayer/ORWRouting.h"
 #include "common/EqDCTag_m.h"
 #include "common/EncounterDetails_m.h"
 #include "MacEnergyMonitor.h"
