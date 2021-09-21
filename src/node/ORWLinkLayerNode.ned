@@ -17,7 +17,7 @@ module ORWLinkLayerNode extends LinkLayerNodeBase
 {
     parameters:
         numWlanInterfaces = 1;
-        wlan[0].typename = "ORWMacInterface";
+        wlan[0].typename = default("ORWMacInterface");
         mobility.typename = "StationaryMobility";
         hasStatus = true; // Needed for node UP/DOWN
         energyStorage.typename = "SimpleEpEnergyStorage";
@@ -38,7 +38,7 @@ module ORWLinkLayerNode extends LinkLayerNodeBase
             productionInterval = default(1s);
             packetData = 0x0F0F0F0FF0F0F0F0;
         }
-        fixedRouting: FixedCostRouting {
+        fixedRouting: FixedCostRouting{
             routingTableModule = "^.routingTable";
         }
         routingTable: FixedCostTable {
