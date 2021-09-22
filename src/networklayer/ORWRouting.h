@@ -25,9 +25,7 @@
 
 namespace oppostack{
 
-using namespace inet;
-
-extern const Protocol OpportunisticRouting;
+extern const inet::Protocol OpportunisticRouting;
 
 template <class T>
 class OrderedDropHeadQueue{
@@ -57,7 +55,7 @@ public:
     }
 };
 
-class ORWRouting : public NetworkProtocolBase, public INetworkProtocol{
+class ORWRouting : public inet::NetworkProtocolBase, public inet::INetworkProtocol{
 public:
     ORWRouting()
         : NetworkProtocolBase(),
@@ -75,12 +73,12 @@ protected:
     uint8_t initialTTL = 3; // Overwritten by NED
 
     ORWRoutingTable *routingTable; // TODO: Make IRoutingTable if features allow
-    IArp *arp;
+    inet::IArp *arp;
 
-    L3Address nodeAddress;
-    L3Address rootAddress;
+    inet::L3Address nodeAddress;
+    inet::L3Address rootAddress;
 
-    Packet* waitingPacket;
+    inet::Packet* waitingPacket;
     uint16_t sequenceNumber = 0;
 
     // Address and Sequence number record of packet received or sent
@@ -88,23 +86,23 @@ protected:
     bool messageKnown(const oppostack::PacketRecord record);
 
 
-    virtual void encapsulate(Packet* packet);
-    virtual void decapsulate(Packet* packet) const;
-    virtual void setDownControlInfo(Packet* packet, const MacAddress& macMulticast, const EqDC& routingCost, const EqDC& onwardCost) const;
+    virtual void encapsulate(inet::Packet* packet);
+    virtual void decapsulate(inet::Packet* packet) const;
+    virtual void setDownControlInfo(inet::Packet* packet, const inet::MacAddress& macMulticast, const EqDC& routingCost, const EqDC& onwardCost) const;
 
-    const Protocol& getProtocol() const override { return OpportunisticRouting; }
+    const inet::Protocol& getProtocol() const override { return OpportunisticRouting; }
 
     virtual inet::MacAddress getOutboundMacAddress(const inet::Packet* packet) const;
 
     virtual void handleSelfMessage(cMessage* msg) override;
-    virtual void handleUpperPacket(Packet* packet) override;
-    virtual void queueDelayed(Packet* const packet, const simtime_t delay);
-    virtual void dropPacket(Packet* packet, PacketDropDetails& details);
-    virtual void handleLowerPacket(Packet* packet) override;
+    virtual void handleUpperPacket(inet::Packet* packet) override;
+    virtual void queueDelayed(inet::Packet* const packet, const simtime_t delay);
+    virtual void dropPacket(inet::Packet* packet, PacketDropDetails& details);
+    virtual void handleLowerPacket(inet::Packet* packet) override;
 
-    virtual void handleStartOperation(LifecycleOperation* op) override;
-    virtual void handleStopOperation(LifecycleOperation* op) override;
-    virtual void handleCrashOperation(LifecycleOperation* op) override;
+    virtual void handleStartOperation(inet::LifecycleOperation* op) override;
+    virtual void handleStopOperation(inet::LifecycleOperation* op) override;
+    virtual void handleCrashOperation(inet::LifecycleOperation* op) override;
     virtual void forwardPacket(EqDC ownCost, EqDC nextHopCost, inet::Packet* const packet);
     void deduplicateAndDeliver(const inet::Ptr<const oppostack::OpportunisticRoutingHeader>& header,
             inet::Packet* const packet);

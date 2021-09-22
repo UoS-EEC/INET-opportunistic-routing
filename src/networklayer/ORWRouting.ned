@@ -17,7 +17,6 @@ simple ORWRouting extends NetworkProtocolBase like INetworkProtocol
         @class(ORWRouting);
         string arpModule = default("^.arp");
         string hubAddress = default("");
-        int hubExpectedCost @unit(ExpectedCost) = default(255ExpectedCost);
         string routingTableModule;
         int initialTTL = default(30);
         @statistic[packetDropNoRouteFound](title="packet drop: no route found"; source=packetDropReasonIsNoRouteFound(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);

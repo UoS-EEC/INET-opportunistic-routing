@@ -9,12 +9,15 @@ import inet.node.base.LinkLayerNodeBase;
 import inet.queueing.source.ActivePacketSource;
 import inet.queueing.sink.PassivePacketSink;
 
+import oppostack.networklayer.FixedCostTable;
+import oppostack.networklayer.FixedCostRouting;
+
 
 module ORWLinkLayerNode extends LinkLayerNodeBase
 {
     parameters:
         numWlanInterfaces = 1;
-        wlan[0].typename = "ORWMacInterface";
+        wlan[0].typename = default("ORWMacInterface");
         mobility.typename = "StationaryMobility";
         hasStatus = true; // Needed for node UP/DOWN
         energyStorage.typename = "SimpleEpEnergyStorage";
@@ -35,10 +38,18 @@ module ORWLinkLayerNode extends LinkLayerNodeBase
             productionInterval = default(1s);
             packetData = 0x0F0F0F0FF0F0F0F0;
         }
+        fixedRouting: FixedCostRouting{
+            routingTableModule = "^.routingTable";
+        }
+        routingTable: FixedCostTable {
+            forwardingCost = 0.2EqDC;
+        }
         packetNullSink: PassivePacketSink {
             @display("p=360.675,288.22498");
         }
     connections:
-        packetGenerator.out --> wlan[0].upperLayerIn;
-        packetNullSink.in <-- wlan[0].upperLayerOut;
+        packetGenerator.out --> fixedRouting.transportIn;
+        packetNullSink.in <-- fixedRouting.transportOut;
+        fixedRouting.queueOut -->  wlan[0].upperLayerIn;
+        fixedRouting.queueIn <-- wlan[0].upperLayerOut;
 }

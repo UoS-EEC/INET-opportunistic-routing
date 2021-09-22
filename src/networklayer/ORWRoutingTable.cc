@@ -10,10 +10,10 @@
 #include <inet/networklayer/common/L3AddressResolver.h>
 
 #include "../linklayer/ORWGram_m.h"
-#include "linklayer/IOpportunisticLinkLayer.h"
 #include "linklayer/ILinkOverhearingSource.h"
-#include "common/oppDefs.h"
+#include "linklayer/IOpportunisticLinkLayer.h"
 #include "common/EqDCTag_m.h"
+#include "common/oppDefs.h"
 
 using namespace omnetpp;
 using namespace inet;
@@ -25,40 +25,16 @@ simsignal_t ORWRoutingTable::vagueNeighborsSignal = cComponent::registerSignal("
 simsignal_t ORWRoutingTable::sureNeighborsSignal = cComponent::registerSignal("sureNeighbors");
 
 void ORWRoutingTable::initialize(int stage){
+    RoutingTableBase::initialize(stage);
     if(stage == INITSTAGE_LOCAL){
         cModule* encountersModule = getCModuleFromPar(par("encountersSourceModule"), this);
         encountersModule->subscribe(ILinkOverhearingSource::coincidentalEncounterSignal, this);
         encountersModule->subscribe(ILinkOverhearingSource::expectedEncounterSignal, this);
         encountersModule->subscribe(ILinkOverhearingSource::listenForEncountersEndedSignal, this);
 
-        interfaceTable = inet::getModuleFromPar<IInterfaceTable>(par("interfaceTableModule"), this);
-
         arp = inet::getModuleFromPar<IArp>(par("arpModule"), this);
 
-        const char *addressTypeString = par("addressType");
-        if (!strcmp(addressTypeString, "mac"))
-            addressType = L3Address::MAC;
-        else if (!strcmp(addressTypeString, "modulepath"))
-            addressType = L3Address::MODULEPATH;
-        else if (!strcmp(addressTypeString, "moduleid"))
-            addressType = L3Address::MODULEID;
-        else
-            throw cRuntimeError("Unknown address type");
-
-        forwardingCostW = EqDC(par("forwardingCost"));
-
         probCalcEncountersThresholdMax = par("probCalcEncountersThresholdMax");
-    }
-    else if(stage == INITSTAGE_LINK_LAYER){
-        for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i){
-            auto interfaceI = interfaceTable->getInterface(i);
-            configureInterface(interfaceI);
-            INetfilter* wakeUpMacFilter = dynamic_cast<INetfilter*>(interfaceI->getSubmodule("mac"));
-            if(wakeUpMacFilter)wakeUpMacFilter->registerHook(0, this);
-        }
-        if(netfilters.empty()){
-            throw cRuntimeError("No suitable Wake Up Mac found under: %s.mac", this->getFullPath().c_str());
-        }
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
         const char* rootParameter = par("hubAddress");
@@ -133,19 +109,6 @@ EqDC ORWRoutingTable::calculateCostToRoot() const
     return estimatedCostLessW;
 }
 
-
-EqDC ORWRoutingTable::calculateUpwardsCost(const L3Address destination, EqDC& nextHopEqDC) const
-{
-    Enter_Method("ORWRoutingTable::calculateUpwardsCost(address, ..)");
-
-    const EqDC estimatedCost = calculateUpwardsCost(destination);
-    nextHopEqDC = EqDC(25.5);
-    // Limit resolution and add own routing cost before reporting.
-    if(estimatedCost < EqDC(25.5)){
-        nextHopEqDC = ExpectedCost(estimatedCost - forwardingCostW);
-    }
-    return estimatedCost;
-}
 EqDC ORWRoutingTable::calculateUpwardsCost(const inet::L3Address destination) const
 {
     Enter_Method("ORWRoutingTable::calculateUpwardsCost(address)");
@@ -179,20 +142,6 @@ void ORWRoutingTable::calculateInteractionProbability()
     emit(vagueNeighborsSignal, vagueNeighbors);
     emit(sureNeighborsSignal, sureNeighbors);
     interactionDenominator = 0;
-}
-
-void ORWRoutingTable::configureInterface(inet::NetworkInterface* ie)
-{
-    int interfaceModuleId = ie->getId();
-    // mac
-    NextHopInterfaceData *d = ie->addProtocolData<NextHopInterfaceData>();
-    d->setMetric(1);
-    if (addressType == L3Address::MAC)
-        d->setAddress(ie->getMacAddress());
-    else if (ie && addressType == L3Address::MODULEPATH)
-        d->setAddress(ModulePathAddress(interfaceModuleId));
-    else if (ie && addressType == L3Address::MODULEID)
-        d->setAddress(ModuleIdAddress(interfaceModuleId));
 }
 
 void ORWRoutingTable::activateWarmUpRoutingData()
@@ -245,11 +194,4 @@ INetfilter::IHook::Result ORWRoutingTable::datagramPreRoutingHook(Packet* datagr
         }
     }
     return IHook::Result::DROP;
-}
-
-inet::L3Address ORWRoutingTable::getRouterIdAsGeneric()
-{
-    Enter_Method_Silent("ORWRoutingTable::getRouterIdAsGeneric()");
-    // TODO: Cleaner way to get L3 Address?
-    return interfaceTable->findFirstNonLoopbackInterface()->getNetworkAddress();
 }

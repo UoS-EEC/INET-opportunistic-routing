@@ -5,26 +5,17 @@
 
 package oppostack.networklayer;
 
-moduleinterface IOpportunisticRoutingTable
-{
-    @display("i=block/table");
-}
-
 //
 // Table of neighbor nodes and associated EqDC value for ORWRouting
 //
-simple ORWRoutingTable like IOpportunisticRoutingTable
+simple ORWRoutingTable extends RoutingTableBase 
 {
 parameters:
     @class(ORWRoutingTable);
-    string interfaceTableModule;   // The path to the InterfaceTable module
-    string addressType @enum("mac","modulepath","moduleid") = default("modulepath");
     string hubAddress = default("routingHub");
-    int hubExpectedCost @unit(ExpectedCost) = default(255ExpectedCost);
-    double forwardingCost @unit(EqDC) = default(0EqDC); //TODO: Calculate based on actual effort required
-    string encountersSourceModule = default("^.^");
     string arpModule = default("^.arp");
     int probCalcEncountersThresholdMax = 100;
+    string encountersSourceModule = default("^.^");
     @signal[updatedEqDCValue](type = double);
     @signal[vagueNeighbors](type = long);
     @signal[sureNeighbors](type = long);

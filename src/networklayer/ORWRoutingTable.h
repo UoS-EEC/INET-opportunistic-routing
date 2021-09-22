@@ -13,24 +13,17 @@
 #include <inet/networklayer/contract/IInterfaceTable.h>
 #include <inet/networklayer/contract/INetfilter.h>
 
-#include "common/Units.h"
+#include "RoutingTableBase.h"
 
 namespace oppostack{
 
 
-class ORWRoutingTable : public omnetpp::cSimpleModule, public inet::cListener, public inet::NetfilterBase::HookBase
-{
+class ORWRoutingTable : public RoutingTableBase, public omnetpp::cListener{
 public:
-    ORWRoutingTable():
-        arp(nullptr){};
     virtual void initialize(int stage) override;
 protected:
-    inet::IArp *arp;
-    inet::IInterfaceTable *interfaceTable;
-    inet::L3Address::AddressType addressType = inet::L3Address::NONE;
+    inet::IArp *arp{nullptr};
 
-
-    virtual int numInitStages() const override { return inet::NUM_INIT_STAGES; }
     virtual void receiveSignal(cComponent *source, omnetpp::simsignal_t signalID, double weight, cObject *details) override;
     void updateEncounters(const inet::L3Address address, const oppostack::EqDC cost, const double weight);
     class NeighborEntry{
@@ -46,9 +39,7 @@ protected:
     int probCalcEncountersThreshold = 20;
     int probCalcEncountersThresholdMax = 40;
     int interactionDenominator = 0;
-    oppostack::EqDC forwardingCostW = oppostack::EqDC(0.1);
     virtual void calculateInteractionProbability();
-    void configureInterface(inet::NetworkInterface *ie);
     static omnetpp::simsignal_t updatedEqDCValueSignal;
     static omnetpp::simsignal_t vagueNeighborsSignal;
     static omnetpp::simsignal_t sureNeighborsSignal;
@@ -57,16 +48,9 @@ protected:
     virtual void activateWarmUpRoutingData();
 
 public:
-    virtual oppostack::EqDC calculateUpwardsCost(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
-    virtual oppostack::EqDC calculateUpwardsCost(const inet::L3Address destination) const;
-    inet::L3Address getRouterIdAsGeneric();
-    // Hook to accept incoming requests
+    using RoutingTableBase::calculateUpwardsCost;
+    virtual oppostack::EqDC calculateUpwardsCost(const inet::L3Address destination) const override;
     virtual inet::INetfilter::IHook::Result datagramPreRoutingHook(inet::Packet *datagram) override;
-    virtual inet::INetfilter::IHook::Result datagramForwardHook(inet::Packet*) override{return IHook::Result::ACCEPT;};
-    virtual inet::INetfilter::IHook::Result datagramPostRoutingHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};
-    virtual inet::INetfilter::IHook::Result datagramLocalInHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};
-    virtual inet::INetfilter::IHook::Result datagramLocalOutHook(inet::Packet *datagram) override{return IHook::Result::ACCEPT;};
-    EqDC getForwardingCost(){return forwardingCostW;}
 };
 
 } //namespace oppostack
