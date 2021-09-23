@@ -26,7 +26,7 @@ void FixedCostRouting::initialize(int stage) {
     }
     else if (stage == INITSTAGE_NETWORK_CONFIGURATION){
         ProtocolGroup::ipprotocol.addProtocol(245, &OpportunisticRouting);
-        registerProtocol(Protocol::nextHopForwarding, gate("transportIn"), gate("queueIn"));
+        registerProtocol(Protocol::nextHopForwarding, gate("transportIn"), gate("transportOut"));
     }
 }
 void FixedCostRouting::setDownControlInfo(Packet *packet,
