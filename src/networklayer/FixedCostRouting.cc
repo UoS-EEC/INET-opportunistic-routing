@@ -52,7 +52,10 @@ void FixedCostRouting::handleLowerPacket(Packet *packet) {
     packet->addTagIfAbsent<L3AddressInd>()
             ->setSrcAddress(packet->getTag<MacAddressInd>()->getSrcAddress());
     packet->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&Protocol::nextHopForwarding);
-    sendUp(packet);
+    // KLUDGE from NetworkProtocolBase
+    EV_INFO << "Passing up to protocol " << Protocol::nextHopForwarding.getName() << "\n";
+                emit(packetSentToUpperSignal, packet);
+                send(packet, "transportOut");
 }
 
 const inet::Protocol& FixedCostRouting::getProtocol() const  {

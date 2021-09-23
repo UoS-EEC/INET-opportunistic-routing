@@ -52,6 +52,6 @@ module ORWLinkLayerNode extends LinkLayerNodeBase
     connections:
         packetGenerator.out --> fixedRouting.transportIn;
         packetNullSink.in <-- fixedRouting.transportOut;
-        fixedRouting.queueOut -->  wlan[0].upperLayerIn;
-        fixedRouting.queueIn <-- wlan[0].upperLayerOut;
+        fixedRouting.queueOut --> li.in++;
+        fixedRouting.queueIn <-- li.out++;
 }
