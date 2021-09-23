@@ -8,6 +8,7 @@ package oppostack.node;
 import inet.node.base.LinkLayerNodeBase;
 import inet.queueing.source.ActivePacketSource;
 import inet.queueing.sink.PassivePacketSink;
+import  inet.queueing.contract.IActivePacketSource;
 
 import oppostack.networklayer.FixedCostTable;
 import oppostack.networklayer.FixedCostRouting;
@@ -32,14 +33,15 @@ module ORWLinkLayerNode extends LinkLayerNodeBase
         wlan[*].dataRadio.antenna.mobilityModule = default("^.^.^.mobility");
         wlan[*].wakeUpRadio.antenna.mobilityModule = default("^.^.^.mobility");
     submodules:
-        packetGenerator: ActivePacketSource {
+        packetGenerator: <default("EmptyPacketSource")> like IActivePacketSource {
             @display("p=507.15,297.675");
             packetLength = 8b;
             productionInterval = default(1s);
             packetData = 0x0F0F0F0FF0F0F0F0;
         }
-        fixedRouting: FixedCostRouting{
+        fixedRouting: FixedCostRouting {
             routingTableModule = "^.routingTable";
+            @display("p=432.3077,525.38464");
         }
         routingTable: FixedCostTable {
             forwardingCost = 0.2EqDC;
