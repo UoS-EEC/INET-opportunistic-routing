@@ -324,6 +324,7 @@ void ORWMac::completePacketTransmission()
         emit(transmissionEndedSignal, true);
     }
     else if (txInProgressTries >= maxTxTries) {
+        emit(linkBrokenSignal, currentTxFrame);
         // not sufficient forwarders and retry limit reached and
         PacketDropDetails details;
         // This reason could also justifiably be LIFETIME_EXPIRED
