@@ -25,41 +25,23 @@ network MacLinkTest
         radioMedium: Ieee802154NarrowbandScalarRadioMedium {
             @display("p=18.343197,17.751482");
         }
-        receivingWakeUpNode: ORWLinkLayerNode {
+        receivingNode: ORWLinkLayerNode {
             @display("p=71.68298,45.578777");
             packetGenerator.productionInterval = 1000s;
             energyGenerator.powerGeneration = 5mW;
+            *.hubExpectedCost = default(100ExpectedCost);
         }
-        transmittingWakeUpNode: ORWLinkLayerNode {
+        transmittingNode: ORWLinkLayerNode {
             @display("p=62.774406,37.4989");
             energyGenerator.powerGeneration = 6.5mW;
+            *.hubExpectedCost = default(150ExpectedCost);
         }
-        overhearingWakeUpNode: ORWLinkLayerNode {
+        overhearingNode: ORWLinkLayerNode {
             @display("p=62.774406,50.758183");
             packetGenerator.productionInterval = 900s;
             energyGenerator.powerGeneration = 4.5mW;
+            *.hubExpectedCost = default(100ExpectedCost);
         }
-//        transmittingNode: AdhocHost {
-//            numApps = 1;
-//            app[0].typename = "UdpBasicApp";
-//            app[0].destAddresses = "receivingNode";
-//            app[0].destPort = 80;
-//            app[0].messageLength = 10B;
-//            app[0].sendInterval = 1s;
-//            @display("p=62.774406,37.4989");
-//            wlan[0].typename = "Ieee802154NarrowbandInterface";
-//            wlan[0].radio.centerFrequency = 868MHz;
-//            wlan[0].radio.transmitter.power = 0.01W; // 15dBm
-//        }
-//        receivingNode: AdhocHost {
-//            numApps = 1;
-//            app[0].typename = "UdpSink";
-//            app[0].localPort = 80;
-//            @display("p=62.774406,50.758183");
-//            wlan[0].typename = "Ieee802154NarrowbandInterface";
-//            wlan[0].radio.centerFrequency = 868MHz;
-//            wlan[0].radio.transmitter.power = 0.01W; // 15dBm
-//        }
         visualizer: IntegratedCanvasVisualizer {
             dataLinkVisualizer.displayLinks = true;
             @display("p=81.656815,18.343197");

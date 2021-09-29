@@ -48,10 +48,11 @@ void WakeUpMacLayer::initialize(int const stage) {
         checkDataPacketEqDC = par("checkDataPacketEqDC");
         skipDirectTxFinalAck = checkDataPacketEqDC && par("skipDirectTxFinalAck");
 
-        dyanmicWakeUpChecking = par("dynamicWakeUpChecking");
+        fixedWakeUpChecking = par("fixedWakeUpChecking");
+        dyanmicWakeUpChecking = fixedWakeUpChecking && par("dynamicWakeUpChecking");
 
         // Validation
-        if(dyanmicWakeUpChecking && not checkDataPacketEqDC)
+        if(not dyanmicWakeUpChecking && not checkDataPacketEqDC)
             throw cRuntimeError("Data packet checking must be enabled if dynamic wake up checking is not enabled");
 
         auto dataReceiverModel = check_and_cast_nullable<const physicallayer::FlatReceiverBase*>(dataRadio->getReceiver());
@@ -332,10 +333,10 @@ void WakeUpMacLayer::changeActiveRadio(physicallayer::IRadio* const newActiveRad
 
 void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
     const auto header = wakeUp->peekAtFront<ORWGram>();
-    if(header->getType()!=ORWGramType::ORW_BEACON){
+    if(fixedWakeUpChecking && header->getType()!=ORWGramType::ORW_BEACON){
         return;
     }
-    if(not dyanmicWakeUpChecking){
+    else if(not dyanmicWakeUpChecking){
         // Must wake and wait for data
         acceptDataEqDCThreshold = EqDC(25.5);
         // Approve wake-up request

@@ -23,6 +23,9 @@ module WakeUpMacLayer extends ORWMac
         double txWakeUpWaitDuration @unit(s) = default(0.0006 s); // Must be bigger than radio OFF -> idle
         double wuApproveResponseLimit @unit(s) = default(1000ns);
 
+		// Can node filter out non-wake-up messages
+		bool fixedWakeUpChecking = default(true);
+
         // When receiving wake-up can it respond to dynamic parameters?
         bool dynamicWakeUpChecking = default(false);
         // After receiving wake-up, check the data before sending ack and accepting
