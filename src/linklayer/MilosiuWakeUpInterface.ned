@@ -19,7 +19,7 @@ package oppostack.linklayer;
 // Wake up radio using comparator duty cycling to reduce power consumption
 // Minimum received signal strength increased by 1dB for SAW filter
 // Energy detection threshold reduced by 5dBm for up to 10 bit errors
-module MilosiuWuRx1 extends WakeUpMacInterface
+module MilosiuWakeUpInterface1 extends WakeUpMacInterface
 {
 	// 8.1kbps variation
     parameters:
@@ -33,7 +33,7 @@ module MilosiuWuRx1 extends WakeUpMacInterface
         wakeUpRadio.receiver.energyDetection = -87dBm;
 }
 
-module MilosiuWuRx2 extends WakeUpMacInterface
+module MilosiuWakeUpInterface2 extends WakeUpMacInterface
 {
 	// 1.024kbps variation
     parameters:
