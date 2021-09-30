@@ -242,7 +242,8 @@ void ORWMac::stateReceiveDataWaitProcessDataReceived(cMessage * const msg) {
         // Check if the retransmitted packet still accepted
         // Packet will change if transmitter receives ack from the final destination
         // to improve the chances that only the data destination responds.
-        if(checkDataPacketEqDC && datagramPreRoutingHook(incomingFrame) != INetfilter::IHook::ACCEPT){
+        if(datagramPreRoutingHook(incomingFrame) != INetfilter::IHook::ACCEPT
+                && checkDataPacketEqDC){
             // New information in the data packet means do not accept data packet
             stateReceiveEnterFinishDropReceived(PacketDropReason::OTHER_PACKET_DROP);
         }

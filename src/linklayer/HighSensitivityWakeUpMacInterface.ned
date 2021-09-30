@@ -29,5 +29,5 @@ module HighSensitivityWakeUpMacInterface extends WakeUpMacInterface
         wakeUpRadio.receiver.bitrate = 100kbps;
         wakeUpRadio.transmitter.bitrate = 100kbps;
         wakeUpRadio.receiver.sensitivity = default(-75dBm);
-        wakeUpRadio.receiver.sensitivity = default(-80dBm);
+        wakeUpRadio.receiver.energyDetection = default(-80dBm);
 }

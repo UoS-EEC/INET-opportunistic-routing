@@ -31,9 +31,11 @@ EqDC FixedCostTable::calculateUpwardsCost(
 
 inet::INetfilter::IHook::Result FixedCostTable::datagramPreRoutingHook(
         inet::Packet *datagram) {
+    // Close to ORWRouting::datagramPreRoutingHook
     auto header = datagram->peekAtFront<ORWGram>();
     const auto destAddr = header->getReceiverAddress();
 
+    EqDC upwardsCostToRoot = calculateUpwardsCost(destAddr);
     datagram->addTagIfAbsent<EqDCInd>()->setEqDC(ownCost + forwardingCostW);
     for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i){
         auto interfaceEntry = interfaceTable->getInterface(i);
@@ -42,8 +44,17 @@ inet::INetfilter::IHook::Result FixedCostTable::datagramPreRoutingHook(
             return IHook::Result::ACCEPT;
         }
     }
-    datagram->addTagIfAbsent<EqDCReq>()->setEqDC(ownCost);
-    return IHook::Result::ACCEPT;
+    const auto headerType = header->getType();
+    if(headerType==ORWGramType::ORW_BEACON ||
+            headerType==ORWGramType::ORW_DATA){
+        auto costHeader = datagram->peekAtFront<ORWBeacon>();
+        if(upwardsCostToRoot<=costHeader->getMinExpectedCost()){
+            datagram->addTagIfAbsent<EqDCReq>()->setEqDC(upwardsCostToRoot);
+            //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
+            return IHook::Result::ACCEPT;
+        }
+    }
+    return IHook::Result::DROP;
 }
 
 } /* namespace oppostack */
