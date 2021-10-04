@@ -22,6 +22,7 @@ module WakeUpMacLayer extends ORWMac
         string wakeUpRadioModule = default("^.wakeUpRadio");   // The path to the Wake up radio
         double txWakeUpWaitDuration @unit(s) = default(0.0006 s); // Must be bigger than radio OFF -> idle
         double wuApproveResponseLimit @unit(s) = default(1000ns);
+        double wakeUpMessageDuration @unit(s) = default(0ms); // If Fixed or no wake-up checking
 
 		// Can node filter out non-wake-up messages
 		bool fixedWakeUpChecking = default(true);
