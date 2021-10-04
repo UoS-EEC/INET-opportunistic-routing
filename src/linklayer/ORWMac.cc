@@ -132,7 +132,7 @@ void ORWMac::configureInterfaceEntry() {
     interfaceEntry->setMtu(interfaceMtu.get());
     interfaceEntry->setMulticast(true);
     interfaceEntry->setBroadcast(true);
-    interfaceEntry->setPointToPoint(false);
+    interfaceEntry->setPointToPoint(true);
 }
 
 void ORWMac::cancelAllTimers() {
@@ -163,6 +163,8 @@ void ORWMac::handleUpperPacket(Packet* const packet) {
     if(addressRequest->getDestAddress() == MacAddress::UNSPECIFIED_ADDRESS){
         addressRequest->setDestAddress(MacAddress::BROADCAST_ADDRESS);
     }
+    if(addressRequest->getDestAddress() == MacAddress::BROADCAST_ADDRESS)
+        packet->addTagIfAbsent<EqDCBroadcast>();
     txQueue->pushPacket(packet);
     stateProcess(MacEvent::QUEUE_SEND, packet);
 }
@@ -290,16 +292,20 @@ void ORWMac::setBeaconFieldsFromTags(const Packet* subject,
 {
     const auto equivalentDCTag = subject->findTag<EqDCReq>();
     const auto equivalentDCInd = subject->findTag<EqDCInd>();
+    const auto macAddressTag = subject->getTag<MacAddressReq>();
     // Default min is 255, can be updated when ack received from dest
     ExpectedCost minExpectedCost = dataMinExpectedCost;
-    if (equivalentDCTag != nullptr && equivalentDCTag->getEqDC() < minExpectedCost) {
+    if(equivalentDCTag == nullptr && macAddressTag->getDestAddress() != MacAddress::BROADCAST_ADDRESS){
+        minExpectedCost = EqDC(0);
+    }
+    else if (equivalentDCTag != nullptr && equivalentDCTag->getEqDC() < minExpectedCost) {
         minExpectedCost = equivalentDCTag->getEqDC();
         ASSERT(minExpectedCost >= ExpectedCost(0));
     }
     wuHeader->setMinExpectedCost(minExpectedCost);
     wuHeader->setExpectedCostInd(equivalentDCInd->getEqDC());
     wuHeader->setTransmitterAddress(interfaceEntry->getMacAddress());
-    wuHeader->setReceiverAddress(subject->getTag<MacAddressReq>()->getDestAddress());
+    wuHeader->setReceiverAddress(macAddressTag->getDestAddress());
 }
 
 void ORWMac::encapsulate(Packet* const pkt) const{ // From CsmaCaMac

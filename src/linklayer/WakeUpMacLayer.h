@@ -43,7 +43,7 @@ class WakeUpMacLayer : public ORWMac
     simtime_t wakeUpMessageDuration{0};
 
     bool fixedWakeUpChecking = false;
-    bool dyanmicWakeUpChecking = false;
+    bool dynamicWakeUpChecking = false;
 
     // TODO: Replace by type to represent accept, reject messages
     const int WAKEUP_APPROVE = 502;

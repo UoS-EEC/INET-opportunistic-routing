@@ -51,16 +51,14 @@ void WakeUpMacLayer::initialize(int const stage) {
         skipDirectTxFinalAck = checkDataPacketEqDC && par("skipDirectTxFinalAck");
 
         fixedWakeUpChecking = par("fixedWakeUpChecking");
-        dyanmicWakeUpChecking = fixedWakeUpChecking && par("dynamicWakeUpChecking");
-        if (not dyanmicWakeUpChecking){ // Use fixed wake-up duration specified by authors
-            wakeUpMessageDuration = par("wakeUpMessageDuration");
-        }
+        dynamicWakeUpChecking = fixedWakeUpChecking && par("dynamicWakeUpChecking");
+        wakeUpMessageDuration = par("wakeUpMessageDuration"); // Specify additional time for wake-up or entire time if not dynamic
 
         // Validation
-        if(not dyanmicWakeUpChecking && not checkDataPacketEqDC)
+        if(not dynamicWakeUpChecking && not checkDataPacketEqDC)
             throw cRuntimeError("Data packet checking must be enabled if dynamic wake-up checking is not enabled");
 
-        if(not dyanmicWakeUpChecking && wakeUpMessageDuration <= 0)
+        if(not dynamicWakeUpChecking && wakeUpMessageDuration <= 0)
             throw cRuntimeError("Wake Up message duration must be set if dynamic wake-up is not enabled");
 
 
@@ -345,7 +343,7 @@ void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
     if(fixedWakeUpChecking && header->getType()!=ORWGramType::ORW_BEACON){
         return;
     }
-    else if(not dyanmicWakeUpChecking){
+    else if(not dynamicWakeUpChecking){
         // Must wake and wait for data
         acceptDataEqDCThreshold = EqDC(25.5);
         // Approve wake-up request
@@ -365,10 +363,13 @@ void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
 Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount) const{
     auto wuHeader = makeShared<ORWBeacon>();
     setBeaconFieldsFromTags(subject, wuHeader);
-    if(not dyanmicWakeUpChecking){
+    if(wakeUpMessageDuration > 0){
         auto wuTransmitter = check_and_cast<const FlatTransmitterBase *>(wakeUpRadio->getTransmitter());
         const bps bitrate = wuTransmitter->getBitrate();
-        wuHeader->setChunkLength(bitrate*s(wakeUpMessageDuration.dbl()));
+        if(not dynamicWakeUpChecking)
+            wuHeader->setChunkLength(bitrate*s(wakeUpMessageDuration.dbl()));
+        else
+            wuHeader->addChunkLength(bitrate*s(wakeUpMessageDuration.dbl()));
     }
     auto frame = new Packet("wake-up", wuHeader);
     frame->addTag<PacketProtocolTag>()->setProtocol(&ORWProtocol);
