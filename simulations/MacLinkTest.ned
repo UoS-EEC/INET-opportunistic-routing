@@ -35,6 +35,7 @@ network MacLinkTest
             @display("p=62.774406,37.4989");
             energyGenerator.powerGeneration = 6.5mW;
             *.hubExpectedCost = default(150ExpectedCost);
+            packetGenerator.typename = "ActivePacketSource";
         }
         overhearingNode: ORWLinkLayerNode {
             @display("p=62.774406,50.758183");
