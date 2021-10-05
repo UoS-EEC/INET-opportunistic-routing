@@ -13,6 +13,7 @@
 #include <inet/linklayer/common/MacAddressTag_m.h>
 #include <inet/common/packet/chunk/Chunk.h>
 #include <inet/physicallayer/wireless/common/base/packetlevel/FlatReceiverBase.h>
+#include <inet/physicallayer/wireless/common/base/packetlevel/FlatTransmitterBase.h>
 
 #include "common/EqDCTag_m.h"
 #include "common/EncounterDetails_m.h"
@@ -22,6 +23,7 @@
 using namespace inet;
 using physicallayer::IRadio;
 using namespace oppostack;
+using physicallayer::FlatTransmitterBase;
 
 Define_Module(WakeUpMacLayer);
 
@@ -49,11 +51,16 @@ void WakeUpMacLayer::initialize(int const stage) {
         skipDirectTxFinalAck = checkDataPacketEqDC && par("skipDirectTxFinalAck");
 
         fixedWakeUpChecking = par("fixedWakeUpChecking");
-        dyanmicWakeUpChecking = fixedWakeUpChecking && par("dynamicWakeUpChecking");
+        dynamicWakeUpChecking = fixedWakeUpChecking && par("dynamicWakeUpChecking");
+        wakeUpMessageDuration = par("wakeUpMessageDuration"); // Specify additional time for wake-up or entire time if not dynamic
 
         // Validation
-        if(not dyanmicWakeUpChecking && not checkDataPacketEqDC)
-            throw cRuntimeError("Data packet checking must be enabled if dynamic wake up checking is not enabled");
+        if(not dynamicWakeUpChecking && not checkDataPacketEqDC)
+            throw cRuntimeError("Data packet checking must be enabled if dynamic wake-up checking is not enabled");
+
+        if(not dynamicWakeUpChecking && wakeUpMessageDuration <= 0)
+            throw cRuntimeError("Wake Up message duration must be set if dynamic wake-up is not enabled");
+
 
         auto dataReceiverModel = check_and_cast_nullable<const physicallayer::FlatReceiverBase*>(dataRadio->getReceiver());
         auto wakeUpReceiverModel = check_and_cast_nullable<const physicallayer::FlatReceiverBase*>(wakeUpRadio->getReceiver());
@@ -336,7 +343,7 @@ void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
     if(fixedWakeUpChecking && header->getType()!=ORWGramType::ORW_BEACON){
         return;
     }
-    else if(not dyanmicWakeUpChecking){
+    else if(not dynamicWakeUpChecking){
         // Must wake and wait for data
         acceptDataEqDCThreshold = EqDC(25.5);
         // Approve wake-up request
@@ -356,6 +363,14 @@ void WakeUpMacLayer::queryWakeupRequest(Packet* wakeUp) {
 Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount) const{
     auto wuHeader = makeShared<ORWBeacon>();
     setBeaconFieldsFromTags(subject, wuHeader);
+    if(wakeUpMessageDuration > 0){
+        auto wuTransmitter = check_and_cast<const FlatTransmitterBase *>(wakeUpRadio->getTransmitter());
+        const bps bitrate = wuTransmitter->getBitrate();
+        if(not dynamicWakeUpChecking)
+            wuHeader->setChunkLength(bitrate*s(wakeUpMessageDuration.dbl()));
+        else
+            wuHeader->addChunkLength(bitrate*s(wakeUpMessageDuration.dbl()));
+    }
     auto frame = new Packet("wake-up", wuHeader);
     frame->addTag<PacketProtocolTag>()->setProtocol(&ORWProtocol);
     return frame;

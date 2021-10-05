@@ -31,12 +31,13 @@ EqDC FixedCostTable::calculateUpwardsCost(
 
 inet::INetfilter::IHook::Result FixedCostTable::datagramPreRoutingHook(
         inet::Packet *datagram) {
-    // Close to ORWRouting::datagramPreRoutingHook
+    // Close to ORWRoutingTable::datagramPreRoutingHook
     auto header = datagram->peekAtFront<ORWGram>();
     const auto destAddr = header->getReceiverAddress();
 
     EqDC upwardsCostToRoot = calculateUpwardsCost(destAddr);
     datagram->addTagIfAbsent<EqDCInd>()->setEqDC(ownCost + forwardingCostW);
+
     for (int i = 0; i < interfaceTable->getNumInterfaces(); ++i){
         auto interfaceEntry = interfaceTable->getInterface(i);
         if(destAddr == interfaceEntry->getMacAddress()){
@@ -48,7 +49,12 @@ inet::INetfilter::IHook::Result FixedCostTable::datagramPreRoutingHook(
     if(headerType==ORWGramType::ORW_BEACON ||
             headerType==ORWGramType::ORW_DATA){
         auto costHeader = datagram->peekAtFront<ORWBeacon>();
-        if(upwardsCostToRoot<=costHeader->getMinExpectedCost()){
+        if(destAddr == inet::MacAddress::BROADCAST_ADDRESS){
+            datagram->addTagIfAbsent<EqDCReq>()->setEqDC(EqDC(25.5));
+            //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
+            return IHook::Result::ACCEPT;
+        }
+        else if(upwardsCostToRoot<=costHeader->getMinExpectedCost()){
             datagram->addTagIfAbsent<EqDCReq>()->setEqDC(upwardsCostToRoot);
             //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
             return IHook::Result::ACCEPT;

@@ -38,10 +38,12 @@ class WakeUpMacLayer : public ORWMac
 
   protected:
     /** @brief User Configured parameters */
-    simtime_t txWakeUpWaitDuration = 0;
-    simtime_t wuApproveResponseLimit = 0;
+    simtime_t txWakeUpWaitDuration{0};
+    simtime_t wuApproveResponseLimit{0};
+    simtime_t wakeUpMessageDuration{0};
+
     bool fixedWakeUpChecking = false;
-    bool dyanmicWakeUpChecking = false;
+    bool dynamicWakeUpChecking = false;
 
     // TODO: Replace by type to represent accept, reject messages
     const int WAKEUP_APPROVE = 502;

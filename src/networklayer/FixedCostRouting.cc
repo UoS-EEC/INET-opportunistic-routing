@@ -38,13 +38,13 @@ void FixedCostRouting::setDownControlInfo(Packet *packet,
     packet->addTagIfAbsent<EqDCInd>()->setEqDC(costIndicator); // Indicate own routingCost for updating metric
     packet->addTagIfAbsent<PacketProtocolTag>()->setProtocol(&OpportunisticRouting);
     packet->addTagIfAbsent<DispatchProtocolInd>()->setProtocol(&OpportunisticRouting);
-
+    packet->addTagIfAbsent<MacAddressReq>()->setDestAddress(macMulticast);
 }
 
 void FixedCostRouting::handleUpperPacket(Packet *packet) {
     EqDC nextHopCost = EqDC(25.5);
-    EqDC ownCost = routingTable->calculateUpwardsCost(MacAddress::UNSPECIFIED_ADDRESS, nextHopCost);
-    setDownControlInfo(packet, MacAddress::UNSPECIFIED_ADDRESS, ownCost, nextHopCost);
+    EqDC ownCost = routingTable->calculateUpwardsCost(MacAddress::STP_MULTICAST_ADDRESS, nextHopCost);
+    setDownControlInfo(packet, MacAddress::STP_MULTICAST_ADDRESS, ownCost, nextHopCost);
     sendDown(packet);
 }
 
