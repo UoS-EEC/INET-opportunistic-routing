@@ -49,7 +49,7 @@ inet::INetfilter::IHook::Result FixedCostTable::datagramPreRoutingHook(
     if(headerType==ORWGramType::ORW_BEACON ||
             headerType==ORWGramType::ORW_DATA){
         auto costHeader = datagram->peekAtFront<ORWBeacon>();
-        if(destAddr == MacAddress::BROADCAST_ADDRESS){
+        if(destAddr == inet::MacAddress::BROADCAST_ADDRESS){
             datagram->addTagIfAbsent<EqDCReq>()->setEqDC(EqDC(25.5));
             //TODO: Check OpportunisticRoutingHeader for further forwarding confirmation
             return IHook::Result::ACCEPT;
