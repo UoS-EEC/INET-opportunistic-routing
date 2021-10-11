@@ -79,7 +79,7 @@ module WakeUpMacInterface extends InterfaceEntry like IWirelessInterface
             // @brief not useful at the moment {
             receiver.bitrate = default(10kbps); // 10.1109/WiMOB.2014.6962155
             // }(see computeIsListeningPossible and computeBitErrorRate)
-            transmitter.power = 0.0315W; // 15dBm
+            transmitter.power = default(0.0315W); // 15dBm
             transmitter.bitrate = default(10kbps);
             // @brief not useful at the moment {
             transmitter.modulation = "BPSK"; //Closest Inet match to 4-GFSK
