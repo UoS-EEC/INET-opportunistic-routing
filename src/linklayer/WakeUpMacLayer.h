@@ -54,7 +54,6 @@ protected:
         IDLE, // WuRx listening
         APPROVE_WAIT, // Wait for approval for wake-up (call to net layer)
         DATA_RADIO_WAIT, // Wait for the data radio to start
-        ABORT // Shutdown data radio and restart wake-up radio
     };
 
     int wakeUpRadioInGateId = -1;
