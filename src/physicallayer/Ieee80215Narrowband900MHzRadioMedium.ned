@@ -5,7 +5,7 @@
 
 package oppostack.physicallayer;
 
-import inet.physicallayer.wireless.common.medium.RadioMedium;
+import inet.physicallayer.common.packetlevel.RadioMedium;
 
 module Ieee802154Narrowband900MHzRadioMedium extends RadioMedium
 {
