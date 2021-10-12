@@ -45,6 +45,8 @@ module ORWMac extends MacProtocolBase like IMacProtocol, IOpportunisticLinkLayer
         int maxTxTries = default(4);
         
         // ORWMac retry signals and statistics
+        @signal[linkBroken](type=inet::Packet);
+        @statistic[linkBroken](title="link break"; source=linkBroken; record=count; interpolationmode=none);
         @signal[transmissionTries](type=long);
         @signal[ackContentionRounds](type=long);
         @statistic[transmissionTries](title="Number of Tries till packet discarded or received"; record=histogram,vector);
