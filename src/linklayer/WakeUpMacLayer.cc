@@ -265,8 +265,6 @@ bool WakeUpMacLayer::stateTxProcess(const MacEvent& event, cMessage* const msg) 
 
 void WakeUpMacLayer::stateWakeUpWaitEnter()
 {
-    changeActiveRadio(dataRadio);
-    dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
     emit(receptionStartedSignal, true);
 }
 
@@ -293,14 +291,14 @@ WakeUpMacLayer::State WakeUpMacLayer::stateWakeUpProcess(const MacEvent& event, 
     case WuWaitState::APPROVE_WAIT:
         if(event==MacEvent::WU_APPROVE){
             wuState = WuWaitState::DATA_RADIO_WAIT;
+            changeActiveRadio(dataRadio);
+            dataRadio->setRadioMode(IRadio::RADIO_MODE_SLEEP);
             cancelEvent(receiveTimeout);
             // Cancel transmit packet backoff till receive is done
             cancelEvent(transmitStartDelay); // TODO: What problem does this solve?
         }
         else if(event==MacEvent::DATA_TIMEOUT||event==MacEvent::WU_REJECT){
-            // Upper layer did not approve wake-up in time.
-            // Will abort the wake-up when radio mode switches
-            wuState = WuWaitState::ABORT;
+            return stateWakeUpWaitExitToListening();
         }
         else if(event==MacEvent::DATA_RX_IDLE||event==MacEvent::DATA_RX_READY){
             //Stop the timer if other event called it first
@@ -315,11 +313,6 @@ WakeUpMacLayer::State WakeUpMacLayer::stateWakeUpProcess(const MacEvent& event, 
             // data radio now listening
             wuState = WuWaitState::IDLE;
             return stateReceiveEnter();
-        }
-        break;
-    case WuWaitState::ABORT:
-        if(event==MacEvent::DATA_RX_IDLE||event==MacEvent::DATA_RX_READY){
-            return stateWakeUpWaitExitToListening();
         }
         break;
     default:
