@@ -263,6 +263,8 @@ void ORWRouting::handleStartOperation(LifecycleOperation *op) {
 }
 
 void ORWRouting::handleStopOperation(LifecycleOperation *op) {
+    if(nextForwardTimer == nullptr)
+        return;
     cancelEvent(nextForwardTimer);
 }
 
