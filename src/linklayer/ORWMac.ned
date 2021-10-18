@@ -37,7 +37,7 @@ module ORWMac extends MacProtocolBase like IMacProtocol, IOpportunisticLinkLayer
         string networkNode = default("^.^");
         
         // Protocol parameters
-        double transmissionStartMinEnergy @unit(J) = 0.004345J; // Don't start transmitting unless there is at least this in storage
+        double transmissionStartMinEnergy @unit(J) = default(0.0038J); // Don't start transmitting unless there is at least this in storage
         double radioTurnaroundTime @unit(s) = default(50us);
         double dataListeningDuration @unit(s) = default(0.0085 s); // How long to listen before data negotiation finished
         double ackWaitDuration @unit(s) = default(0.0024 s); // Must be bigger than radio Rx -> Tx

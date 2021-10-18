@@ -21,10 +21,10 @@ module ORWLayerNode extends NetworkLayerNodeBase
         mobility.typename = default("StationaryMobility");
         hasStatus = true; // Needed for node UP/DOWN
         energyStorage.typename = "SimpleEpEnergyStorage";
-        energyStorage.nominalCapacity = 0.045J;
+        energyStorage.nominalCapacity = default(0.045J);
         energyManagement.typename = "SimpleEpEnergyManagement";
-        energyManagement.nodeShutdownCapacity = 0.002J;
-        energyManagement.nodeStartCapacity = 0.006J;
+        energyManagement.nodeShutdownCapacity = default(0.002J);
+        energyManagement.nodeStartCapacity = default(0.004J);
         energyGenerator.typename = "AlternatingEpEnergyGenerator";
         energyGenerator.powerGeneration = default(20mW); // Abundant energy for now
         energyGenerator.generationInterval = 0.5s;
