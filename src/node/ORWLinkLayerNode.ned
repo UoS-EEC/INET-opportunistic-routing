@@ -25,7 +25,7 @@ module ORWLinkLayerNode extends LinkLayerNodeBase
         energyStorage.nominalCapacity = default(0.045J);
         energyManagement.typename = "SimpleEpEnergyManagement";
         energyManagement.nodeShutdownCapacity = default(0.002J);
-        energyManagement.nodeStartCapacity = default(0.006J);
+        energyManagement.nodeStartCapacity = default(0.004J);
         energyGenerator.typename = "AlternatingEpEnergyGenerator";
         energyGenerator.powerGeneration = default(20mW); // Abundant energy for now
         energyGenerator.generationInterval = default(0.5s);

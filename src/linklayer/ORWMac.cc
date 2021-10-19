@@ -136,6 +136,11 @@ void ORWMac::configureNetworkInterface() {
 }
 
 void ORWMac::cancelAllTimers() {
+    if (ackBackoffTimer == nullptr
+            && receiveTimeout == nullptr
+            && replenishmentTimer == nullptr
+            && transmitStartDelay == nullptr)
+        return;
     cancelEvent(ackBackoffTimer);
     cancelEvent(receiveTimeout);
     cancelEvent(replenishmentTimer);
