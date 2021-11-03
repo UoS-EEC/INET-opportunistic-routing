@@ -26,11 +26,14 @@ protected:
     oppostack::EqDC forwardingCostW = oppostack::EqDC(0.1);
 
     void configureInterface(inet::InterfaceEntry *ie);
+    virtual inet::Hz estAdvertismentRate();
+
 public:
     inet::L3Address getRouterIdAsGeneric();
 
     virtual oppostack::EqDC calculateUpwardsCost(const inet::L3Address destination, oppostack::EqDC& nextHopEqDC) const;
     virtual oppostack::EqDC calculateUpwardsCost(const inet::L3Address destination) const = 0;
+    virtual EqDC estimateEqDC(const inet::Hz expectedLoad, const inet::unit hopsToSink);
 
     // Hook to accept incoming requests
     using inet::NetfilterBase::HookBase::datagramPreRoutingHook;

@@ -14,6 +14,7 @@
 #include "linklayer/IOpportunisticLinkLayer.h"
 #include "common/EqDCTag_m.h"
 #include "common/oppDefs.h"
+#include "ORWHello.h"
 
 using namespace omnetpp;
 using namespace inet;
@@ -158,6 +159,13 @@ void ORWRoutingTable::increaseInteractionDenominator()
             || interactionDenominator > 2*probCalcEncountersThreshold){// KLUDGE of interaction denominator until hello messages are implemented
         activateWarmUpRoutingData();
     }
+}
+
+Hz ORWRoutingTable::estAdvertismentRate() {
+    auto helloModule = dynamic_cast<ORWHello*>(getModuleByPath("^.helloManager"));
+    auto helloInterval = s( helloModule->par("sendInterval").doubleValueInUnit("s") );
+    auto  helloRate = unit(1)/helloInterval;
+    return helloRate;
 }
 
 INetfilter::IHook::Result ORWRoutingTable::datagramPreRoutingHook(Packet* datagram)

@@ -7,10 +7,16 @@
 #define LINKLAYER_ORWMACINTERFACE_H_
 
 #include <inet/networklayer/common/InterfaceEntry.h>
-namespace oppostack{
+#include <inet/physicallayer/contract/packetlevel/IRadio.h>
 
+namespace oppostack{
+using inet::physicallayer::IRadio;
 class ORWMacInterface : public inet::InterfaceEntry{
-    // Stub class
+public:
+    virtual const IRadio* getInitiationRadio() const{
+        const cModule* mod = getModuleByPath(".dataRadio");
+        return dynamic_cast<const IRadio*>(mod);
+    }
 };
 
 } // namespace oppostack

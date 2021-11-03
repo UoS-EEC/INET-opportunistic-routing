@@ -12,6 +12,7 @@
 #include <inet/networklayer/contract/IArp.h>
 #include <inet/networklayer/contract/IInterfaceTable.h>
 #include <inet/networklayer/contract/INetfilter.h>
+#include <inet/common/Units.h>
 
 #include "RoutingTableBase.h"
 
@@ -46,6 +47,7 @@ protected:
     void increaseInteractionDenominator();
     EqDC calculateCostToRoot() const;
     virtual void activateWarmUpRoutingData();
+    virtual inet::Hz estAdvertismentRate() override;
 
 public:
     using RoutingTableBase::calculateUpwardsCost;

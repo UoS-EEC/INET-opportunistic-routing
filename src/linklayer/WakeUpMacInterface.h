@@ -6,11 +6,16 @@
 #ifndef LINKLAYER_WAKEUPMACINTERFACE_H_
 #define LINKLAYER_WAKEUPMACINTERFACE_H_
 
-#include <inet/networklayer/common/InterfaceEntry.h>
+#include "ORWMacInterface.h"
+
 namespace oppostack{
 
-class WakeUpMacInterface : public inet::InterfaceEntry{
-    // Stub class
+class WakeUpMacInterface : public ORWMacInterface{
+public:
+    virtual const IRadio* getInitiationRadio() const override{
+        const auto mod = getModuleByPath(".wakeUpRadio");
+        return dynamic_cast<const IRadio*>(mod);
+    }
 };
 
 } // namespace oppostack
