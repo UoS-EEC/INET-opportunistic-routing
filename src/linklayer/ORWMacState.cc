@@ -407,6 +407,8 @@ bool ORWMac::stateTxProcess(const MacEvent& event, cMessage* const msg) {
 ORWMac::State ORWMac::stateTxEnter()
 {
     dataMinExpectedCost = EqDC(25.5);
+    // Reset statistic variable counting ack rounds (from transmitter perspective)
+    acknowledgmentRound = 0;
     stateTxEnterDataWait();
     return State::TRANSMIT;
 }
@@ -434,6 +436,8 @@ void ORWMac::stateTxDataWaitExitEnterAckWait()
     if(datagramPostRoutingHook(dataFrame)!=INetfilter::IHook::Result::ACCEPT){
         EV_ERROR << "Aborted transmission of data is unimplemented." << endl;
     }
+
+    // Begin Transmission
     encapsulate(dataFrame);
     sendDown(dataFrame);
     txDataState = TxDataState::DATA;
