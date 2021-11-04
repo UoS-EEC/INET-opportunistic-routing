@@ -11,7 +11,7 @@ import inet.physicallayer.wireless.ieee802154.packetlevel.Ieee802154NarrowbandSc
 import oppostack.node.ORPLLayerNode;
 import oppostack.node.IntermittentORPLNode;
 import inet.visualizer.canvas.integrated.IntegratedCanvasVisualizer;
-import inet.networklayer.configurator.nexthop.NextHopNetworkConfigurator;
+import inet.networklayer.configurator.contract.INetworkConfigurator;
 
 network IntermittentDenseORPLTest
 {
@@ -19,6 +19,7 @@ network IntermittentDenseORPLTest
         visualizer.mediumVisualizer.displayCommunicationRanges = true;
         radioMedium.mediumLimitCache.maxTransmissionDuration = 20ms;
         radioMedium.backgroundNoise.power = default(-110dBm);
+        *.hubAddress = "receivingWakeUpNode";
         @display("bgb=78.790436,65.78085;scale=4");
     submodules:
         radioMedium: Ieee802154NarrowbandScalarRadioMedium {
@@ -100,7 +101,7 @@ network IntermittentDenseORPLTest
             networkRouteVisualizer.displayRoutes = true;
             networkRouteVisualizer.packetFilter = "appData*";
         }
-        configurator: NextHopNetworkConfigurator {
-            @display("p=141.42014,15.976333");
+        configurator: <default("ORWNetworkConfigurator")> like INetworkConfigurator {
+            @display("p=18.313334,30.886665");
         }
 }

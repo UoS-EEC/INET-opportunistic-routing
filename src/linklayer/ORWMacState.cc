@@ -66,6 +66,8 @@ ORWMac::State ORWMac::stateListeningEnterAlreadyListening(){
         // Schedule replenishment timer if insufficient stored energy
         if(!transmissionStartEnergyCheck())
             scheduleAt(simTime() + replenishmentCheckRate, replenishmentTimer);
+        else if (dataRadio->getRadioMode() != IRadio::RADIO_MODE_SWITCHING )
+            scheduleAt(simTime(), transmitStartDelay);
         return State::AWAIT_TRANSMIT;
     }
     else{
@@ -117,7 +119,26 @@ bool ORWMac::stateReceiveProcess(const MacEvent& event, cMessage * const msg) {
             }
             break;
         case RxState::FINISH:
+            if(event == MacEvent::DATA_RECEIVED){
+                Packet* incomingFrame = check_and_cast<Packet*>(msg);
+                auto incomingMacData = incomingFrame->peekAtFront<ORWGram>();
+                Packet* storedFrame = check_and_cast<Packet*>(currentRxFrame);
+                if(incomingMacData->getType()==ORW_DATA
+                            && storedFrame->peekAtFront<ORWGram>()->getTransmitterAddress() == incomingMacData->getTransmitterAddress() ){
+                    // Contention for the data packet is still going on
+                    // Reset the timer
+                    cancelEvent(receiveTimeout);
+                    stateReceiveEnterFinish();
+                }
+            }
             if(event == MacEvent::DATA_TIMEOUT){
+                if(deferredDuplicateDrop){
+                    // Complete defer packet drop
+                    PacketDropDetails details;
+                    details.setReason(PacketDropReason::DUPLICATE_DETECTED);
+                    dropCurrentRxFrame(details);
+                    deferredDuplicateDrop = false;
+                }
                 // The receiving has timed out, optionally process received packet
                 stateReceiveProcessDataTimeout();
                 return true;
@@ -182,18 +203,28 @@ void ORWMac::stateReceiveExitAck()
 
 void ORWMac::stateReceiveEnterFinishDropReceived(const inet::PacketDropReason reason)
 {
-    PacketDropDetails details;
-    details.setReason(reason);
-    dropCurrentRxFrame(details);
+    if(reason == PacketDropReason::DUPLICATE_DETECTED){
+        //defer packet drop till RxState::Finish DATA_TIMEOUT
+        deferredDuplicateDrop = true;
+    }
+    else{
+        PacketDropDetails details;
+        details.setReason(reason);
+        dropCurrentRxFrame(details);
+        deferredDuplicateDrop = false;
+    }
     stateReceiveEnterFinish();
 }
 
 void ORWMac::stateReceiveEnterFinish()
 {
     // return to receive mode (via receive finish) when ack transmitted
-    // For follow up packet
+    // Wait for retransmissions to avoid contention again
     rxState = RxState::FINISH;
-    scheduleAt(simTime(), receiveTimeout);
+    if(currentRxFrame == nullptr)
+        scheduleAt(simTime(), receiveTimeout);
+    else
+        scheduleAt(simTime() + dataListeningDuration + ackWaitDuration, receiveTimeout);
 }
 
 
@@ -407,6 +438,9 @@ bool ORWMac::stateTxProcess(const MacEvent& event, cMessage* const msg) {
 ORWMac::State ORWMac::stateTxEnter()
 {
     dataMinExpectedCost = EqDC(25.5);
+    // Reset statistic variable counting ack rounds (from transmitter perspective)
+    acknowledgmentRound = 0;
+    txInProgressTries++;
     stateTxEnterDataWait();
     return State::TRANSMIT;
 }
@@ -434,6 +468,8 @@ void ORWMac::stateTxDataWaitExitEnterAckWait()
     if(datagramPostRoutingHook(dataFrame)!=INetfilter::IHook::Result::ACCEPT){
         EV_ERROR << "Aborted transmission of data is unimplemented." << endl;
     }
+
+    // Begin Transmission
     encapsulate(dataFrame);
     sendDown(dataFrame);
     txDataState = TxDataState::DATA;

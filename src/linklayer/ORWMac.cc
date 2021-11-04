@@ -444,7 +444,13 @@ void ORWMac::handleCrashOperation(LifecycleOperation* const operation) {
     }
     else if(currentRxFrame != nullptr){
         // Check if in ack backoff period and if waiting to send ack
-        if(receiveTimeout->isScheduled() && ackBackoffTimer->isScheduled()){
+        if(deferredDuplicateDrop){
+            // Complete defer packet drop
+            PacketDropDetails details;
+            details.setReason(PacketDropReason::DUPLICATE_DETECTED);
+            dropCurrentRxFrame(details);
+        }
+        else if(receiveTimeout->isScheduled() && ackBackoffTimer->isScheduled()){
             // Ack not sent yet so just bow out
             delete currentRxFrame;
             currentRxFrame = nullptr;
@@ -460,6 +466,7 @@ void ORWMac::handleCrashOperation(LifecycleOperation* const operation) {
         delete activeBackoff;
         activeBackoff = nullptr;
     }
+    deferredDuplicateDrop = false;
     // Stop all signals from being interpreted
     networkInterface->setCarrier(false);
     networkInterface->setState(NetworkInterface::State::DOWN);
