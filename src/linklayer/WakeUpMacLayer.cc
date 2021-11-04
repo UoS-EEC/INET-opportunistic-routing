@@ -368,3 +368,9 @@ Packet* WakeUpMacLayer::buildWakeUp(const Packet *subject, const int retryCount)
     frame->addTag<PacketProtocolTag>()->setProtocol(&ORWProtocol);
     return frame;
 }
+
+void WakeUpMacLayer::stateReceiveEnterFinish() {
+    // return to receive mode and only wake-up will restart reception process
+    rxState = RxState::FINISH;
+    scheduleAt(simTime(), receiveTimeout);
+}

@@ -200,7 +200,7 @@ protected:
     void stateReceiveEnterAck();
     void stateReceiveExitAck();
     void stateReceiveEnterFinishDropReceived(const inet::PacketDropReason reason);
-    void stateReceiveEnterFinish();
+    virtual void stateReceiveEnterFinish();
     void stateReceiveDataWaitProcessDataReceived(cMessage *msg);
     void stateReceiveAckProcessDataReceived(cMessage *msg);
     void stateReceiveAckEnterReceiveDataWait();

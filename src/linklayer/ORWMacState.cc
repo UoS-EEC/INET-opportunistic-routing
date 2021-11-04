@@ -119,7 +119,24 @@ bool ORWMac::stateReceiveProcess(const MacEvent& event, cMessage * const msg) {
             }
             break;
         case RxState::FINISH:
+            if(event == MacEvent::DATA_RECEIVED){
+                Packet* incomingFrame = check_and_cast<Packet*>(msg);
+                auto incomingMacData = incomingFrame->peekAtFront<ORWGram>();
+                Packet* storedFrame = check_and_cast<Packet*>(currentRxFrame);
+                if(incomingMacData->getType()==ORW_DATA
+                            && storedFrame->peekAtFront<ORWGram>()->getTransmitterAddress() == incomingMacData->getTransmitterAddress() ){
+                    // Contention for the data packet is still going on
+                    // Reset the timer
+                    cancelEvent(receiveTimeout);
+                    stateReceiveEnterFinish();
+                }
+            }
             if(event == MacEvent::DATA_TIMEOUT){
+                if(currentRxFrame){
+                    PacketDropDetails details;
+                    details.setReason(PacketDropReason::DUPLICATE_DETECTED);
+                    dropCurrentRxFrame(details);
+                }
                 // The receiving has timed out, optionally process received packet
                 stateReceiveProcessDataTimeout();
                 return true;
@@ -184,18 +201,23 @@ void ORWMac::stateReceiveExitAck()
 
 void ORWMac::stateReceiveEnterFinishDropReceived(const inet::PacketDropReason reason)
 {
-    PacketDropDetails details;
-    details.setReason(reason);
-    dropCurrentRxFrame(details);
+    if(reason != PacketDropReason::DUPLICATE_DETECTED){
+        PacketDropDetails details;
+        details.setReason(reason);
+        dropCurrentRxFrame(details);
+    }
     stateReceiveEnterFinish();
 }
 
 void ORWMac::stateReceiveEnterFinish()
 {
     // return to receive mode (via receive finish) when ack transmitted
-    // For follow up packet
+    // Wait for retransmissions to avoid contention again
     rxState = RxState::FINISH;
-    scheduleAt(simTime(), receiveTimeout);
+    if(currentRxFrame == nullptr)
+        scheduleAt(simTime(), receiveTimeout);
+    else
+        scheduleAt(simTime() + dataListeningDuration, receiveTimeout);
 }
 
 

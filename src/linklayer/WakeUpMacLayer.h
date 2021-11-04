@@ -82,6 +82,7 @@ protected:
     State stateWakeUpIdleProcess(const MacEvent& event, omnetpp::cMessage* const msg);
     virtual State stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg) override;
     virtual State stateReceiveEnter() override;
+    virtual void stateReceiveEnterFinish() override;
     /*@}*/
 
   protected:
