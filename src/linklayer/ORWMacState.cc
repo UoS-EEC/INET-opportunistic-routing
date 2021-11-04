@@ -132,11 +132,12 @@ bool ORWMac::stateReceiveProcess(const MacEvent& event, cMessage * const msg) {
                 }
             }
             if(event == MacEvent::DATA_TIMEOUT){
-                if(currentRxFrame){
+                if(deferredDuplicateDrop){
                     // Complete defer packet drop
                     PacketDropDetails details;
                     details.setReason(PacketDropReason::DUPLICATE_DETECTED);
                     dropCurrentRxFrame(details);
+                    deferredDuplicateDrop = false;
                 }
                 // The receiving has timed out, optionally process received packet
                 stateReceiveProcessDataTimeout();
@@ -202,12 +203,16 @@ void ORWMac::stateReceiveExitAck()
 
 void ORWMac::stateReceiveEnterFinishDropReceived(const inet::PacketDropReason reason)
 {
-    if(reason != PacketDropReason::DUPLICATE_DETECTED){
+    if(reason == PacketDropReason::DUPLICATE_DETECTED){
+        //defer packet drop till RxState::Finish DATA_TIMEOUT
+        deferredDuplicateDrop = true;
+    }
+    else{
         PacketDropDetails details;
         details.setReason(reason);
         dropCurrentRxFrame(details);
+        deferredDuplicateDrop = false;
     }
-    // else defer packet drop till RxState::Finish DATA_TIMEOUT
     stateReceiveEnterFinish();
 }
 

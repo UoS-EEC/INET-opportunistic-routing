@@ -179,6 +179,7 @@ protected:
     int rxAckRound = 0;
     EqDC acceptDataEqDCThreshold = EqDC(25.5);
     cMessage *currentRxFrame{nullptr};
+    bool deferredDuplicateDrop{false};
     void decapsulate(inet::Packet* msg) const;
     inet::Packet* buildAck(const inet::Packet* subject) const;
     void dropCurrentRxFrame(inet::PacketDropDetails& details);
