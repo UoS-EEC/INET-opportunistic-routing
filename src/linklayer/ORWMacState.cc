@@ -133,6 +133,7 @@ bool ORWMac::stateReceiveProcess(const MacEvent& event, cMessage * const msg) {
             }
             if(event == MacEvent::DATA_TIMEOUT){
                 if(currentRxFrame){
+                    // Complete defer packet drop
                     PacketDropDetails details;
                     details.setReason(PacketDropReason::DUPLICATE_DETECTED);
                     dropCurrentRxFrame(details);
@@ -206,6 +207,7 @@ void ORWMac::stateReceiveEnterFinishDropReceived(const inet::PacketDropReason re
         details.setReason(reason);
         dropCurrentRxFrame(details);
     }
+    // else defer packet drop till RxState::Finish DATA_TIMEOUT
     stateReceiveEnterFinish();
 }
 
@@ -217,7 +219,7 @@ void ORWMac::stateReceiveEnterFinish()
     if(currentRxFrame == nullptr)
         scheduleAt(simTime(), receiveTimeout);
     else
-        scheduleAt(simTime() + dataListeningDuration, receiveTimeout);
+        scheduleAt(simTime() + dataListeningDuration + ackWaitDuration, receiveTimeout);
 }
 
 
