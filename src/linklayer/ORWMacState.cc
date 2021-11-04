@@ -66,6 +66,8 @@ ORWMac::State ORWMac::stateListeningEnterAlreadyListening(){
         // Schedule replenishment timer if insufficient stored energy
         if(!transmissionStartEnergyCheck())
             scheduleAt(simTime() + replenishmentCheckRate, replenishmentTimer);
+        else if (dataRadio->getRadioMode() != IRadio::RADIO_MODE_SWITCHING )
+            scheduleAt(simTime(), transmitStartDelay);
         return State::AWAIT_TRANSMIT;
     }
     else{
@@ -409,6 +411,7 @@ ORWMac::State ORWMac::stateTxEnter()
     dataMinExpectedCost = EqDC(25.5);
     // Reset statistic variable counting ack rounds (from transmitter perspective)
     acknowledgmentRound = 0;
+    txInProgressTries++;
     stateTxEnterDataWait();
     return State::TRANSMIT;
 }
