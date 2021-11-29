@@ -1,0 +1,45 @@
+#!/bin/bash
+#
+# This script runs omnet-intermittent-opportunistic-routing simulations 
+# for running parallel simulations on a multicore machine
+
+EXEC_DIR=$PBS_O_WORKDIR
+EXEC_DIR=$(pwd)
+
+if [ "$1" = "" ]; then
+  RUN_NUMBER=0
+else 
+  RUN_NUMBER=$1
+fi
+
+cd ~/omnetpp6/
+
+source setenv
+
+cd ~/omnetpp6_ws/inet/
+
+source setenv
+
+cd $EXEC_DIR
+
+OUT=$EXEC_DIR/../src
+
+EXEC="opp_runall -j10 $OUT/omnet-intermittent-opportunistic-routing -u Cmdenv -f test.ini -c IntermittentCrossBranchTest"
+
+INET_NEDFOLDERS=$(cat $INET_ROOT/.nedfolders | sed "s|^|$INET_ROOT/|" | tr '\n' ':')
+if [ ! "$INET_NEDFOLDERS" = "" ]; then
+  INET_OMNETPP_OPTIONS="-n $INET_NEDFOLDERS $INET_OMNETPP_OPTIONS"
+fi
+
+INET_NEDEXCLUSIONS=$(cat $INET_ROOT/.nedexclusions | tr '\n' ':')
+if [ ! "$INET_NEDEXCLUSIONS" = "" ]; then
+  INET_OMNETPP_OPTIONS="-x $INET_NEDEXCLUSIONS $INET_OMNETPP_OPTIONS"
+fi
+
+SRC_NEDFOLDERS="-n ../src -n ../simulations"
+
+echo "Test"
+echo ${SLURM_ARRAY_TASK_ID}
+echo $RUN_NUMBER
+
+$EXEC $INET_OMNETPP_OPTIONS $SRC_NEDFOLDERS -l $INET_ROOT/src/INET -r $RUN_NUMBER

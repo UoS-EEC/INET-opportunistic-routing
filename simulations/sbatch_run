@@ -1,0 +1,12 @@
+#!/bin/bash
+
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --time=00:01:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=el7g15@soton.ac.uk
+
+#SBATCH --array=0-23
+
+cd $HOME/omnetpp6_ws/omnet-intermittent-opportunistic-routing/simulations
+../run ${SLURM_ARRAY_TASK_ID} 
