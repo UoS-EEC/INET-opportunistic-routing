@@ -56,7 +56,7 @@ module ORWMacInterface extends NetworkInterface like IWirelessInterface
             receiver.sensitivity = -100dBm;
             transmitter.power = 0.001W; // 0dBm
             // @brief not useful at the moment {
-            transmitter.bitrate = 200kbps;
+            transmitter.bitrate = 50kbps;
             transmitter.modulation = "QPSK"; //Closest Inet match to 4-GFSK
             receiver.modulation = "QPSK";
             // }(see computeIsListeningPossible and computeBitErrorRate)
@@ -65,7 +65,7 @@ module ORWMacInterface extends NetworkInterface like IWirelessInterface
             energyConsumer.receiverIdlePowerConsumption = 6mW;
             energyConsumer.receiverReceivingPowerConsumption = 45mW;
             energyConsumer.receiverBusyPowerConsumption = 45mW;
-            energyConsumer.transmitterTransmittingPowerConsumption = 60mW;
+            energyConsumer.transmitterTransmittingPowerConsumption = 75mW;
 
         }
         mac: ORWMac {
