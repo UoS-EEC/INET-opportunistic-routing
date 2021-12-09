@@ -24,7 +24,7 @@ cd $EXEC_DIR
 
 OUT=$EXEC_DIR/../src
 
-EXEC="opp_runall -j10 $OUT/omnet-intermittent-opportunistic-routing -u Cmdenv -f test.ini -c IntermittentCrossBranchTest"
+EXEC="opp_runall -j2 -b20 -e GNUmakefile $OUT/omnet-intermittent-opportunistic-routing -u Cmdenv -f test.ini -c IntermittentORPLImmediateDownwardsTest"
 
 INET_NEDFOLDERS=$(cat $INET_ROOT/.nedfolders | sed "s|^|$INET_ROOT/|" | tr '\n' ':')
 if [ ! "$INET_NEDFOLDERS" = "" ]; then
@@ -40,6 +40,10 @@ SRC_NEDFOLDERS="-n ../src -n ../simulations"
 
 echo "Test"
 echo ${SLURM_ARRAY_TASK_ID}
-echo $RUN_NUMBER
+echo $EXEC
+
+export SLURM_CPUS_PER_TASK=1
 
 $EXEC $INET_OMNETPP_OPTIONS $SRC_NEDFOLDERS -l $INET_ROOT/src/INET -r $RUN_NUMBER
+sed -i 's/CMD = /CMD =  srun -n1 -c19 opp_runall -j20 /' GNUmakefile
+make VERBOSE=1 -j2
