@@ -3,7 +3,6 @@
 # This script runs omnet-intermittent-opportunistic-routing simulations 
 # for running parallel simulations on a multicore machine
 
-EXEC_DIR=$PBS_O_WORKDIR
 EXEC_DIR=$(pwd)
 
 if [ "$1" = "" ]; then
@@ -24,7 +23,8 @@ cd $EXEC_DIR
 
 OUT=$EXEC_DIR/../src
 
-EXEC="opp_runall -j2 -b20 -e GNUmakefile $OUT/omnet-intermittent-opportunistic-routing -u Cmdenv -f test.ini -c IntermittentORPLImmediateDownwardsTest"
+BATCH_SIZE=$(( ${SLURM_CPUS_ON_NODE}*5/4 ))
+EXEC="opp_runall -j2 -b${BATCH_SIZE} -e GNUmakefile $OUT/omnet-intermittent-opportunistic-routing -u Cmdenv -f test.ini -c IntermittentORPLImmediateDownwardsTest"
 
 INET_NEDFOLDERS=$(cat $INET_ROOT/.nedfolders | sed "s|^|$INET_ROOT/|" | tr '\n' ':')
 if [ ! "$INET_NEDFOLDERS" = "" ]; then
@@ -38,12 +38,10 @@ fi
 
 SRC_NEDFOLDERS="-n ../src -n ../simulations"
 
-echo "Test"
-echo ${SLURM_ARRAY_TASK_ID}
-echo $EXEC
-
-export SLURM_CPUS_PER_TASK=1
+echo "Starting multinode simulations on ${SLURM_JOB_NUM_NODES} nodes"
+echo "Current node cpu alloc is $SLURM_CPUS_ON_NODE"
 
 $EXEC $INET_OMNETPP_OPTIONS $SRC_NEDFOLDERS -l $INET_ROOT/src/INET -r $RUN_NUMBER
-sed -i 's/CMD = /CMD =  srun -n1 -c19 opp_runall -j20 /' GNUmakefile
-make VERBOSE=1 -j2
+sed -i 's/CMD = /CMD =  srun -n1 opp_runall -j\\\${SLURM_CPUS_ON_NODE} /' GNUmakefile
+make VERBOSE=1 -j$SLURM_JOB_NODES
+
