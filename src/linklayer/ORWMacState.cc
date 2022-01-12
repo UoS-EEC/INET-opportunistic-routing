@@ -482,7 +482,8 @@ void ORWMac::stateTxAckWaitProcess(const MacEvent& event, cMessage * const msg) 
         auto receivedAck = receivedData->peekAtFront<ORWGram>();
         if(receivedAck->getType() == ORW_ACK &&
                 receivedAck->getReceiverAddress() == networkInterface->getMacAddress() ){
-            emitEncounterFromWeightedPacket(expectedEncounterSignal, 0.8/acknowledgmentRound, receivedData);
+            const double weighting = 0.8/pow(2, acknowledgmentRound-1);
+            emitEncounterFromWeightedPacket(expectedEncounterSignal, weighting, receivedData);
 
             acknowledgedForwarders++;
             // If acknowledging node is packet destination
