@@ -23,7 +23,7 @@ void ORWHello::initialize(int const stage)
         sentMessageQueue = check_and_cast<queueing::IPacketQueue *>(getSubmodule("destinationRecord"));
         minTransmissionProbability = par("intermittentPacketRate");
         ASSERT(minTransmissionProbability > 0 && minTransmissionProbability < 1);
-        packetSourceModule = getCModuleFromPar(par("packetSignalSourceModule"), this);
+        packetSourceModule = getCModuleFromPar(par("packetSignalSourceModule"), this, true);
     }
     else if(stage == INITSTAGE_NETWORK_LAYER){
         packetSourceModule->subscribe(packetSentToLowerSignal, this);
