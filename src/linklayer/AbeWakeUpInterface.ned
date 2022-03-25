@@ -12,13 +12,14 @@ module AbeWakeUpInterface extends WakeUpMacInterface
 	// Very short wake-ups FPGA does decoding that could be configured for dynamic wake-ups
     parameters:
         wakeUpRadio.energyConsumer.switchingPowerConsumption = 4uW;
-        wakeUpRadio.energyConsumer.receiverIdlePowerConsumption = 65uW;// @3V from 2.4uW @ 1V 
+        wakeUpRadio.energyConsumer.receiverIdlePowerConsumption = 84uW;// @3V from 2.4uW @ 1V 
         wakeUpRadio.energyConsumer.receiverBusyPowerConsumption = 1576uW;
         wakeUpRadio.energyConsumer.receiverReceivingPowerConsumption = 1576uW;
         wakeUpRadio.receiver.bitrate = 50kbps;
         wakeUpRadio.transmitter.bitrate = 50kbps;
-        mac.wakeUpMessageDuration = 0.046ms; // Energy detection before wake up message
+        mac.wakeUpMessageDuration = 0.045ms; // Energy detection before wake up message
         wakeUpRadio.receiver.energyDetection = -87dBm;
+        wakeUpRadio.receiver.sensitivity = -87dBm;
 		mac.dynamicWakeUpChecking = true;
 		mac.fixedWakeUpChecking = true;
 }

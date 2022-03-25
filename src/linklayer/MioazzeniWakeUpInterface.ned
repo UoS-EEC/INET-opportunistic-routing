@@ -17,7 +17,7 @@ module MioazenniWakeUpInterface extends WakeUpMacInterface
         wakeUpRadio.energyConsumer.receiverReceivingPowerConsumption = 45.8uW;
         wakeUpRadio.receiver.bitrate = 200kbps;
         wakeUpRadio.transmitter.bitrate = 200kbps;
-        wakeUpRadio.receiver.energyDetection = -75dBm;
+        wakeUpRadio.receiver.sensitivity = -75dBm;
         wakeUpRadio.receiver.energyDetection = -79dBm;
 		mac.wakeUpMessageDuration = 0.9ms;
 }

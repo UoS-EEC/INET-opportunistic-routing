@@ -35,7 +35,7 @@ module WakeUpMacInterface extends NetworkInterface like IWirelessInterface
         *.interfaceTableModule = default(absPath(this.interfaceTableModule));
         *.energySourceModule = default(absPath(this.energySourceModule));
         **.antenna.mobility.typename = "";
-        @display("i=block/ifcard");
+        @display("i=block/ifcard;bgb=,,white");
 
         //Radio settings
         *.centerFrequency = 868MHz; //Data and wake-up radio do not need to be same band
@@ -94,8 +94,8 @@ module WakeUpMacInterface extends NetworkInterface like IWirelessInterface
 
         }
         mac: WakeUpMacLayer {
-			radioTurnaroundTime = 50us; // Should match the dataRadio switching times 
-			dynamicWakeUpChecking = default(true);
+            radioTurnaroundTime = 50us; // Should match the dataRadio switching times 
+            dynamicWakeUpChecking = default(true);
             @display("p=208,120");
         }
     connections:
