@@ -82,7 +82,7 @@ protected:
     uint16_t sequenceNumber = 0;
 
     // Address and Sequence number record of packet received or sent
-    OrderedDropHeadQueue<oppostack::PacketRecord> packetHistory;
+    OrderedDropHeadQueue<oppostack::PacketRecord> packetHistory{512};
     bool messageKnown(const oppostack::PacketRecord record);
 
 
