@@ -140,11 +140,26 @@ WakeUpMacLayer::State WakeUpMacLayer::stateListeningEnter(){
     wakeUpRadio->setRadioMode(IRadio::RADIO_MODE_RECEIVER);
     changeActiveRadio(wakeUpRadio);
     State s;
-    // Override transition to data idle with transitio to wake-up idle
+    // Override transition to data idle with transition to wake-up idle
     if( (s = stateListeningEnterAlreadyListening()) != State::DATA_IDLE){
         return s;
     }
     return State::WAKE_UP_IDLE;
+}
+
+ORWMac::State WakeUpMacLayer::stateListeningEnterAlreadyListening(){
+    if(currentTxFrame || not txQueue->isEmpty()){
+        // Data is waiting in the tx queue
+        // Schedule replenishment timer if insufficient stored energy
+        if(!transmissionStartEnergyCheck())
+            scheduleAt(simTime() + replenishmentCheckRate, replenishmentTimer);
+        else if (activeRadio->getRadioMode() != IRadio::RADIO_MODE_SWITCHING )
+            scheduleAt(simTime(), transmitStartDelay);
+        return State::AWAIT_TRANSMIT;
+    }
+    else{
+        return State::DATA_IDLE;
+    }
 }
 
 WakeUpMacLayer::State WakeUpMacLayer::stateTxEnter()

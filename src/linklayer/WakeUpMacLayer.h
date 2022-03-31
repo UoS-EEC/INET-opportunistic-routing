@@ -78,6 +78,7 @@ protected:
     virtual void stateProcess(const MacEvent& event, cMessage *msg) override;
     /** @name Receiving State variables and event processing */
     /*@{*/
+    virtual State stateListeningEnterAlreadyListening() override;
     virtual State stateListeningEnter() override;
     State stateWakeUpIdleProcess(const MacEvent& event, omnetpp::cMessage* const msg);
     virtual State stateAwaitTransmitProcess(const MacEvent& event, omnetpp::cMessage* const msg) override;
