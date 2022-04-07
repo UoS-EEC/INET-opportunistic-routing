@@ -12,7 +12,7 @@ module MioazenniWakeUpInterface extends WakeUpMacInterface
 	// Quicker detection configuration
     parameters:
         wakeUpRadio.energyConsumer.switchingPowerConsumption = 300uW;
-        wakeUpRadio.energyConsumer.receiverIdlePowerConsumption = 32.8uW;// @3V from 2.4uW @ 1V 
+        wakeUpRadio.energyConsumer.receiverIdlePowerConsumption = 32.8uW;// @3V from 16.4uW at 1V
         wakeUpRadio.energyConsumer.receiverBusyPowerConsumption = 32.8uW;
         wakeUpRadio.energyConsumer.receiverReceivingPowerConsumption = 45.8uW;
         wakeUpRadio.receiver.bitrate = 200kbps;

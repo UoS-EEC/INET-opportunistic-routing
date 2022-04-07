@@ -63,10 +63,10 @@ module WakeUpMacInterface extends NetworkInterface like IWirelessInterface
             // }(see computeIsListeningPossible and computeBitErrorRate)
             energyConsumer.typename = "SensorStateBasedEpEnergyConsumer";
             energyConsumer.switchingPowerConsumption = 10mW;
-            energyConsumer.receiverIdlePowerConsumption = 6mW;
+            energyConsumer.receiverIdlePowerConsumption = 40mW;
             energyConsumer.receiverReceivingPowerConsumption = 45mW;
             energyConsumer.receiverBusyPowerConsumption = 45mW;
-            energyConsumer.transmitterTransmittingPowerConsumption = 60mW;
+            energyConsumer.transmitterTransmittingPowerConsumption = 75mW;
 
         }
         wakeUpRadio: Ieee802154NarrowbandRadio {
