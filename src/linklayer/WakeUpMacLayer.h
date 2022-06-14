@@ -67,7 +67,7 @@ protected:
     virtual void initialize(int stage) override;
     void changeActiveRadio(physicallayer::IRadio*);
     // Check if message comes from lower gate or wake-up radio
-    virtual bool isLowerMessage(cMessage* msg) override{
+    virtual bool isLowerMessage(cMessage* msg) const override{
         return ORWMac::isLowerMessage(msg) || msg->getArrivalGateId() == wakeUpRadioInGateId;
     };
     void queryWakeupRequest(Packet* wakeUp);

@@ -42,9 +42,9 @@ public:
     cModule* macModule;
   protected:
     void initialize(int stage) override;
-    virtual bool isInitializeStage(int stage) override { return stage == inet::INITSTAGE_LINK_LAYER; }
-    virtual bool isModuleStartStage(int stage) override { return stage == inet::ModuleStartOperation::STAGE_LINK_LAYER; }
-    virtual bool isModuleStopStage(int stage) override { return stage == inet::ModuleStopOperation::STAGE_LINK_LAYER; }
+    virtual bool isInitializeStage(int stage) const override { return stage == inet::INITSTAGE_LINK_LAYER; }
+    virtual bool isModuleStartStage(int stage) const override { return stage == inet::ModuleStartOperation::STAGE_LINK_LAYER; }
+    virtual bool isModuleStopStage(int stage) const override { return stage == inet::ModuleStopOperation::STAGE_LINK_LAYER; }
 
     virtual void receiveSignal(cComponent *source, simsignal_t signalID, bool b, cObject *details) override;
 

@@ -286,7 +286,7 @@ void ORWMac::setupTransmission() {
         details.setReason(PacketDropReason::QUEUE_OVERFLOW);
         dropCurrentTxFrame(details);
     }
-    popTxQueue();
+    currentTxFrame = dequeuePacket();
     if(datagramLocalOutHook(currentTxFrame)!=INetfilter::IHook::Result::ACCEPT){
         throw cRuntimeError("Unhandled rejection of packet at transmission setup");
     }
