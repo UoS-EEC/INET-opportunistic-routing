@@ -23,13 +23,14 @@ network IntermittentDenseORPLTest
         @display("bgb=78.790436,65.78085;scale=4");
     submodules:
         radioMedium: Ieee802154NarrowbandScalarRadioMedium {
-            @display("p=18.343197,17.751482");
+            @display("p=13.666666,16.946667");
         }
         receivingWakeUpNode: ORPLLayerNode {
             @display("p=44.15929,27.301802");
             wlan[0].mac.address = "0000DA7ABA5E";
             generic.*.hubAddress = "receivingWakeUpNode(modulepath)";
             generic.*.hubExpectedCost = 0ExpectedCost;
+            energyGenerator.powerGeneration = 90uW;
         }
         transmittingWakeUpNode: IntermittentORPLNode {
             @display("p=28.034737,46.358093");
@@ -96,12 +97,12 @@ network IntermittentDenseORPLTest
             packetGenerator.sendInterval = 5s;
         }
         visualizer: IntegratedCanvasVisualizer {
-            @display("p=18.323357,5.13054");
+            @display("p=13.666666,4.92");
             networkRouteVisualizer.typename = "ORWRouteCanvasVisualizer";
             networkRouteVisualizer.displayRoutes = true;
             networkRouteVisualizer.packetFilter = "appData*";
         }
         configurator: <default("ORWNetworkConfigurator")> like INetworkConfigurator {
-            @display("p=18.313334,30.886665");
+            @display("p=13.666666,30.886665");
         }
 }

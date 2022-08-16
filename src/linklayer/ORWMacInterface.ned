@@ -54,7 +54,7 @@ module ORWMacInterface extends NetworkInterface like IWirelessInterface
             switchingTimes = "ms 0 0.400 1 1 1 0.100 0 0.166 0.166 0.166 0.100 0 0 0.050 0.050 0.100 0 0.050 0 0.050 0.100 0 0.050 0.050 0";
             receiver.energyDetection = -100dBm;
             receiver.sensitivity = -100dBm;
-            transmitter.power = 0.001W; // 0dBm
+            transmitter.power = default(0.001W); // 0dBm
             // @brief not useful at the moment {
             transmitter.bitrate = 50kbps;
             transmitter.modulation = "QPSK"; //Closest Inet match to 4-GFSK

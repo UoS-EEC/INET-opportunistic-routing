@@ -37,7 +37,8 @@ class ORWMac:
         public inet::MacProtocolBase,
         public IOpportunisticLinkLayer,
         public ILinkOverhearingSource,
-        public IObservableMac {
+        public IObservableMac,
+        public inet::LifecycleController {
 protected:
     /* @name In/Out Processing */
     /*@{*/
@@ -120,7 +121,6 @@ protected:
     inet::physicallayer::IRadio::TransmissionState transmissionState;
     inet::physicallayer::IRadio::ReceptionState receptionState;
 
-    inet::LifecycleController lifecycleController;
     cModule* networkNode{nullptr};
     simtime_t replenishmentCheckRate = SimTime(1, SimTimeUnit::SIMTIME_S);
     cMessage* replenishmentTimer{nullptr};
