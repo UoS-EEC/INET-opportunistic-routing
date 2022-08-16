@@ -371,7 +371,7 @@ ORWMac::State ORWMac::stateAwaitTransmitProcess(const MacEvent& event, cMessage*
             LifecycleOperation::StringMap params;
             auto* operation = new ModuleStopOperation();
             operation->initialize(networkNode, params);
-            lifecycleController.initiateOperation(operation);
+            initiateOperation(operation);
         }
         else {
             // Now got enough energy so transmit by triggering ackBackoff
