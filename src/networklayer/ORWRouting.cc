@@ -21,6 +21,7 @@ using namespace oppostack;
 
 
 Define_Module(ORWRouting);
+simsignal_t ORWRouting::ForwPacketSentSignal = cComponent::registerSignal("ForwPacketSent");
 
 const inet::Protocol oppostack::OpportunisticRouting("Opportunistic", "Opportunistic", Protocol::NetworkLayer);
 
@@ -102,6 +103,8 @@ void ORWRouting::forwardPacket(EqDC ownCost, EqDC nextHopCost, Packet* const pac
     setDownControlInfo(packet, outboundMacAddress, ownCost, nextHopCost);
     // Delay forwarded packets to reduce physical layer contention
     queueDelayed(packet, uniform(0, forwardingBackoff));
+
+    emit(ForwPacketSentSignal , packet);
 }
 
 void ORWRouting::deduplicateAndDeliver(const inet::Ptr<const oppostack::OpportunisticRoutingHeader>& header,

@@ -52,6 +52,13 @@ module ORWMac extends MacProtocolBase like IMacProtocol, IOpportunisticLinkLayer
         @statistic[transmissionTries](title="Number of Tries till packet discarded or received"; record=histogram,vector);
         @statistic[ackContentionRounds](title="Number of ack contention rounds for each packet"; record=histogram,vector);
         
+      //ACKmasurmrnts
+      @signal[ACKreceived](type=double);
+      @statistic[ACKreceived](title="ACKreceived"; source=ACKreceived; record=count; interpolationmode=none);
+      
+   
+     
+      
         // Weighted Encounters signals and with attached L2Addr and EDC/EquivalentTx(EqTx) details
         @signal[coincidentalEncounter](type=double);
         @signal[expectedEncounter](type=double);

@@ -509,6 +509,8 @@ void ORWMac::stateTxAckWaitProcess(const MacEvent& event, cMessage * const msg) 
             // At the end of the first ack round, notify of expecting encounters
             emit(listenForEncountersEndedSignal, (double)acknowledgedForwarders);
         }
+        emit(ACKreceivedSignal, (double)acknowledgedForwarders);
+
         auto broadcastTag = currentTxFrame->findTag<EqDCBroadcast>();
 
         // TODO: Get required forwarders count from packetTag from n/w layer
