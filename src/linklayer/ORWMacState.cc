@@ -387,7 +387,7 @@ bool ORWMac::stateTxProcess(const MacEvent& event, cMessage* const msg) {
     case TxDataState::DATA_WAIT:
         stepBackoffSM(event);
         if(event==MacEvent::TX_READY){
-            stateTxDataWaitExitEnterAckWait();
+            stateTxDataWaitExitEnterData();
         }
         else if(event==MacEvent::DATA_RECEIVED){
             handleCoincidentalOverheardData(check_and_cast<Packet*>(msg));
@@ -460,7 +460,7 @@ void ORWMac::stateTxEnterDataWait()
     }
 }
 
-void ORWMac::stateTxDataWaitExitEnterAckWait()
+void ORWMac::stateTxDataWaitExitEnterData()
 {
     delete activeBackoff;
     activeBackoff = nullptr;
