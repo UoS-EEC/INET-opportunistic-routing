@@ -294,8 +294,10 @@ void ORPLRoutingTable::printRoutingTable()
             else {
                 // Node not routingSetTable neighbour so print
                 auto nodeModule = resolver.findHostWithAddress(nodePair.first);
-                EV_INFO << inet::utils::stringf("%-16.15s   %7.1f      %-4s %4s\n",
+                if (nodeModule!=nullptr) {
+                    EV_INFO << inet::utils::stringf("%-16.15s   %7.1f      %-4s %4s\n",
                         nodeModule->getName(), nodeEntry.lastEqDC, "X", "-") << endl;
+                }
             }
         }
     }
@@ -308,8 +310,10 @@ void ORPLRoutingTable::printRoutingTable()
             EqDC latestCost = isDirect ? directEncounterPair->second.lastEqDC : node.lastEqDC;
             auto nodeModule = resolver.findHostWithAddress(nodePair.first);
             // Node not routingSetTable neighbour so print
-            EV << inet::utils::stringf("%-16.15s   %7.1f      %-4s %4s\n",
+            if (nodeModule!=nullptr) {
+                EV << inet::utils::stringf("%-16.15s   %7.1f      %-4s %4s\n",
                     nodeModule->getName(), latestCost, isDirect ? "X" : "-", "X") << endl;
+            }
         }
     }
     EV << "-------------------------" << endl;

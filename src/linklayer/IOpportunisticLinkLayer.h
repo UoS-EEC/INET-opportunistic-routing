@@ -23,6 +23,7 @@ public:
      */
     static omnetpp::simsignal_t transmissionTriesSignal;
     static omnetpp::simsignal_t ackContentionRoundsSignal;
+    static omnetpp::simsignal_t ACKreceivedSignal;
 protected:
     // NetFilter functions:
     // @brief called before a inet::Packetarriving from the network is accepted/acked

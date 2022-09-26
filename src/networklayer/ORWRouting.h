@@ -57,6 +57,8 @@ public:
 
 class ORWRouting : public inet::NetworkProtocolBase, public inet::INetworkProtocol{
 public:
+
+    static omnetpp::simsignal_t ForwPacketSentSignal;
     ORWRouting()
         : NetworkProtocolBase(),
         nextForwardTimer(nullptr),

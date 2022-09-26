@@ -15,7 +15,7 @@ using namespace inet;
  */
 simsignal_t IOpportunisticLinkLayer::transmissionTriesSignal = cComponent::registerSignal("transmissionTries");
 simsignal_t IOpportunisticLinkLayer::ackContentionRoundsSignal = cComponent::registerSignal("ackContentionRounds");
-
+simsignal_t IOpportunisticLinkLayer::ACKreceivedSignal = cComponent::registerSignal("ACKreceived");
 INetfilter::IHook::Result IOpportunisticLinkLayer::datagramPreRoutingHook(Packet *datagram)
 {
     auto ret = INetfilter::IHook::Result::DROP;

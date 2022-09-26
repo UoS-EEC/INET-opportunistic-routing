@@ -247,7 +247,7 @@ protected:
     TxDataState txDataState;
     virtual State stateTxEnter();
     void stateTxEnterDataWait();
-    void stateTxDataWaitExitEnterAckWait();
+    void stateTxDataWaitExitEnterData();
     void stateTxEnterEnd();
     /*
      * Overridable by inherited class for protocol variation

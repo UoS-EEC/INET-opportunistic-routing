@@ -387,7 +387,7 @@ bool ORWMac::stateTxProcess(const MacEvent& event, cMessage* const msg) {
     case TxDataState::DATA_WAIT:
         stepBackoffSM(event);
         if(event==MacEvent::TX_READY){
-            stateTxDataWaitExitEnterAckWait();
+            stateTxDataWaitExitEnterData();
         }
         else if(event==MacEvent::DATA_RECEIVED){
             handleCoincidentalOverheardData(check_and_cast<Packet*>(msg));
@@ -460,7 +460,7 @@ void ORWMac::stateTxEnterDataWait()
     }
 }
 
-void ORWMac::stateTxDataWaitExitEnterAckWait()
+void ORWMac::stateTxDataWaitExitEnterData()
 {
     delete activeBackoff;
     activeBackoff = nullptr;
@@ -509,6 +509,8 @@ void ORWMac::stateTxAckWaitProcess(const MacEvent& event, cMessage * const msg) 
             // At the end of the first ack round, notify of expecting encounters
             emit(listenForEncountersEndedSignal, (double)acknowledgedForwarders);
         }
+        emit(ACKreceivedSignal, (double)acknowledgedForwarders);
+
         auto broadcastTag = currentTxFrame->findTag<EqDCBroadcast>();
 
         // TODO: Get required forwarders count from packetTag from n/w layer

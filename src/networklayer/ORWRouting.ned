@@ -23,4 +23,7 @@ simple ORWRouting extends NetworkProtocolBase like INetworkProtocol
         @statistic[packetDropQueueOverflow](title="packet drop: queue overflow"; source=packetDropReasonIsQueueOverflow(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
         @statistic[packetDropHopLimitReached](title="packet drop: hop limit reached"; source=packetDropReasonIsHopLimitReached(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
         @statistic[packetDropDuplicateDetected](title="packet drop: duplicate detected, duplicate not delivered"; source=packetDropReasonIsDuplicateDetected(packetDropped); record=count,sum(packetBytes),vector(packetBytes); interpolationmode=none);
+     
+        @signal[ForwPacketSent](type=inet::Packet);
+        @statistic[Forwpacktsent](title="ForwPacketSent"; source=ForwPacketSent; record=count; interpolationmode=none);
 }
