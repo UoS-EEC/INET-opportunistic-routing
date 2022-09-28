@@ -41,3 +41,9 @@ It can measure energy consumption with a combination of Energy measurement and p
 With a little work it could be better named and work more like its inherited purpose of route discovery.
 
 Neighbor detection and prediction is currently part of the `IOpportunisticRouting` interfaces and `ORWRoutingTable` but would be better split into a previously proposed neighbor prediction link layer component.
+
+## Compatability
+The routing components are compatible with INET 4.3 which itself is compatible with OMNET++ 6.0
+
+Some small modifications are required to INET and therefore it is recommended that the patched inet version at 
+https://github.com/edlongman/inet/tree/v4.3.3-patched is used.
